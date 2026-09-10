@@ -1,7 +1,9 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { isOutput, type NodeId } from '../../domain/types';
 import type { SelectionScope } from '../../services/store/selection';
 import type { DragOrigin } from './dragLogic';
+import { useMarquee } from './useMarquee';
+import { MarqueeBox } from './MarqueeBox';
 import { Thumbnail } from '../common/Thumbnail';
 import { VirtualGrid } from '../common/VirtualGrid';
 import { useSelection, useSelectionStore, useWorkspace } from '../app/StoreProvider';
@@ -20,15 +22,30 @@ export function OutputGrid({ outputId, onCellPointerDown }: OutputGridProps) {
   const itemIds = isOutput(node) ? node.items : [];
   const order = useMemo(() => [...itemIds], [itemIds]);
 
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const marqueeSelect = useCallback(
+    (ids: string[], additive: boolean) =>
+      selectionStore.getState().replace({ kind: 'output', outputId }, ids, ids[0] ?? null, additive),
+    [selectionStore, outputId],
+  );
+  const clearSelection = useCallback(() => selectionStore.getState().clear(), [selectionStore]);
+  const marquee = useMarquee({
+    containerRef: gridRef,
+    cellSelector: '[data-item-id]',
+    idOf: (el) => el.dataset.itemId!,
+    onSelect: marqueeSelect,
+    onClear: clearSelection,
+  });
+
   if (!isOutput(node)) {
-    return <p className="px-3 py-4 text-sm text-neutral-500">Kein Dokument gewaehlt.</p>;
+    return <p className="px-3 py-4 text-sm text-muted">Kein Dokument gewaehlt.</p>;
   }
   if (itemIds.length === 0) {
     // Wichtig: auch der Leerzustand traegt data-output-id, sonst gibt es genau
     // dort, wo der Text zum Ziehen auffordert, kein Drop-Ziel.
     return (
       <div className="h-full p-3" data-output-id={outputId} data-item-count={0} data-drop-index={0}>
-        <div className="grid h-full place-items-center rounded-lg border-2 border-dashed border-line text-center text-sm text-neutral-500">
+        <div className="grid h-full place-items-center rounded-lg border-2 border-dashed border-line text-center text-sm text-muted">
           <span>
             Dieses Dokument ist noch leer.
             <br />
@@ -50,7 +67,13 @@ export function OutputGrid({ outputId, onCellPointerDown }: OutputGridProps) {
   }
 
   return (
-    <div className="h-full" data-output-id={outputId} data-item-count={itemIds.length}>
+    <div
+      className="relative h-full"
+      data-output-id={outputId}
+      data-item-count={itemIds.length}
+      ref={gridRef}
+      onPointerDown={marquee.onPointerDown}
+    >
       <VirtualGrid
         count={itemIds.length}
         minCellWidth={180}
@@ -81,6 +104,7 @@ export function OutputGrid({ outputId, onCellPointerDown }: OutputGridProps) {
           );
         }}
       />
+      {marquee.marquee && <MarqueeBox rect={marquee.marquee} />}
     </div>
   );
 }
