@@ -224,7 +224,7 @@ function Workspace() {
 
   return (
     <div className="flex h-screen flex-col bg-shell text-ink" {...external.dropHandlers}>
-      <Header onImportFiles={importFiles} onExport={exportUi.open} saveStatus={status} />
+      <Header onImportFiles={importFiles} onExport={() => exportUi.open()} saveStatus={status} />
 
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-64 flex-col border-r border-line bg-panel">
@@ -241,6 +241,7 @@ function Workspace() {
               <OutputTree
                 activeOutputId={activeOutputId}
                 onSelectOutput={setActiveOutputId}
+                onExportNode={(nodeId) => exportUi.open({ kind: 'node', nodeId })}
                 onDeleteNode={(nodeId) => {
                   const snapshot = buildNodeSnapshot(workspace, nodeId);
                   const node = workspace.nodes[nodeId];

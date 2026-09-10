@@ -18,7 +18,8 @@ export function buildSplitCommand({ sourceId, sourceName, parentId, parts, newId
   const base = baseName(sourceName);
   const specs: SplitOutputSpec[] = parts.map((part, index) => ({
     outputId: newId(),
-    name: `${base} ${index + 1}`,
+    // Ein selbst vergebener Part-Name gewinnt; sonst "Name 1", "Name 2".
+    name: part.label?.trim() ? part.label.trim() : `${base} ${index + 1}`,
     items: part.indices.map((blockIndex) => ({ id: newId(), sourceId, blockIndex, rotation: 0 })),
   }));
   return { type: 'splitSource', sourceId, parentId, parts: specs };
