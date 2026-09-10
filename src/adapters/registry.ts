@@ -5,7 +5,7 @@ import type { AdapterRegistry, BlockAssembler, DocumentAdapter, FileDescriptor }
 const ACCEPT_BY_KIND: Record<SourceKind, string> = {
   pdf: 'application/pdf,.pdf',
   image: 'image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif',
-  text: 'text/plain,text/markdown,.txt,.md',
+  text: 'text/plain,text/markdown,.txt,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.docx,.pptx,.xlsx',
 };
 
 export function createRegistry(): AdapterRegistry {
