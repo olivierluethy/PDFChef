@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import { FolderUp, Download } from 'lucide-react';
 import { describeSaveStatus, type SaveStatus } from '../../services/persistence/autosave';
-import { useDispatch, useWorkspace } from './StoreProvider';
+import { useDispatch, useServices, useWorkspace } from './StoreProvider';
 
 export interface HeaderProps {
   onImportFiles(files: FileList | File[]): void;
@@ -12,6 +12,7 @@ export interface HeaderProps {
 export function Header({ onImportFiles, onExport, saveStatus }: HeaderProps) {
   const workspace = useWorkspace();
   const dispatch = useDispatch();
+  const services = useServices();
   const fileInput = useRef<HTMLInputElement | null>(null);
 
   return (
@@ -30,7 +31,7 @@ export function Header({ onImportFiles, onExport, saveStatus }: HeaderProps) {
         <input
           ref={fileInput}
           type="file"
-          accept="application/pdf,.pdf"
+          accept={services.registry.acceptAttribute()}
           multiple
           hidden
           onChange={(e) => {

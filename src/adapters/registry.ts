@@ -4,6 +4,7 @@ import type { AdapterRegistry, BlockAssembler, DocumentAdapter, FileDescriptor }
 /** Phase 1 registriert genau einen Adapter -- aber das UI fragt nie nach PDF. */
 const ACCEPT_BY_KIND: Record<SourceKind, string> = {
   pdf: 'application/pdf,.pdf',
+  image: 'image/png,image/jpeg,image/webp,image/gif,.png,.jpg,.jpeg,.webp,.gif',
 };
 
 export function createRegistry(): AdapterRegistry {

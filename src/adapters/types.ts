@@ -72,9 +72,21 @@ export interface DocumentAdapter {
   extractText?(ref: BlockRef): Promise<PageText>;
 }
 
+/** Einbettbare PNG/JPEG-Bytes + Masse fuer den Assembler. */
+export interface ImageEmbeddable {
+  format: 'png' | 'jpeg';
+  bytes: Uint8Array;
+  width: number;
+  height: number;
+}
+
 export interface AssembleCtx {
   /** Liefert die Original-Bytes einer Quelle; der Assembler ruft das je Quelle einmal. */
   readBytes(sourceId: SourceId): Promise<Uint8Array>;
+  /** Quellart je Quelle -- entscheidet, ob kopiert oder eingebettet wird. */
+  sourceKind(sourceId: SourceId): SourceKind;
+  /** Nur fuer Bildquellen; der Assembler ruft das je Quelle hoechstens einmal. */
+  imageData(sourceId: SourceId): Promise<ImageEmbeddable>;
   signal?: AbortSignal;
   onProgress?: (done: number, total: number) => void;
 }

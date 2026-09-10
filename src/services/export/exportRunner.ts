@@ -1,5 +1,6 @@
-import type { BlockAssembler } from '../../adapters/types';
+import type { BlockAssembler, ImageEmbeddable } from '../../adapters/types';
 import type { ExportPlan } from '../../domain/exportPlan';
+import type { SourceKind } from '../../domain/types';
 import type { ExportArtifact, ExportWriter } from './writer';
 
 export interface ExportProgress {
@@ -11,6 +12,8 @@ export interface ExportProgress {
 export interface ExportRunDeps {
   assembler: BlockAssembler;
   readBytes(sourceId: string): Promise<Uint8Array>;
+  sourceKind(sourceId: string): SourceKind;
+  imageData(sourceId: string): Promise<ImageEmbeddable>;
   onProgress?(progress: ExportProgress): void;
   signal?: AbortSignal;
 }
@@ -31,6 +34,8 @@ export async function runExport(
     const entry = plan.entries[i];
     const bytes = await deps.assembler.assemble(entry.items, {
       readBytes: deps.readBytes,
+      sourceKind: deps.sourceKind,
+      imageData: deps.imageData,
       signal: deps.signal,
     });
     await writer.writeFile(entry.path, entry.fileName, bytes);

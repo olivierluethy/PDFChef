@@ -1,11 +1,13 @@
+import { createDispatchingAdapter } from '../../adapters/dispatchAdapter';
+import { createImageAdapter } from '../../adapters/image/imageAdapter';
 import { createPdfAdapter } from '../../adapters/pdf/pdfAdapter';
 import { createPdfAssembler } from '../../adapters/pdf/pdfAssembler';
 import { createDocumentPool } from '../../adapters/pdf/pdfPool';
 import type { PdfDocumentHandle } from '../../adapters/pdf/pdfEngine';
 import { createOffscreenSurface, createPdfjsEngine } from '../../adapters/pdf/pdfjsEngine';
 import { createRegistry } from '../../adapters/registry';
-import type { AdapterRegistry, BlockAssembler, DocumentAdapter } from '../../adapters/types';
-import type { SourceId } from '../../domain/types';
+import type { AdapterRegistry, BlockAssembler, DocumentAdapter, ImageEmbeddable } from '../../adapters/types';
+import type { SourceId, SourceKind } from '../../domain/types';
 import { newId } from '../../domain/ids';
 import { createAutosave, type Autosave } from '../persistence/autosave';
 import { openWorkspaceDb, type Database } from '../persistence/db';
@@ -25,6 +27,11 @@ export interface AppServicesDeps {
    * das aus seinem aktuellen Workspace -- die Adapter-Schicht darf ihn nicht kennen.
    */
   contentHashOf(sourceId: SourceId): string | undefined;
+  /**
+   * Beantwortet die Quellart einer Quelle. Der Aufrufer liest das aus seinem
+   * aktuellen Workspace -- die Adapter-Schicht darf ihn nicht kennen.
+   */
+  sourceKindOf(sourceId: SourceId): SourceKind | undefined;
   dbName?: string;
 }
 
@@ -39,6 +46,7 @@ export interface AppServices {
   autosave: Autosave;
   thumbnails: ThumbnailService;
   readBytesForSource(sourceId: SourceId): Promise<Uint8Array>;
+  imageEmbeddable(sourceId: SourceId): Promise<ImageEmbeddable>;
   importForDrop(items: DataTransferItem[]): Promise<ImportReport>;
   importForFiles(files: FileList | File[]): Promise<ImportReport>;
   dispose(): Promise<void>;
@@ -46,6 +54,7 @@ export interface AppServices {
 
 export async function createAppServices({
   contentHashOf,
+  sourceKindOf,
   dbName,
 }: AppServicesDeps): Promise<AppServices> {
   const db = await openWorkspaceDb(dbName);
@@ -68,14 +77,25 @@ export async function createAppServices({
     maxOpen: 4,
   });
 
-  const adapter = createPdfAdapter({ engine, pool, createSurface: createOffscreenSurface });
+  const pdfAdapter = createPdfAdapter({ engine, pool, createSurface: createOffscreenSurface });
+  const imageAdapter = createImageAdapter({
+    readBytes: readBytesForSource,
+    createSurface: createOffscreenSurface,
+    decode: (blob) => createImageBitmap(blob),
+  });
   const assembler = createPdfAssembler();
   const registry = createRegistry();
-  registry.register(adapter);
+  registry.register(pdfAdapter);
+  registry.register(imageAdapter);
   registry.registerAssembler(assembler);
 
+  const dispatcher = createDispatchingAdapter({
+    sourceKindOf,
+    byKind: { pdf: pdfAdapter, image: imageAdapter },
+  });
+
   const thumbnails = createThumbnailService({
-    adapter,
+    adapter: dispatcher,
     store: createThumbStore(db),
     queue: createRenderQueue({ concurrency: 3 }),
     cache: createBlobUrlCache({
@@ -92,7 +112,7 @@ export async function createAppServices({
   return {
     db,
     registry,
-    adapter,
+    adapter: dispatcher,
     assembler,
     blobStore,
     repo,
@@ -100,6 +120,9 @@ export async function createAppServices({
     autosave,
     thumbnails,
     readBytesForSource,
+    async imageEmbeddable(sourceId) {
+      return imageAdapter.toEmbeddable(await readBytesForSource(sourceId));
+    },
     async importForDrop(items) {
       return importCandidates(await collectFromDataTransfer(items as DataTransferItemLike[]), importDeps);
     },

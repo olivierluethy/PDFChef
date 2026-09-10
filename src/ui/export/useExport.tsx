@@ -50,6 +50,8 @@ export function useExport(): { open(): void; dialog: ReactNode } {
         const artifact = await runExport(current, writer, {
           assembler: services.assembler,
           readBytes: services.readBytesForSource,
+          sourceKind: (id) => workspace.sources[id]?.kind ?? 'pdf',
+          imageData: services.imageEmbeddable,
           onProgress: setProgress,
           signal: controller.signal,
         });

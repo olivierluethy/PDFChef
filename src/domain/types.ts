@@ -7,7 +7,7 @@ export type ParentKey = NodeId | 'root';
 export const ROOT: ParentKey = 'root';
 
 export type BlockKind = 'page' | 'slide' | 'sheet' | 'image' | 'section';
-export type SourceKind = 'pdf';
+export type SourceKind = 'pdf' | 'image';
 export type TargetFormat = 'pdf';
 export type Rotation = 0 | 90 | 180 | 270;
 export type SourceStatus = 'ready' | 'error' | 'encrypted';
