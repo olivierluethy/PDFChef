@@ -26,21 +26,21 @@
 
 ## Dateistruktur dieses Plans
 
-| Datei                                                           | Verantwortung                                            |
-| --------------------------------------------------------------- | -------------------------------------------------------- |
-| `package.json`, `tsconfig.json`, `vite.config.ts`, `index.html` | Build, Typen, Testrunner                                 |
-| `eslint.config.js`, `.prettierrc.json`                          | Lint inkl. Schichtregel, Formatierung                    |
-| `src/main.tsx`, `src/ui/app/App.tsx`, `src/ui/styles.css`       | minimale Shell, damit `npm run build` etwas ausliefert   |
-| `src/domain/ids.ts`                                             | ULID-Erzeugung                                           |
-| `src/domain/types.ts`                                           | Datenmodell, Typwaechter, `createEmptyWorkspace`         |
-| `src/domain/invariants.ts`                                      | die sechs Workspace-Invarianten                          |
-| `src/domain/__fixtures__/workspace.ts`                          | Test-Workspace (Contract/Bank/Insurance + Tax-2026-Baum) |
-| `src/domain/ranges.ts`                                          | `"1-3,50-100"` parsen, normalisieren, formatieren        |
-| `src/domain/split.ts`                                           | Split-Strategien -> konkrete Indexlisten                 |
-| `src/domain/naming.ts`                                          | Dateinamen-Sanitisierung, Kollisionsaufloesung           |
-| `src/domain/composition.ts`                                     | Item- und Node-Operationen auf dem Draft                 |
-| `src/domain/commands.ts`                                        | Command-Union, `applyCommand`, `describeCommand`         |
-| `src/domain/exportPlan.ts`                                      | Workspace -> `ExportPlan`                                |
+| Datei | Verantwortung |
+| --- | --- |
+| `package.json`, `tsconfig.json`, `vite.config.ts`, `index.html` | Build, Typen, Testrunner |
+| `eslint.config.js`, `.prettierrc.json` | Lint inkl. Schichtregel, Formatierung |
+| `src/main.tsx`, `src/ui/app/App.tsx`, `src/ui/styles.css` | minimale Shell, damit `npm run build` etwas ausliefert |
+| `src/domain/ids.ts` | ULID-Erzeugung |
+| `src/domain/types.ts` | Datenmodell, Typwaechter, `createEmptyWorkspace` |
+| `src/domain/invariants.ts` | die sechs Workspace-Invarianten |
+| `src/domain/__fixtures__/workspace.ts` | Test-Workspace (Contract/Bank/Insurance + Tax-2026-Baum) |
+| `src/domain/ranges.ts` | `"1-3,50-100"` parsen, normalisieren, formatieren |
+| `src/domain/split.ts` | Split-Strategien -> konkrete Indexlisten |
+| `src/domain/naming.ts` | Dateinamen-Sanitisierung, Kollisionsaufloesung |
+| `src/domain/composition.ts` | Item- und Node-Operationen auf dem Draft |
+| `src/domain/commands.ts` | Command-Union, `applyCommand`, `describeCommand` |
+| `src/domain/exportPlan.ts` | Workspace -> `ExportPlan` |
 
 Ein Barrel (`src/domain/index.ts`) wird bewusst nicht angelegt: die Konsumenten importieren modulscharf, das haelt die Abhaengigkeiten im Diff sichtbar.
 
@@ -49,7 +49,6 @@ Ein Barrel (`src/domain/index.ts`) wird bewusst nicht angelegt: die Konsumenten 
 ### Task 1: Projektfundament und Ids
 
 **Files:**
-
 - Create: `package.json`, `tsconfig.json`, `vite.config.ts`, `index.html`, `.prettierrc.json`
 - Create: `src/main.tsx`, `src/ui/app/App.tsx`, `src/ui/styles.css`
 - Create: `src/domain/ids.ts`
@@ -57,7 +56,6 @@ Ein Barrel (`src/domain/index.ts`) wird bewusst nicht angelegt: die Konsumenten 
 - Modify: `.gitignore`
 
 **Interfaces:**
-
 - Consumes: nichts (erster Task)
 - Produces: `newId(time?: number): string` aus `src/domain/ids.ts`; npm-Skripte `dev`, `build`, `preview`, `typecheck`, `test`, `test:watch`
 
@@ -313,12 +311,10 @@ EOF
 ### Task 2: Lint, Formatierung und Schichtregel
 
 **Files:**
-
 - Create: `eslint.config.js`
 - Modify: `package.json` (Skripte `lint`, `format`)
 
 **Interfaces:**
-
 - Consumes: Projektfundament aus Task 1
 - Produces: npm-Skripte `lint` und `format`; die Schichtregel, gegen die alle folgenden Tasks und Plaene verstossen koennen, ohne es zu merken
 
@@ -445,12 +441,10 @@ EOF
 ### Task 3: Datenmodell, Invarianten und Test-Fixture
 
 **Files:**
-
 - Create: `src/domain/types.ts`, `src/domain/invariants.ts`, `src/domain/__fixtures__/workspace.ts`
 - Test: `src/domain/invariants.test.ts`
 
 **Interfaces:**
-
 - Consumes: nichts
 - Produces:
   - Typen `SourceId`, `NodeId`, `ItemId`, `ParentKey`, `BlockKind`, `SourceKind`, `TargetFormat`, `Rotation`, `SourceStatus`, `BlockRef`, `OutlineNode`, `SourceDocument`, `CompositionItem`, `FolderNode`, `OutputDocument`, `WorkspaceNode`, `Workspace`
@@ -566,11 +560,7 @@ export interface CreateWorkspaceInput {
   now?: number;
 }
 
-export function createEmptyWorkspace({
-  id,
-  name,
-  now = Date.now(),
-}: CreateWorkspaceInput): Workspace {
+export function createEmptyWorkspace({ id, name, now = Date.now() }: CreateWorkspaceInput): Workspace {
   return {
     id,
     name,
@@ -655,14 +645,7 @@ function addOutput(
   parentId: NodeId | null,
   items: CompositionItem[],
 ): void {
-  ws.nodes[id] = {
-    id,
-    type: 'output',
-    name,
-    parentId,
-    targetFormat: 'pdf',
-    items: items.map((i) => i.id),
-  };
+  ws.nodes[id] = { id, type: 'output', name, parentId, targetFormat: 'pdf', items: items.map((i) => i.id) };
   for (const item of items) ws.items[item.id] = item;
   (ws.childOrder[parentKey(parentId)] ??= []).push(id);
 }
@@ -886,8 +869,7 @@ export function checkWorkspaceInvariants(ws: Workspace): string[] {
     if (!ws.sources[sourceId]) problems.push(`sourceOrder nennt die unbekannte Quelle ${sourceId}`);
   }
   for (const sourceId of Object.keys(ws.sources)) {
-    if (!ws.sourceOrder.includes(sourceId))
-      problems.push(`Quelle ${sourceId} fehlt in sourceOrder`);
+    if (!ws.sourceOrder.includes(sourceId)) problems.push(`Quelle ${sourceId} fehlt in sourceOrder`);
   }
 
   return problems;
@@ -927,12 +909,10 @@ EOF
 ### Task 4: Seitenbereiche (`ranges.ts`)
 
 **Files:**
-
 - Create: `src/domain/ranges.ts`
 - Test: `src/domain/ranges.test.ts`
 
 **Interfaces:**
-
 - Consumes: nichts
 - Produces:
   - `interface RangeSpec { start: number; end: number }` (1-basiert, inklusiv)
@@ -1043,13 +1023,7 @@ describe('parseRanges', () => {
 
 describe('mergeRanges', () => {
   it('sortiert und verschmilzt unabhaengig von der Eingabereihenfolge', () => {
-    expect(
-      mergeRanges([
-        { start: 50, end: 60 },
-        { start: 1, end: 3 },
-        { start: 55, end: 70 },
-      ]),
-    ).toEqual([
+    expect(mergeRanges([{ start: 50, end: 60 }, { start: 1, end: 3 }, { start: 55, end: 70 }])).toEqual([
       { start: 1, end: 3 },
       { start: 50, end: 70 },
     ]);
@@ -1059,14 +1033,7 @@ describe('mergeRanges', () => {
 describe('normalizeRanges', () => {
   it('deckelt, dreht und verwirft Bereiche hinter dem Dokument', () => {
     expect(
-      normalizeRanges(
-        [
-          { start: 8, end: 2 },
-          { start: 200, end: 300 },
-          { start: 25, end: 40 },
-        ],
-        30,
-      ),
+      normalizeRanges([{ start: 8, end: 2 }, { start: 200, end: 300 }, { start: 25, end: 40 }], 30),
     ).toEqual([
       { start: 2, end: 8 },
       { start: 25, end: 30 },
@@ -1110,7 +1077,8 @@ export interface RangeSpec {
 }
 
 export type ParseRangesResult =
-  { ok: true; ranges: RangeSpec[]; indices: number[] } | { ok: false; error: string };
+  | { ok: true; ranges: RangeSpec[]; indices: number[] }
+  | { ok: false; error: string };
 
 /**
  * Liest Eingaben wie `4-49` oder `1-3,50-100`.
@@ -1143,8 +1111,7 @@ export function parseRanges(input: string, blockCount: number): ParseRangesResul
 
     const start = Math.min(first, second);
     const end = Math.max(first, second);
-    if (start > blockCount)
-      return { ok: false, error: `Das Dokument hat nur ${blockCount} Seiten.` };
+    if (start > blockCount) return { ok: false, error: `Das Dokument hat nur ${blockCount} Seiten.` };
 
     parsed.push({ start, end: Math.min(end, blockCount) });
   }
@@ -1229,12 +1196,10 @@ EOF
 ### Task 5: Split-Strategien (`split.ts`)
 
 **Files:**
-
 - Create: `src/domain/split.ts`
 - Test: `src/domain/split.test.ts`
 
 **Interfaces:**
-
 - Consumes: `parseRanges`, `rangesToIndices`, `formatRanges` aus `./ranges`
 - Produces:
   - `type SplitStrategy = { kind: 'equalParts'; parts: number } | { kind: 'everyNBlocks'; size: number } | { kind: 'customRanges'; input: string } | { kind: 'selection'; indices: number[] }`
@@ -1413,10 +1378,7 @@ function blockRange(start: number, size: number): number[] {
 function equalParts(parts: number, blockCount: number): SplitPlanResult {
   if (!Number.isInteger(parts) || parts < 2) return { ok: false, error: 'Mindestens 2 Teile.' };
   if (parts > blockCount) {
-    return {
-      ok: false,
-      error: `Bei ${blockCount} Seiten sind hoechstens ${blockCount} Teile moeglich.`,
-    };
+    return { ok: false, error: `Bei ${blockCount} Seiten sind hoechstens ${blockCount} Teile moeglich.` };
   }
 
   // Restseiten gehen an die vorderen Teile: 101 Seiten in 2 Teile ergibt 51/50.
@@ -1433,8 +1395,7 @@ function equalParts(parts: number, blockCount: number): SplitPlanResult {
 }
 
 function everyNBlocks(size: number, blockCount: number): SplitPlanResult {
-  if (!Number.isInteger(size) || size < 1)
-    return { ok: false, error: 'Mindestens 1 Seite pro Teil.' };
+  if (!Number.isInteger(size) || size < 1) return { ok: false, error: 'Mindestens 1 Seite pro Teil.' };
   const result: SplitPart[] = [];
   for (let cursor = 0; cursor < blockCount; cursor += size) {
     result.push({
@@ -1493,12 +1454,10 @@ EOF
 ### Task 6: Namen und Kollisionen (`naming.ts`)
 
 **Files:**
-
 - Create: `src/domain/naming.ts`
 - Test: `src/domain/naming.test.ts`
 
 **Interfaces:**
-
 - Consumes: nichts
 - Produces:
   - `FALLBACK_NAME: string` (`'Unbenannt'`)
@@ -1680,12 +1639,10 @@ PLANEOF
 ### Task 7: Item-Operationen (`composition.ts`, Teil 1)
 
 **Files:**
-
 - Create: `src/domain/composition.ts`
 - Test: `src/domain/composition.items.test.ts`
 
 **Interfaces:**
-
 - Consumes: Typen aus `./types`, Fixture aus `./__fixtures__/workspace`, `checkWorkspaceInvariants` aus `./invariants` (nur im Test)
 - Produces (alle mutieren einen Immer-Draft **in place** und liefern `void`):
   - `requireOutput(ws: Workspace, outputId: NodeId): OutputDocument`
@@ -2075,12 +2032,10 @@ PLANEOF
 ### Task 8: Ordner-, Output- und Quellen-Operationen (`composition.ts`, Teil 2)
 
 **Files:**
-
 - Modify: `src/domain/composition.ts` (anhaengen)
 - Test: `src/domain/composition.nodes.test.ts`
 
 **Interfaces:**
-
 - Consumes: `clampIndex`, `removeItems` aus Teil 1; `parentKey` aus `./types`
 - Produces:
   - `interface CreateNodeInput { id: NodeId; name: string; parentId: NodeId | null; index?: number }`
@@ -2130,9 +2085,7 @@ function apply(recipe: (draft: Workspace) => void, base: Workspace = makeWorkspa
 
 describe('createFolder', () => {
   it('legt einen Ordner unter root an', () => {
-    const ws = apply((draft) =>
-      createFolder(draft, { id: 'n-neu', name: 'Belege', parentId: null }),
-    );
+    const ws = apply((draft) => createFolder(draft, { id: 'n-neu', name: 'Belege', parentId: null }));
     expect(ws.nodes['n-neu']).toEqual({
       id: 'n-neu',
       type: 'folder',
@@ -2570,12 +2523,10 @@ PLANEOF
 ### Task 9: Commands (`commands.ts`)
 
 **Files:**
-
 - Create: `src/domain/commands.ts`
 - Test: `src/domain/commands.test.ts`
 
 **Interfaces:**
-
 - Consumes: alle Operationen aus `./composition`, `sanitizeName`/`resolveCollision` aus `./naming`, Typen aus `./types`
 - Produces:
   - `type Command` (die 15 Commands aus dem Design plus `batch`)
@@ -2664,10 +2615,7 @@ describe('applyCommand / Nodes und Namen', () => {
     const withSecond = produce(base, (draft) =>
       applyCommand(
         draft,
-        {
-          type: 'createOutput',
-          node: { id: 'n-out-2', name: 'Police', parentId: IDS.folderInsurance },
-        },
+        { type: 'createOutput', node: { id: 'n-out-2', name: 'Police', parentId: IDS.folderInsurance } },
         { now: LATER },
       ),
     );
@@ -2676,12 +2624,7 @@ describe('applyCommand / Nodes und Namen', () => {
   });
 
   it('verschiebt und loescht Nodes', () => {
-    const moved = run({
-      type: 'moveNode',
-      nodeId: IDS.outInsurance,
-      parentId: IDS.folderBank,
-      index: 0,
-    });
+    const moved = run({ type: 'moveNode', nodeId: IDS.outInsurance, parentId: IDS.folderBank, index: 0 });
     expect(moved.nodes[IDS.outInsurance].parentId).toBe(IDS.folderBank);
 
     const deleted = run({ type: 'deleteNode', nodeId: IDS.folderContracts });
@@ -2704,13 +2647,7 @@ describe('applyCommand / Items', () => {
     expect(itemsOf(ws, IDS.outContracts)).toEqual(['i-neu', 'i-c4', 'i-c5', 'i-c6']);
 
     ws = run(
-      {
-        type: 'copyItems',
-        itemIds: ['i-neu'],
-        outputId: IDS.outInsurance,
-        index: 0,
-        newIds: ['i-kopie'],
-      },
+      { type: 'copyItems', itemIds: ['i-neu'], outputId: IDS.outInsurance, index: 0, newIds: ['i-kopie'] },
       ws,
     );
     expect(itemsOf(ws, IDS.outInsurance)).toEqual(['i-kopie', 'i-i7', 'i-b17']);
@@ -2724,12 +2661,7 @@ describe('applyCommand / Items', () => {
   });
 
   it('sortiert innerhalb eines Outputs um', () => {
-    const ws = run({
-      type: 'reorderItems',
-      outputId: IDS.outContracts,
-      itemIds: ['i-c6'],
-      index: 0,
-    });
+    const ws = run({ type: 'reorderItems', outputId: IDS.outContracts, itemIds: ['i-c6'], index: 0 });
     expect(itemsOf(ws, IDS.outContracts)).toEqual(['i-c6', 'i-c4', 'i-c5']);
   });
 });
@@ -2769,10 +2701,7 @@ describe('applyCommand / batch und Workspace', () => {
       type: 'batch',
       label: '46 Seiten hinzugefuegt',
       commands: [
-        {
-          type: 'createOutput',
-          node: { id: 'n-out-neu', name: 'Contracts', parentId: IDS.folderBank },
-        },
+        { type: 'createOutput', node: { id: 'n-out-neu', name: 'Contracts', parentId: IDS.folderBank } },
         {
           type: 'addItems',
           outputId: 'n-out-neu',
@@ -2801,10 +2730,7 @@ describe('describeCommand', () => {
 
   it('beschreibt Seitenoperationen mit Anzahl', () => {
     expect(
-      describeCommand(
-        { type: 'moveItems', itemIds: ['i-c4', 'i-c5'], outputId: IDS.outInsurance, index: 0 },
-        before,
-      ),
+      describeCommand({ type: 'moveItems', itemIds: ['i-c4', 'i-c5'], outputId: IDS.outInsurance, index: 0 }, before),
     ).toBe('2 Seiten verschoben');
     expect(describeCommand({ type: 'removeItems', itemIds: ['i-c4'] }, before)).toBe(
       '1 Seite entfernt',
@@ -2822,17 +2748,14 @@ describe('describeCommand', () => {
       'Ordner "Bank" geloescht',
     );
     expect(
-      describeCommand(
-        { type: 'createOutput', node: { id: 'x', name: 'Belege', parentId: null } },
-        before,
-      ),
+      describeCommand({ type: 'createOutput', node: { id: 'x', name: 'Belege', parentId: null } }, before),
     ).toBe('Dokument "Belege" erstellt');
   });
 
   it('nimmt bei batch das mitgegebene Label', () => {
-    expect(
-      describeCommand({ type: 'batch', label: '46 Seiten hinzugefuegt', commands: [] }, before),
-    ).toBe('46 Seiten hinzugefuegt');
+    expect(describeCommand({ type: 'batch', label: '46 Seiten hinzugefuegt', commands: [] }, before)).toBe(
+      '46 Seiten hinzugefuegt',
+    );
   });
 });
 ```
@@ -3073,11 +2996,9 @@ PLANEOF
 ### Task 10: History-Invarianten fuer jeden Command
 
 **Files:**
-
 - Test: `src/domain/history.invariants.test.ts`
 
 **Interfaces:**
-
 - Consumes: `applyCommand`, `Command` aus `./commands`; `produceWithPatches`, `applyPatches`, `enablePatches` aus `immer`
 - Produces: kein Produktionscode -- dieser Task ist der Nachweis, dass die Undo-Strategie des Designs traegt, **bevor** Plan 3 den Store darauf baut
 
@@ -3112,20 +3033,14 @@ const CASES: Array<{ name: string; command: Command }> = [
   },
   {
     name: 'createOutput',
-    command: {
-      type: 'createOutput',
-      node: { id: 'n-out-neu', name: 'Quittungen', parentId: IDS.folderBank },
-    },
+    command: { type: 'createOutput', node: { id: 'n-out-neu', name: 'Quittungen', parentId: IDS.folderBank } },
   },
   { name: 'renameNode', command: { type: 'renameNode', nodeId: IDS.outInsurance, name: 'Police' } },
   {
     name: 'moveNode',
     command: { type: 'moveNode', nodeId: IDS.outInsurance, parentId: IDS.folderBank, index: 0 },
   },
-  {
-    name: 'moveNode (umsortieren)',
-    command: { type: 'moveNode', nodeId: IDS.folderBank, parentId: IDS.tax, index: 3 },
-  },
+  { name: 'moveNode (umsortieren)', command: { type: 'moveNode', nodeId: IDS.folderBank, parentId: IDS.tax, index: 3 } },
   { name: 'deleteNode (Output)', command: { type: 'deleteNode', nodeId: IDS.outContracts } },
   { name: 'deleteNode (Unterbaum)', command: { type: 'deleteNode', nodeId: IDS.tax } },
   {
@@ -3168,16 +3083,8 @@ const CASES: Array<{ name: string; command: Command }> = [
       sourceId: IDS.insurance,
       parentId: IDS.folderInsurance,
       parts: [
-        {
-          outputId: 'n-split-1',
-          name: 'Insurance Teil 1',
-          items: [makeItem('i-s1', IDS.insurance, 0)],
-        },
-        {
-          outputId: 'n-split-2',
-          name: 'Insurance Teil 2',
-          items: [makeItem('i-s2', IDS.insurance, 1)],
-        },
+        { outputId: 'n-split-1', name: 'Insurance Teil 1', items: [makeItem('i-s1', IDS.insurance, 0)] },
+        { outputId: 'n-split-2', name: 'Insurance Teil 2', items: [makeItem('i-s2', IDS.insurance, 1)] },
       ],
     },
   },
@@ -3188,16 +3095,8 @@ const CASES: Array<{ name: string; command: Command }> = [
       type: 'batch',
       label: '1 Seite hinzugefuegt',
       commands: [
-        {
-          type: 'createOutput',
-          node: { id: 'n-out-neu', name: 'Contracts', parentId: IDS.folderBank },
-        },
-        {
-          type: 'addItems',
-          outputId: 'n-out-neu',
-          items: [makeItem('i-neu', IDS.contract, 3)],
-          index: 0,
-        },
+        { type: 'createOutput', node: { id: 'n-out-neu', name: 'Contracts', parentId: IDS.folderBank } },
+        { type: 'addItems', outputId: 'n-out-neu', items: [makeItem('i-neu', IDS.contract, 3)], index: 0 },
       ],
     },
   },
@@ -3271,12 +3170,10 @@ PLANEOF
 ### Task 11: ExportPlan (`exportPlan.ts`)
 
 **Files:**
-
 - Create: `src/domain/exportPlan.ts`
 - Test: `src/domain/exportPlan.test.ts`
 
 **Interfaces:**
-
 - Consumes: `sanitizeName`, `resolveCollision`, `withPdfExtension` aus `./naming`; Typen aus `./types`
 - Produces:
   - `interface ExportEntry { outputId: NodeId; path: string[]; fileName: string; items: CompositionItem[] }`
@@ -3299,13 +3196,7 @@ import { buildExportPlan } from './exportPlan';
 import { FIXED_NOW, IDS, makeItem, makeWorkspace } from './__fixtures__/workspace';
 import type { Workspace } from './types';
 
-function withOutput(
-  base: Workspace,
-  id: string,
-  name: string,
-  parentId: string | null,
-  itemId?: string,
-) {
+function withOutput(base: Workspace, id: string, name: string, parentId: string | null, itemId?: string) {
   return produce(base, (draft) => {
     applyCommand(draft, { type: 'createOutput', node: { id, name, parentId } }, { now: FIXED_NOW });
     if (itemId) {
@@ -3371,12 +3262,9 @@ describe('buildExportPlan / Namen', () => {
     // Der Name wird hier direkt gesetzt, nicht ueber applyCommand: sonst
     // loeste bereits die Command-Schicht die Kollision auf und dieser Test
     // pruefte den Export gar nicht.
-    const ws = produce(
-      withOutput(makeWorkspace(), 'n-zwei', 'Police', IDS.folderInsurance, 'i-x'),
-      (draft) => {
-        draft.nodes['n-zwei'].name = 'Insurance';
-      },
-    );
+    const ws = produce(withOutput(makeWorkspace(), 'n-zwei', 'Police', IDS.folderInsurance, 'i-x'), (draft) => {
+      draft.nodes['n-zwei'].name = 'Insurance';
+    });
     const plan = buildExportPlan(ws);
     const names = plan.entries
       .filter((entry) => entry.path.at(-1) === 'Insurance')
@@ -3563,27 +3451,27 @@ PLANEOF
 
 Abgleich mit `docs/superpowers/specs/2026-09-10-document-workspace-design.md`:
 
-| Abschnitt der Spezifikation                                                   | In diesem Plan                                                                      |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| 2 Technischer Rahmen (Vite, React 19, TS strict, Immer, Vitest, npm)          | Task 1                                                                              |
-| 2 Technischer Rahmen (pdfjs, pdf-lib, react-virtual, fflate, idb, Playwright) | Plan 2-4                                                                            |
-| 3 Schichtung, ESLint-Regel `import/no-restricted-paths`                       | Task 2                                                                              |
-| 4 Erweiterbarkeits-Naht (`BlockKind`, `BlockRef`)                             | Task 3 (Typen); Adapter-Interfaces in Plan 2                                        |
-| 5 Datenmodell und die sechs Invarianten                                       | Task 3                                                                              |
-| 6 Commands, `batch` als ein Undo-Schritt, abgeleitete Inverse                 | Task 9, Task 10                                                                     |
-| 6 Store, History-Stack, Selektionsstore                                       | Plan 3                                                                              |
-| 7 Persistenz und Autosave                                                     | Plan 2                                                                              |
-| 8 PDF-Engine, Pool, Render-Queue, Thumbnails, Virtualisierung                 | Plan 2 (Engine), Plan 3 (Virtualisierung)                                           |
-| 9 Layout, Drag-Systeme, Selektion, Move/Copy, Drop-Regel, Tastaturkuerzel     | Plan 3                                                                              |
-| 9 Range-Feld (`domain/ranges.ts`)                                             | Task 4                                                                              |
-| 9 Split-Panel (`domain/split.ts`, Restseiten nach vorn)                       | Task 5                                                                              |
-| 10 Preview und Suche                                                          | Plan 4                                                                              |
-| 11 Import                                                                     | Plan 2                                                                              |
-| 11 Export: `ExportPlan`, Namensregeln, Kollisionen                            | Task 6, Task 11                                                                     |
-| 11 Export: Verzeichnis-Writer, ZIP-Writer, Fortschritt                        | Plan 4                                                                              |
-| 12 Akzeptanzszenario                                                          | Datenseitig in Task 9-11 abgedeckt, als Playwright-Flow in Plan 4                   |
-| 14 Fehlerbehandlung und Sicherheit                                            | Plan 2 (Parsing), Plan 3 (Anzeige); hier nur verstaendliche Fehlertexte in `domain` |
-| 15 Tests: Domain per TDD, History-Invarianten                                 | Task 3-11                                                                           |
+| Abschnitt der Spezifikation | In diesem Plan |
+| --- | --- |
+| 2 Technischer Rahmen (Vite, React 19, TS strict, Immer, Vitest, npm) | Task 1 |
+| 2 Technischer Rahmen (pdfjs, pdf-lib, react-virtual, fflate, idb, Playwright) | Plan 2-4 |
+| 3 Schichtung, ESLint-Regel `import/no-restricted-paths` | Task 2 |
+| 4 Erweiterbarkeits-Naht (`BlockKind`, `BlockRef`) | Task 3 (Typen); Adapter-Interfaces in Plan 2 |
+| 5 Datenmodell und die sechs Invarianten | Task 3 |
+| 6 Commands, `batch` als ein Undo-Schritt, abgeleitete Inverse | Task 9, Task 10 |
+| 6 Store, History-Stack, Selektionsstore | Plan 3 |
+| 7 Persistenz und Autosave | Plan 2 |
+| 8 PDF-Engine, Pool, Render-Queue, Thumbnails, Virtualisierung | Plan 2 (Engine), Plan 3 (Virtualisierung) |
+| 9 Layout, Drag-Systeme, Selektion, Move/Copy, Drop-Regel, Tastaturkuerzel | Plan 3 |
+| 9 Range-Feld (`domain/ranges.ts`) | Task 4 |
+| 9 Split-Panel (`domain/split.ts`, Restseiten nach vorn) | Task 5 |
+| 10 Preview und Suche | Plan 4 |
+| 11 Import | Plan 2 |
+| 11 Export: `ExportPlan`, Namensregeln, Kollisionen | Task 6, Task 11 |
+| 11 Export: Verzeichnis-Writer, ZIP-Writer, Fortschritt | Plan 4 |
+| 12 Akzeptanzszenario | Datenseitig in Task 9-11 abgedeckt, als Playwright-Flow in Plan 4 |
+| 14 Fehlerbehandlung und Sicherheit | Plan 2 (Parsing), Plan 3 (Anzeige); hier nur verstaendliche Fehlertexte in `domain` |
+| 15 Tests: Domain per TDD, History-Invarianten | Task 3-11 |
 
 Offen und bewusst nicht in Plan 1: alles unter `adapters`, `services`, `workers` und alles Sichtbare unter `ui` ausser der Shell aus Task 1.
 

@@ -28,50 +28,48 @@
 
 Der Grund fuer die Aufteilung: pdf.js braucht zum Rendern ein Canvas und IndexedDB braucht einen Browser. Beides in Node zu simulieren waere aufwaendig und wuerde am Ende nicht das pruefen, was in Produktion laeuft.
 
-| Ebene                         | Werkzeug                  | Was hier geprueft wird                                                                                                                                                     |
-| ----------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Unit (Node)                   | Vitest                    | Alle Entscheidungen: Registry-Auswahl, Pool-Verdraengung, Warteschlangen-Reihenfolge, Cache-Lebenszyklus, Namens- und Statuslogik, Autosave-Zeitverhalten, Quota-Ablehnung |
-| Unit (Node, echte Bibliothek) | Vitest + `pdf-lib`        | Der Assembler gegen im Test erzeugte PDFs: Reihenfolge, Rotation, Mehrfachverwendung, ein Ladevorgang pro Quelle                                                           |
-| Unit (Node, Fake-Backend)     | Vitest + `fake-indexeddb` | Schema, Blob-Store, Workspace-Repository, Garbage Collection                                                                                                               |
-| Integration (Chromium)        | Playwright                | Das echte Zusammenspiel: pdf.js liest eine Datei, OffscreenCanvas rendert ein Thumbnail, IndexedDB haelt es ueber einen Reload                                             |
+| Ebene | Werkzeug | Was hier geprueft wird |
+| --- | --- | --- |
+| Unit (Node) | Vitest | Alle Entscheidungen: Registry-Auswahl, Pool-Verdraengung, Warteschlangen-Reihenfolge, Cache-Lebenszyklus, Namens- und Statuslogik, Autosave-Zeitverhalten, Quota-Ablehnung |
+| Unit (Node, echte Bibliothek) | Vitest + `pdf-lib` | Der Assembler gegen im Test erzeugte PDFs: Reihenfolge, Rotation, Mehrfachverwendung, ein Ladevorgang pro Quelle |
+| Unit (Node, Fake-Backend) | Vitest + `fake-indexeddb` | Schema, Blob-Store, Workspace-Repository, Garbage Collection |
+| Integration (Chromium) | Playwright | Das echte Zusammenspiel: pdf.js liest eine Datei, OffscreenCanvas rendert ein Thumbnail, IndexedDB haelt es ueber einen Reload |
 
 ## Dateistruktur dieses Plans
 
-| Datei                                              | Verantwortung                                                              |
-| -------------------------------------------------- | -------------------------------------------------------------------------- |
-| `scripts/sync-pdf-assets.mjs`                      | kopiert Worker, cMaps und Standardschriften von pdf.js nach `public/pdfjs` |
-| `src/adapters/types.ts`                            | `DocumentAdapter`, `BlockAssembler`, Probe- und Render-Typen               |
-| `src/adapters/registry.ts`                         | Registry: Datei -> Adapter, Zielformat -> Assembler                        |
-| `src/adapters/pdf/pdfEngine.ts`                    | Fassade `PdfEngine` (Typen, kein pdf.js)                                   |
-| `src/adapters/pdf/pdfjsEngine.ts`                  | die einzige Datei, die pdf.js kennt und konfiguriert                       |
-| `src/adapters/pdf/pdfPool.ts`                      | LRU-Pool offener Dokumente mit Leihzaehlern                                |
-| `src/adapters/pdf/pdfAdapter.ts`                   | probe, renderBlock, extractText auf der Fassade                            |
-| `src/adapters/pdf/pdfAssembler.ts`                 | Komposition -> PDF-Bytes (pdf-lib)                                         |
-| `src/services/persistence/db.ts`                   | IndexedDB-Schema `pdf-master`, vier Object Stores                          |
-| `src/services/persistence/sourceBlobStore.ts`      | Quell-Bytes, Garbage Collection ueber `contentHash`                        |
-| `src/services/persistence/workspaceRepo.ts`        | Workspace laden/speichern, Migrationsnaht                                  |
-| `src/services/persistence/autosave.ts`             | 400 ms Debounce, Flush, Statusmodell                                       |
-| `src/services/persistence/storage.ts`              | `persist()`, `estimate()`, Kontingentpruefung                              |
-| `src/services/import/fileSources.ts`               | Dateien und Ordner aus Drop, Dateidialog, Verzeichniswahl                  |
-| `src/services/import/importSources.ts`             | Erkennung, Hash, Blob ablegen, `SourceDocument` bauen                      |
-| `src/services/thumbnails/renderQueue.ts`           | Prioritaet, Abbruch, maximal drei parallele Renders                        |
-| `src/services/thumbnails/thumbnailCache.ts`        | Speicher-LRU ueber dem `thumbs`-Store, Blob-URL-Lebenszyklus               |
-| `src/services/thumbnails/thumbnailService.ts`      | verbindet Queue, Cache, Store und Adapter                                  |
-| `src/ui/dev/ImportProbe.tsx`                       | provisorische Oberflaeche, die Plan 3 ersetzt                              |
-| `playwright.config.ts`, `tests/e2e/import.spec.ts` | Integrationstest in Chromium                                               |
+| Datei | Verantwortung |
+| --- | --- |
+| `scripts/sync-pdf-assets.mjs` | kopiert Worker, cMaps und Standardschriften von pdf.js nach `public/pdfjs` |
+| `src/adapters/types.ts` | `DocumentAdapter`, `BlockAssembler`, Probe- und Render-Typen |
+| `src/adapters/registry.ts` | Registry: Datei -> Adapter, Zielformat -> Assembler |
+| `src/adapters/pdf/pdfEngine.ts` | Fassade `PdfEngine` (Typen, kein pdf.js) |
+| `src/adapters/pdf/pdfjsEngine.ts` | die einzige Datei, die pdf.js kennt und konfiguriert |
+| `src/adapters/pdf/pdfPool.ts` | LRU-Pool offener Dokumente mit Leihzaehlern |
+| `src/adapters/pdf/pdfAdapter.ts` | probe, renderBlock, extractText auf der Fassade |
+| `src/adapters/pdf/pdfAssembler.ts` | Komposition -> PDF-Bytes (pdf-lib) |
+| `src/services/persistence/db.ts` | IndexedDB-Schema `pdf-master`, vier Object Stores |
+| `src/services/persistence/sourceBlobStore.ts` | Quell-Bytes, Garbage Collection ueber `contentHash` |
+| `src/services/persistence/workspaceRepo.ts` | Workspace laden/speichern, Migrationsnaht |
+| `src/services/persistence/autosave.ts` | 400 ms Debounce, Flush, Statusmodell |
+| `src/services/persistence/storage.ts` | `persist()`, `estimate()`, Kontingentpruefung |
+| `src/services/import/fileSources.ts` | Dateien und Ordner aus Drop, Dateidialog, Verzeichniswahl |
+| `src/services/import/importSources.ts` | Erkennung, Hash, Blob ablegen, `SourceDocument` bauen |
+| `src/services/thumbnails/renderQueue.ts` | Prioritaet, Abbruch, maximal drei parallele Renders |
+| `src/services/thumbnails/thumbnailCache.ts` | Speicher-LRU ueber dem `thumbs`-Store, Blob-URL-Lebenszyklus |
+| `src/services/thumbnails/thumbnailService.ts` | verbindet Queue, Cache, Store und Adapter |
+| `src/ui/dev/ImportProbe.tsx` | provisorische Oberflaeche, die Plan 3 ersetzt |
+| `playwright.config.ts`, `tests/e2e/import.spec.ts` | Integrationstest in Chromium |
 
 ---
 
 ### Task 1: Adapter-Interfaces, Registry und pdf.js-Assets
 
 **Files:**
-
 - Create: `src/adapters/types.ts`, `src/adapters/registry.ts`, `scripts/sync-pdf-assets.mjs`
 - Test: `src/adapters/registry.test.ts`
 - Modify: `package.json`, `.gitignore`
 
 **Interfaces:**
-
 - Consumes: Typen aus `src/domain/types.ts` (Plan 1)
 - Produces:
   - `interface FileDescriptor { name: string; type: string; size: number }`
@@ -125,7 +123,10 @@ await mkdir(target, { recursive: true });
 for (const entry of ['cmaps', 'standard_fonts']) {
   await cp(join(pdfjsRoot, entry), join(target, entry), { recursive: true });
 }
-await cp(join(pdfjsRoot, 'build', 'pdf.worker.min.mjs'), join(target, 'pdf.worker.min.mjs'));
+await cp(
+  join(pdfjsRoot, 'build', 'pdf.worker.min.mjs'),
+  join(target, 'pdf.worker.min.mjs'),
+);
 
 console.log(`pdf.js-Assets nach ${target} kopiert`);
 ```
@@ -389,12 +390,10 @@ PLANEOF
 ### Task 2: PDF-Assembler (`pdfAssembler.ts`)
 
 **Files:**
-
 - Create: `src/adapters/pdf/pdfAssembler.ts`
 - Test: `src/adapters/pdf/pdfAssembler.test.ts`
 
 **Interfaces:**
-
 - Consumes: `BlockAssembler`, `AssembleCtx` aus `../types`; `CompositionItem` aus `../../domain/types`; `pdf-lib`
 - Produces: `createPdfAssembler(): BlockAssembler`
 
@@ -423,12 +422,7 @@ async function makeSourcePdf(widths: number[], rotation = 0): Promise<Uint8Array
   return doc.save();
 }
 
-function item(
-  id: string,
-  sourceId: SourceId,
-  blockIndex: number,
-  rotation: Rotation = 0,
-): CompositionItem {
+function item(id: string, sourceId: SourceId, blockIndex: number, rotation: Rotation = 0): CompositionItem {
   return { id, sourceId, blockIndex, rotation };
 }
 
@@ -631,12 +625,10 @@ PLANEOF
 ### Task 3: Dokument-Pool (`pdfPool.ts`)
 
 **Files:**
-
 - Create: `src/adapters/pdf/pdfPool.ts`
 - Test: `src/adapters/pdf/pdfPool.test.ts`
 
 **Interfaces:**
-
 - Consumes: nichts (generisch, kennt pdf.js nicht)
 - Produces:
   - `interface PoolOptions<T> { load(key: string): Promise<T>; destroy(doc: T): Promise<void> | void; maxOpen?: number; now?(): number }`
@@ -909,12 +901,10 @@ PLANEOF
 ### Task 4: PDF-Adapter auf einer Engine-Fassade
 
 **Files:**
-
 - Create: `src/adapters/pdf/pdfEngine.ts` (nur Typen), `src/adapters/pdf/pdfAdapter.ts`, `src/adapters/pdf/pdfjsEngine.ts`
 - Test: `src/adapters/pdf/pdfAdapter.test.ts`
 
 **Interfaces:**
-
 - Consumes: `DocumentAdapter`, `SourceProbeResult`, `RenderOpts`, `RenderedBitmap`, `PageText`, `TextSpan` aus `../types`; `DocumentPool` aus `./pdfPool`; `OutlineNode`, `BlockRef` aus `../../domain/types`
 - Produces:
   - `pdfEngine.ts`: `RenderSurface`, `CreateSurface`, `PdfPageHandle`, `PdfDocumentHandle`, `PdfEngine`
@@ -1490,13 +1480,11 @@ PLANEOF
 ### Task 5: IndexedDB-Schema und Quell-Blob-Store
 
 **Files:**
-
 - Create: `src/services/persistence/db.ts`, `src/services/persistence/sourceBlobStore.ts`
 - Test: `src/services/persistence/sourceBlobStore.test.ts`
 - Modify: `package.json` (Testabhaengigkeit)
 
 **Interfaces:**
-
 - Consumes: `Workspace` aus `../../domain/types`; `idb`
 - Produces:
   - `DB_NAME`, `DB_VERSION`, `openWorkspaceDb(name?): Promise<Database>`
@@ -1790,12 +1778,10 @@ PLANEOF
 ### Task 6: Workspace-Repository und Migrationsnaht
 
 **Files:**
-
 - Create: `src/services/persistence/workspaceRepo.ts`
 - Test: `src/services/persistence/workspaceRepo.test.ts`
 
 **Interfaces:**
-
 - Consumes: `Database` aus `./db`; `Workspace` aus `../../domain/types`; Fixture aus `../../domain/__fixtures__/workspace`
 - Produces:
   - `interface WorkspaceSummary { id: string; name: string; updatedAt: number }`
@@ -2036,12 +2022,10 @@ PLANEOF
 ### Task 7: Autosave
 
 **Files:**
-
 - Create: `src/services/persistence/autosave.ts`
 - Test: `src/services/persistence/autosave.test.ts`
 
 **Interfaces:**
-
 - Consumes: `Workspace` aus `../../domain/types`
 - Produces:
   - `type SaveStatus = { kind: 'idle' } | { kind: 'pending' } | { kind: 'saving' } | { kind: 'saved'; at: number } | { kind: 'error'; reason: 'quota' | 'unknown'; message: string }`
@@ -2192,11 +2176,7 @@ describe('describeSaveStatus', () => {
     expect(describeSaveStatus({ kind: 'saving' })).toBe('Speichern...');
     expect(describeSaveStatus({ kind: 'saved', at: 1 })).toBe('Lokal gespeichert');
     expect(
-      describeSaveStatus({
-        kind: 'error',
-        reason: 'quota',
-        message: 'Nicht gespeichert -- Speicher voll',
-      }),
+      describeSaveStatus({ kind: 'error', reason: 'quota', message: 'Nicht gespeichert -- Speicher voll' }),
     ).toBe('Nicht gespeichert -- Speicher voll');
   });
 });
@@ -2377,12 +2357,10 @@ PLANEOF
 ### Task 8: Speicherkontingent und dauerhafte Ablage
 
 **Files:**
-
 - Create: `src/services/persistence/storage.ts`
 - Test: `src/services/persistence/storage.test.ts`
 
 **Interfaces:**
-
 - Consumes: nichts
 - Produces:
   - `interface StorageManagerLike { persist?(): Promise<boolean>; persisted?(): Promise<boolean>; estimate?(): Promise<{ usage?: number; quota?: number }> }`
@@ -2599,12 +2577,10 @@ PLANEOF
 ### Task 9: Dateien und Ordner einsammeln (`fileSources.ts`)
 
 **Files:**
-
 - Create: `src/services/import/fileSources.ts`
 - Test: `src/services/import/fileSources.test.ts`
 
 **Interfaces:**
-
 - Consumes: nichts
 - Produces:
   - `interface ImportCandidate { file: File; importPath?: string }`
@@ -2634,8 +2610,7 @@ import {
   type EntryLike,
 } from './fileSources';
 
-const pdf = (name: string) =>
-  new File([new Uint8Array([37, 80, 68, 70])], name, { type: 'application/pdf' });
+const pdf = (name: string) => new File([new Uint8Array([37, 80, 68, 70])], name, { type: 'application/pdf' });
 
 function fileEntry(name: string): EntryLike {
   return {
@@ -2691,12 +2666,7 @@ describe('collectFromEntries', () => {
   });
 
   it('bricht bei zu tiefer Verschachtelung ab, statt sich zu verlaufen', async () => {
-    const deep: EntryLike = {
-      isFile: false,
-      isDirectory: true,
-      name: 'a',
-      createReader: () => ({ readEntries: (resolve) => resolve([deep]) }),
-    };
+    const deep: EntryLike = { isFile: false, isDirectory: true, name: 'a', createReader: () => ({ readEntries: (resolve) => resolve([deep]) }) };
     await expect(collectFromEntries([deep], 3)).resolves.toEqual([]);
   });
 
@@ -2851,9 +2821,7 @@ export async function collectFromEntries(
 
   async function walk(entry: EntryLike, prefix: string[], depth: number): Promise<void> {
     if (depth > maxDepth) {
-      console.warn(
-        `Verzeichnis ${entry.name} ist tiefer als ${maxDepth} Ebenen und wird uebersprungen.`,
-      );
+      console.warn(`Verzeichnis ${entry.name} ist tiefer als ${maxDepth} Ebenen und wird uebersprungen.`);
       return;
     }
 
@@ -2903,11 +2871,7 @@ export async function collectFromDirectoryHandle(
 ): Promise<ImportCandidate[]> {
   const candidates: ImportCandidate[] = [];
 
-  async function walk(
-    directory: DirectoryHandleLike,
-    prefix: string[],
-    depth: number,
-  ): Promise<void> {
+  async function walk(directory: DirectoryHandleLike, prefix: string[], depth: number): Promise<void> {
     if (depth > maxDepth) return;
     for await (const child of directory.values()) {
       if (child.kind === 'file') {
@@ -2950,12 +2914,10 @@ PLANEOF
 ### Task 10: Import-Dienst (`importSources.ts`)
 
 **Files:**
-
 - Create: `src/services/import/importSources.ts`
 - Test: `src/services/import/importSources.test.ts`
 
 **Interfaces:**
-
 - Consumes: `AdapterRegistry` aus `../../adapters/registry`/`types`, `SourceBlobStore`, `StorageGuard`, `ImportCandidate`, `SourceDocument` aus `../../domain/types`
 - Produces:
   - `sha256Hex(bytes: Uint8Array): Promise<string>`
@@ -3015,9 +2977,7 @@ function fakeStorage(room = true): StorageGuard {
     requestPersistence: vi.fn(async () => true),
     estimate: async () => undefined,
     ensureRoom: async () =>
-      room
-        ? { ok: true }
-        : { ok: false, message: 'Fuer diesen Import fehlen rund 200 MB Speicher im Browser.' },
+      room ? { ok: true } : { ok: false, message: 'Fuer diesen Import fehlen rund 200 MB Speicher im Browser.' },
   };
 }
 
@@ -3235,10 +3195,7 @@ export async function importCandidates(
     // Lieber vorher klar ablehnen als spaeter in einen QuotaExceededError laufen.
     return {
       sources: [],
-      rejected: candidates.map((candidate) => ({
-        name: candidate.file.name,
-        message: room.message,
-      })),
+      rejected: candidates.map((candidate) => ({ name: candidate.file.name, message: room.message })),
     };
   }
 
@@ -3285,10 +3242,7 @@ export async function importCandidates(
       });
     } catch (error) {
       console.error(`Import von ${file.name} fehlgeschlagen`, error);
-      report.rejected.push({
-        name: file.name,
-        message: 'Diese Datei konnte nicht gelesen werden.',
-      });
+      report.rejected.push({ name: file.name, message: 'Diese Datei konnte nicht gelesen werden.' });
     }
   }
 
@@ -3324,12 +3278,10 @@ PLANEOF
 ### Task 11: Render-Warteschlange (`renderQueue.ts`)
 
 **Files:**
-
 - Create: `src/services/thumbnails/renderQueue.ts`
 - Test: `src/services/thumbnails/renderQueue.test.ts`
 
 **Interfaces:**
-
 - Consumes: nichts
 - Produces:
   - `type QueueTask<T> = (signal: AbortSignal) => Promise<T>`
@@ -3533,11 +3485,7 @@ export function createRenderQueue({ concurrency = 3 }: { concurrency?: number } 
     let best: Entry | undefined;
     for (const entry of entries.values()) {
       if (entry.running) continue;
-      if (
-        !best ||
-        entry.priority > best.priority ||
-        (entry.priority === best.priority && entry.order < best.order)
-      ) {
+      if (!best || entry.priority > best.priority || (entry.priority === best.priority && entry.order < best.order)) {
         best = entry;
       }
     }
@@ -3647,12 +3595,10 @@ PLANEOF
 ### Task 12: Thumbnail-Cache und Thumbnail-Dienst
 
 **Files:**
-
 - Create: `src/services/persistence/thumbStore.ts`, `src/services/thumbnails/thumbnailCache.ts`, `src/services/thumbnails/thumbnailService.ts`
 - Test: `src/services/thumbnails/thumbnailCache.test.ts`, `src/services/thumbnails/thumbnailService.test.ts`
 
 **Interfaces:**
-
 - Consumes: `Database`, `thumbKey` aus `../persistence/db`; `RenderQueue` aus `./renderQueue`; `DocumentAdapter` aus `../../adapters/types`; `BlockRef` aus `../../domain/types`
 - Produces:
   - `createThumbStore(db, now?): ThumbStore` mit `get`, `put`, `clear`
@@ -3885,10 +3831,7 @@ describe('createThumbnailService', () => {
     const url = await service.request({ ref });
 
     expect(url).toMatch(/^blob:/);
-    expect(renderBlock).toHaveBeenCalledWith(
-      ref,
-      expect.objectContaining({ targetWidth: THUMBNAIL_WIDTH }),
-    );
+    expect(renderBlock).toHaveBeenCalledWith(ref, expect.objectContaining({ targetWidth: THUMBNAIL_WIDTH }));
     expect(store.entries.has('src-a:16:180')).toBe(true);
   });
 
@@ -4032,11 +3975,7 @@ export function createThumbnailService({
         const stored = await store.get(key);
         if (stored) return cache.set(key, stored);
 
-        const bitmap = await adapter.renderBlock(ref, {
-          targetWidth: width,
-          dpr: requestDpr,
-          signal,
-        });
+        const bitmap = await adapter.renderBlock(ref, { targetWidth: width, dpr: requestDpr, signal });
         await store.put(key, bitmap.blob, width);
         return cache.set(key, bitmap.blob);
       });
@@ -4089,13 +4028,11 @@ PLANEOF
 ### Task 13: Zusammenbau, provisorische Oberflaeche und Integrationstest
 
 **Files:**
-
 - Create: `src/services/app/appServices.ts`, `src/ui/dev/ImportProbe.tsx`
 - Create: `scripts/make-fixture-pdfs.mjs`, `playwright.config.ts`, `tests/e2e/import.spec.ts`
 - Modify: `src/ui/app/App.tsx`, `package.json`, `.gitignore`
 
 **Interfaces:**
-
 - Consumes: alles aus den Tasks 1-12
 - Produces:
   - `createAppServices(deps: AppServicesDeps): Promise<AppServices>` -- der Zusammenbau, den Plan 3 uebernimmt
@@ -4301,11 +4238,7 @@ export function ImportProbe() {
       if (report.sources.length === 0) return;
 
       const next = produce(workspaceRef.current, (draft) => {
-        applyCommand(
-          draft,
-          { type: 'importSources', sources: report.sources },
-          { now: Date.now() },
-        );
+        applyCommand(draft, { type: 'importSources', sources: report.sources }, { now: Date.now() });
       });
       workspaceRef.current = next;
       setWorkspace(next);
@@ -4410,7 +4343,9 @@ function Thumb({
   sourceId: string;
   blockIndex: number;
 }) {
-  const [url, setUrl] = useState<string | undefined>(() => service.peek({ sourceId, blockIndex }));
+  const [url, setUrl] = useState<string | undefined>(() =>
+    service.peek({ sourceId, blockIndex }),
+  );
 
   useEffect(() => {
     let active = true;
@@ -4613,24 +4548,24 @@ PLANEOF
 
 ## Selbstpruefung gegen die Spezifikation
 
-| Abschnitt der Spezifikation                                                                  | In diesem Plan                                            |
-| -------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| 2 pdfjs-dist, pdf-lib, idb, Playwright                                                       | Task 1, 2, 5, 13                                          |
-| 3 Modulschnitt `adapters/`, `services/persistence`, `services/import`, `services/thumbnails` | Task 1-13                                                 |
-| 4 `DocumentAdapter`, `BlockAssembler`, Registry statt `if (isPdf)`                           | Task 1                                                    |
-| 5 `SourceDocument` vollstaendig gefuellt (contentHash, blockRotations, outline, status)      | Task 10                                                   |
-| 7 Vier Object Stores, Blob-Kopie in IndexedDB, `SourceBlobStore`-Naht                        | Task 5                                                    |
-| 7 Autosave 400 ms, Flush, Header-Status                                                      | Task 7 (Ereignis anhaengen: Plan 3)                       |
-| 7 `navigator.storage.persist()`, `estimate()`, Ablehnung statt QuotaExceededError            | Task 8, 10                                                |
-| 7 `schemaVersion` und Migrationsnaht                                                         | Task 6                                                    |
-| 8 Dokument-Pool mit maximal vier offenen Dokumenten                                          | Task 3                                                    |
-| 8 Render-Queue, Prioritaet, Abbruch, maximal drei parallel                                   | Task 11                                                   |
-| 8 Zweistufiger Thumbnail-Cache, 180 px, DPR gedeckelt, revokeObjectURL                       | Task 4, 12                                                |
-| 8 Assembler laedt je Quelle einmal, gebuendeltes copyPages                                   | Task 2                                                    |
-| 10 Textextraktion (Adapter-Seite)                                                            | Task 4 (`extractText`); Worker, Cache und Suche in Plan 4 |
-| 11 Import per Drop, Dateidialog, Ordnerwahl, `importPath`                                    | Task 9, 10                                                |
-| 14 `isEvalSupported: false`, keine externen Requests, verstaendliche Fehlertexte             | Task 1, 4, 10                                             |
-| 15 Adapter-Tests gegen im Test erzeugte PDFs                                                 | Task 2 (Assembler), Task 13 (echtes pdf.js in Chromium)   |
+| Abschnitt der Spezifikation | In diesem Plan |
+| --- | --- |
+| 2 pdfjs-dist, pdf-lib, idb, Playwright | Task 1, 2, 5, 13 |
+| 3 Modulschnitt `adapters/`, `services/persistence`, `services/import`, `services/thumbnails` | Task 1-13 |
+| 4 `DocumentAdapter`, `BlockAssembler`, Registry statt `if (isPdf)` | Task 1 |
+| 5 `SourceDocument` vollstaendig gefuellt (contentHash, blockRotations, outline, status) | Task 10 |
+| 7 Vier Object Stores, Blob-Kopie in IndexedDB, `SourceBlobStore`-Naht | Task 5 |
+| 7 Autosave 400 ms, Flush, Header-Status | Task 7 (Ereignis anhaengen: Plan 3) |
+| 7 `navigator.storage.persist()`, `estimate()`, Ablehnung statt QuotaExceededError | Task 8, 10 |
+| 7 `schemaVersion` und Migrationsnaht | Task 6 |
+| 8 Dokument-Pool mit maximal vier offenen Dokumenten | Task 3 |
+| 8 Render-Queue, Prioritaet, Abbruch, maximal drei parallel | Task 11 |
+| 8 Zweistufiger Thumbnail-Cache, 180 px, DPR gedeckelt, revokeObjectURL | Task 4, 12 |
+| 8 Assembler laedt je Quelle einmal, gebuendeltes copyPages | Task 2 |
+| 10 Textextraktion (Adapter-Seite) | Task 4 (`extractText`); Worker, Cache und Suche in Plan 4 |
+| 11 Import per Drop, Dateidialog, Ordnerwahl, `importPath` | Task 9, 10 |
+| 14 `isEvalSupported: false`, keine externen Requests, verstaendliche Fehlertexte | Task 1, 4, 10 |
+| 15 Adapter-Tests gegen im Test erzeugte PDFs | Task 2 (Assembler), Task 13 (echtes pdf.js in Chromium) |
 
 Bewusst nicht in Plan 2: Store und History (Plan 3), Virtualisierung und Drag (Plan 3), Viewer, Suche, Textworker und die beiden Export-Writer (Plan 4). Die provisorische `ImportProbe` ist ausdruecklich Wegwerfcode; Plan 3 ersetzt sie durch die Arbeitsflaeche und entfernt `src/ui/dev/`.
 
