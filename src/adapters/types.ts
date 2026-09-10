@@ -52,6 +52,18 @@ export interface PageText {
   spans: TextSpan[];
 }
 
+export interface ExtractRequest {
+  type: 'extract';
+  sourceId: string;
+  bytes: Uint8Array;
+  indices: number[];
+}
+
+export type ExtractResponse =
+  | { type: 'page'; sourceId: string; blockIndex: number; text: string; spans: TextSpan[] }
+  | { type: 'done'; sourceId: string }
+  | { type: 'error'; sourceId: string; message: string };
+
 export interface DocumentAdapter {
   readonly kind: SourceKind;
   accepts(file: FileDescriptor): boolean;
