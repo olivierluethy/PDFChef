@@ -1,0 +1,7 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-shell: #0f1115;
+  --color-panel: #171a21;
+  --color-line: #262b36;
+}
