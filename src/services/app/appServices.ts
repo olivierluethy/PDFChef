@@ -6,6 +6,7 @@ import { createDocumentPool } from '../../adapters/pdf/pdfPool';
 import type { PdfDocumentHandle } from '../../adapters/pdf/pdfEngine';
 import { createOffscreenSurface, createPdfjsEngine } from '../../adapters/pdf/pdfjsEngine';
 import { createRegistry } from '../../adapters/registry';
+import { extractTextContent } from '../../adapters/text/extractText';
 import { createTextAdapter } from '../../adapters/text/textAdapter';
 import { paginateText } from '../../adapters/text/textLayout';
 import type { AdapterRegistry, BlockAssembler, DocumentAdapter, ImageEmbeddable } from '../../adapters/types';
@@ -94,7 +95,7 @@ export async function createAppServices({
   const textAdapter = createTextAdapter({
     readBytes: readBytesForSource,
     createSurface: createOffscreenSurface,
-    decodeText: (bytes) => new TextDecoder().decode(bytes),
+    extractText: extractTextContent,
   });
   const assembler = createPdfAssembler();
   const registry = createRegistry();
@@ -138,7 +139,7 @@ export async function createAppServices({
       return imageAdapter.toEmbeddable(await readBytesForSource(sourceId));
     },
     async textPages(sourceId) {
-      return paginateText(new TextDecoder().decode(await readBytesForSource(sourceId)));
+      return paginateText(await extractTextContent(await readBytesForSource(sourceId)));
     },
     async importForDrop(items) {
       return importCandidates(

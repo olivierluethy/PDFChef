@@ -8,14 +8,20 @@ export interface TextAdapterDeps {
   readBytes(sourceId: SourceId): Promise<Uint8Array>;
   /** Dieselbe OffscreenCanvas-Fassade wie beim PDF-/Bild-Adapter. */
   createSurface: CreateSurface;
-  /** = new TextDecoder().decode, injiziert fuer Testbarkeit. */
-  decodeText(bytes: Uint8Array): string;
+  /** Formatbewusste Extraktion (TXT/MD direkt, DOCX/PPTX/XLSX via OOXML). */
+  extractText(bytes: Uint8Array): Promise<string>;
   imageType?: string;
   imageQuality?: number;
 }
 
-const ACCEPTED_MIME = new Set(['text/plain', 'text/markdown']);
-const ACCEPTED_EXT = ['.txt', '.md'];
+const ACCEPTED_MIME = new Set([
+  'text/plain',
+  'text/markdown',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+]);
+const ACCEPTED_EXT = ['.txt', '.md', '.docx', '.pptx', '.xlsx'];
 
 const EMPTY_PROBE = {
   kind: 'text' as const,
@@ -47,7 +53,7 @@ function drawPage(surface: RenderSurface, lines: string[], scale: number): void 
 export function createTextAdapter({
   readBytes,
   createSurface,
-  decodeText,
+  extractText,
   imageType = 'image/webp',
   imageQuality = 0.8,
 }: TextAdapterDeps): DocumentAdapter {
@@ -61,7 +67,8 @@ export function createTextAdapter({
 
     async probe(blob: Blob): Promise<SourceProbeResult> {
       try {
-        const pages = paginateText(await blob.text());
+        const bytes = new Uint8Array(await blob.arrayBuffer());
+        const pages = paginateText(await extractText(bytes));
         return {
           ...EMPTY_PROBE,
           blockCount: pages.length,
@@ -81,7 +88,7 @@ export function createTextAdapter({
     async renderBlock(ref: BlockRef, opts: RenderOpts): Promise<RenderedBitmap> {
       opts.signal?.throwIfAborted();
       const bytes = await readBytes(ref.sourceId);
-      const pages = paginateText(decodeText(bytes));
+      const pages = paginateText(await extractText(bytes));
       const lines = pages[ref.blockIndex] ?? [''];
 
       const scale = computeRenderScale(TEXT_PAGE.width, opts.targetWidth, opts.dpr ?? 1);
