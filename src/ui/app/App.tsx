@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { newId } from '../../domain/ids';
 import type { NodeId, SourceId } from '../../domain/types';
 import type { SaveStatus } from '../../services/persistence/autosave';
 import { SourceGrid } from '../sources/SourceGrid';
@@ -15,6 +16,8 @@ import { useExternalDrop } from '../workspace/useExternalDrop';
 import { PreviewPane } from '../preview/PreviewPane';
 import { useSearch } from '../preview/useSearch';
 import { useExport } from '../export/useExport';
+import { CommandPalette } from './CommandPalette';
+import type { PaletteAction } from './commandFilter';
 import { ContextBar } from './ContextBar';
 import { Header } from './Header';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
@@ -25,6 +28,7 @@ import {
   useServices,
   useSelectionStore,
   useWorkspace,
+  useWorkspaceStore,
   type StoreContextValue,
 } from './StoreProvider';
 
@@ -75,18 +79,40 @@ function Workspace() {
   const workspace = useWorkspace();
   const services = useServices();
   const dispatch = useDispatch();
+  const workspaceStore = useWorkspaceStore();
   const selectionStore = useSelectionStore();
   const [status, setStatus] = useState<SaveStatus>({ kind: 'idle' });
   const [activeSourceId, setActiveSourceId] = useState<SourceId | null>(null);
   const [activeOutputId, setActiveOutputId] = useState<NodeId | null>(null);
   const [splitting, setSplitting] = useState<SourceId | null>(null);
   const [sourceSeek, setSourceSeek] = useState<{ index: number; nonce: number } | null>(null);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const drag = usePointerDrag();
   const external = useExternalDrop();
   const exportUi = useExport();
   const search = useSearch({ sourceId: activeSourceId, outputId: activeOutputId });
-  useKeyboardShortcuts({ onSearch: search.open });
+  useKeyboardShortcuts({ onSearch: search.open, onCommandPalette: () => setPaletteOpen(true) });
+
+  const paletteActions = useMemo<PaletteAction[]>(
+    () => [
+      { id: 'undo', label: 'Rueckgaengig', run: () => workspaceStore.getState().undo() },
+      { id: 'redo', label: 'Wiederherstellen', run: () => workspaceStore.getState().redo() },
+      {
+        id: 'createFolder',
+        label: 'Ordner anlegen',
+        run: () => dispatch({ type: 'createFolder', node: { id: newId(), name: 'Neuer Ordner', parentId: null } }),
+      },
+      {
+        id: 'createOutput',
+        label: 'Dokument anlegen',
+        run: () => dispatch({ type: 'createOutput', node: { id: newId(), name: 'Neues Dokument', parentId: null } }),
+      },
+      { id: 'export', label: 'Exportieren', run: () => exportUi.open() },
+      { id: 'search', label: 'Suchen', run: () => search.open() },
+    ],
+    [workspaceStore, dispatch, exportUi, search],
+  );
 
   useEffect(() => services.autosave.subscribe(setStatus), [services]);
 
@@ -186,6 +212,7 @@ function Workspace() {
         </div>
       )}
       {exportUi.dialog}
+      {paletteOpen && <CommandPalette actions={paletteActions} onClose={() => setPaletteOpen(false)} />}
     </div>
   );
 }
