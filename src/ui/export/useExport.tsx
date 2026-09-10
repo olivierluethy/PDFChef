@@ -1,11 +1,12 @@
-import { useCallback, useRef, useState, type ReactNode } from 'react';
-import { buildExportPlan, type ExportPlan } from '../../domain/exportPlan';
+import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { buildExportPlan, type ExportScope } from '../../domain/exportPlan';
 import { analyzeExport } from '../../domain/exportWarnings';
+import type { NodeId } from '../../domain/types';
 import type { DirectoryHandleLike } from '../../services/export/fsAccessWriter';
 import { createFsAccessWriter } from '../../services/export/fsAccessWriter';
 import { createZipWriter } from '../../services/export/zipWriter';
 import { runExport, type ExportProgress } from '../../services/export/exportRunner';
-import { useServices, useWorkspace } from '../app/StoreProvider';
+import { useDispatch, useServices, useWorkspace } from '../app/StoreProvider';
 import { ExportDialog } from './ExportDialog';
 
 function download(blob: Blob, fileName: string): void {
@@ -21,21 +22,39 @@ function download(blob: Blob, fileName: string): void {
 
 const canWriteDirectory = typeof (globalThis as { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function';
 
-export function useExport(): { open(): void; dialog: ReactNode } {
+export interface ExportController {
+  /** Ohne Argument: den ganzen Arbeitsbereich. Mit nodeId: nur diesen Ordner/dieses Dokument. */
+  open(scope?: ExportScope): void;
+  dialog: ReactNode;
+}
+
+export function useExport(): ExportController {
   const services = useServices();
   const workspace = useWorkspace();
-  const [plan, setPlan] = useState<ExportPlan | null>(null);
+  const dispatch = useDispatch();
+  const [scope, setScope] = useState<ExportScope | null>(null);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
   const abort = useRef<AbortController | null>(null);
 
+  // Der Plan wird live aus dem Arbeitsbereich abgeleitet: benennt der Nutzer im
+  // Dialog ein Dokument um, aktualisiert sich die Vorschau sofort mit.
+  const plan = useMemo(() => (scope ? buildExportPlan(workspace, scope) : null), [scope, workspace]);
+  const names = useMemo(() => {
+    const map: Record<NodeId, string> = {};
+    if (plan) for (const entry of plan.entries) map[entry.outputId] = workspace.nodes[entry.outputId]?.name ?? '';
+    return map;
+  }, [plan, workspace]);
+
   const close = useCallback(() => {
-    setPlan(null);
+    setScope(null);
     setProgress(null);
   }, []);
 
   const onExport = useCallback(
     async (target: 'directory' | 'zip') => {
-      const current = buildExportPlan(workspace);
+      if (!scope) return;
+      const current = buildExportPlan(workspace, scope);
+      if (current.entries.length === 0) return;
       const controller = new AbortController();
       abort.current = controller;
       setProgress({ done: 0, total: current.entries.length, currentName: '' });
@@ -64,17 +83,19 @@ export function useExport(): { open(): void; dialog: ReactNode } {
         setProgress(null);
       }
     },
-    [services, workspace, close],
+    [services, workspace, scope, close],
   );
 
   return {
-    open: () => setPlan(buildExportPlan(workspace)),
+    open: (next: ExportScope = { kind: 'workspace' }) => setScope(next),
     dialog: plan ? (
       <ExportDialog
         plan={plan}
+        names={names}
         warnings={analyzeExport(plan)}
         canWriteDirectory={canWriteDirectory}
         progress={progress}
+        onRename={(outputId, name) => dispatch({ type: 'renameNode', nodeId: outputId, name })}
         onExport={(target) => void onExport(target)}
         onCancel={() => abort.current?.abort()}
         onClose={close}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, FilePlus2, Folder, FolderPlus, FileText, Trash2 } from 'lucide-react';
+import { ChevronRight, Download, FilePlus2, Folder, FolderPlus, FileText, Trash2 } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import type { NodeId } from '../../domain/types';
 import { useDispatch, useWorkspace } from '../app/StoreProvider';
@@ -9,9 +9,10 @@ export interface OutputTreeProps {
   activeOutputId: NodeId | null;
   onSelectOutput(id: NodeId): void;
   onDeleteNode?(nodeId: NodeId): void;
+  onExportNode?(nodeId: NodeId): void;
 }
 
-export function OutputTree({ activeOutputId, onSelectOutput, onDeleteNode }: OutputTreeProps) {
+export function OutputTree({ activeOutputId, onSelectOutput, onDeleteNode, onExportNode }: OutputTreeProps) {
   const workspace = useWorkspace();
   const dispatch = useDispatch();
   const [renaming, setRenaming] = useState<NodeId | null>(null);
@@ -88,10 +89,21 @@ export function OutputTree({ activeOutputId, onSelectOutput, onDeleteNode }: Out
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
+                      onExportNode?.(node.id);
+                    }}
+                    aria-label={`"${record.name}" exportieren`}
+                    className="shrink-0 rounded p-1 text-muted opacity-0 hover:bg-shell hover:text-ink group-hover:opacity-100"
+                  >
+                    <Download className="size-3.5" aria-hidden />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
                       onDeleteNode?.(node.id);
                     }}
                     aria-label={`"${record.name}" loeschen`}
-                    className="shrink-0 rounded p-1 text-neutral-500 opacity-0 hover:bg-shell hover:text-neutral-300 group-hover:opacity-100"
+                    className="shrink-0 rounded p-1 text-muted opacity-0 hover:bg-shell hover:text-danger group-hover:opacity-100"
                   >
                     <Trash2 className="size-3.5" aria-hidden />
                   </button>
