@@ -17,6 +17,7 @@ import { PreviewPane } from '../preview/PreviewPane';
 import { useOcr } from '../preview/useOcr';
 import { useSearch } from '../preview/useSearch';
 import { useExport } from '../export/useExport';
+import { useLatexExport } from '../export/useLatexExport';
 import { CommandPalette } from './CommandPalette';
 import type { PaletteAction } from './commandFilter';
 import { ContextBar } from './ContextBar';
@@ -92,6 +93,7 @@ function Workspace() {
   const drag = usePointerDrag();
   const external = useExternalDrop();
   const exportUi = useExport();
+  const latex = useLatexExport();
   const search = useSearch({ sourceId: activeSourceId, outputId: activeOutputId });
   const ocr = useOcr();
   useKeyboardShortcuts({ onSearch: search.open, onCommandPalette: () => setPaletteOpen(true) });
@@ -120,8 +122,15 @@ function Workspace() {
           if (activeSourceId && source) void ocr.runForSource(activeSourceId, source.blockCount);
         },
       },
+      {
+        id: 'latexExport',
+        label: 'Als LaTeX exportieren (aktuelle Quelle)',
+        run: () => {
+          if (activeSourceId) void latex.runForSource(activeSourceId);
+        },
+      },
     ],
-    [workspaceStore, dispatch, exportUi, search, ocr, activeSourceId, workspace],
+    [workspaceStore, dispatch, exportUi, search, ocr, latex, activeSourceId, workspace],
   );
 
   useEffect(() => services.autosave.subscribe(setStatus), [services]);
