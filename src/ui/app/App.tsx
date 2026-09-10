@@ -3,6 +3,7 @@ import type { NodeId, SourceId } from '../../domain/types';
 import type { SaveStatus } from '../../services/persistence/autosave';
 import { SourceGrid } from '../sources/SourceGrid';
 import { SourceList } from '../sources/SourceList';
+import { DuplicatesNotice } from '../sources/DuplicatesNotice';
 import { RangeField } from '../sources/RangeField';
 import { OutlinePanel } from '../sources/OutlinePanel';
 import { OutputGrid } from '../workspace/OutputGrid';
@@ -117,6 +118,7 @@ function Workspace() {
         <aside className="flex w-64 flex-col border-r border-line">
           <div className="flex-1 overflow-auto border-b border-line">
             <h2 className="px-3 py-2 text-xs uppercase tracking-wide text-neutral-500">Quellen</h2>
+            <DuplicatesNotice />
             <SourceList activeSourceId={activeSourceId} onSelect={setActiveSourceId} />
           </div>
           <div className="flex-1 overflow-auto">
