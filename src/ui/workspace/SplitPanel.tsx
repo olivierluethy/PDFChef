@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { newId } from '../../domain/ids';
-import { describeSplitPart, planSplit, type SplitStrategy } from '../../domain/split';
+import { groupNonBlank } from '../../domain/scanSplit';
+import { describeSplitPart, planSplit, type SplitPart, type SplitStrategy } from '../../domain/split';
 import type { NodeId, SourceId } from '../../domain/types';
-import { useDispatch, useSelection, useWorkspace } from '../app/StoreProvider';
+import { useDispatch, useSelection, useServices, useWorkspace } from '../app/StoreProvider';
 import { buildSplitCommand } from './buildSplitCommand';
+import { detectBlankPages } from './detectBlankPages';
 
 export interface SplitPanelProps {
   sourceId: SourceId;
@@ -11,18 +13,21 @@ export interface SplitPanelProps {
   onClose(): void;
 }
 
-type StrategyChoice = 'equalHalves' | 'equalThirds' | 'everyN' | 'custom' | 'selection';
+type StrategyChoice = 'equalHalves' | 'equalThirds' | 'everyN' | 'custom' | 'selection' | 'blankSeparators';
 
 export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
   const workspace = useWorkspace();
   const selection = useSelection();
   const dispatch = useDispatch();
+  const services = useServices();
   const source = workspace.sources[sourceId];
   const blockCount = source?.blockCount ?? 0;
 
   const [choice, setChoice] = useState<StrategyChoice>('equalHalves');
   const [everyN, setEveryN] = useState(10);
   const [custom, setCustom] = useState('');
+  const [detectedParts, setDetectedParts] = useState<SplitPart[] | null>(null);
+  const [detecting, setDetecting] = useState<{ done: number; total: number } | null>(null);
 
   const strategy = useMemo<SplitStrategy>(() => {
     switch (choice) {
@@ -40,18 +45,51 @@ export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
           : [];
         return { kind: 'selection', indices };
       }
+      case 'blankSeparators':
+        // Wird fuer diese Strategie nicht zur Vorschau genutzt (siehe detectedParts unten).
+        return { kind: 'selection', indices: [] };
     }
   }, [choice, everyN, custom, selection, sourceId]);
 
   const plan = planSplit(strategy, blockCount);
 
+  function handleChoiceChange(next: StrategyChoice) {
+    setChoice(next);
+    if (next !== 'blankSeparators') {
+      setDetectedParts(null);
+      setDetecting(null);
+    }
+  }
+
+  async function runDetection() {
+    setDetecting({ done: 0, total: blockCount });
+    try {
+      const blank = await detectBlankPages(services.adapter, sourceId, blockCount, {
+        onProgress: (done, total) => setDetecting({ done, total }),
+      });
+      const segments = groupNonBlank(blockCount, blank);
+      setDetectedParts(segments.map((indices, index) => ({ label: `Teil ${index + 1}`, indices })));
+    } finally {
+      setDetecting(null);
+    }
+  }
+
   function apply() {
-    if (!plan.ok) return;
-    dispatch(
-      buildSplitCommand({ sourceId, sourceName: source?.name ?? 'Dokument', parentId, parts: plan.parts, newId }),
-    );
+    const parts = choice === 'blankSeparators' ? detectedParts : plan.ok ? plan.parts : null;
+    if (!parts || parts.length === 0) return;
+    dispatch(buildSplitCommand({ sourceId, sourceName: source?.name ?? 'Dokument', parentId, parts, newId }));
     onClose();
   }
+
+  const canApply = choice === 'blankSeparators' ? !!detectedParts && detectedParts.length > 0 : plan.ok;
+  const applyLabel =
+    choice === 'blankSeparators'
+      ? detectedParts
+        ? `${detectedParts.length} Dokumente erstellen`
+        : 'Dokumente erstellen'
+      : plan.ok
+        ? `${plan.parts.length} Dokumente erstellen`
+        : 'Dokumente erstellen';
 
   return (
     <div className="flex flex-col gap-3 border-t border-line bg-panel p-4" role="dialog" aria-label="Dokument aufteilen">
@@ -59,7 +97,7 @@ export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
         <h2 className="text-sm font-medium">{source?.name} aufteilen</h2>
         <select
           value={choice}
-          onChange={(e) => setChoice(e.target.value as StrategyChoice)}
+          onChange={(e) => handleChoiceChange(e.target.value as StrategyChoice)}
           className="rounded border border-line bg-shell px-2 py-1 text-sm"
           aria-label="Strategie"
         >
@@ -68,6 +106,7 @@ export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
           <option value="everyN">Alle N Seiten</option>
           <option value="custom">Eigene Bereiche</option>
           <option value="selection">Aktuelle Selektion</option>
+          <option value="blankSeparators">An leeren Trennseiten</option>
         </select>
       </div>
 
@@ -93,8 +132,44 @@ export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
         />
       )}
 
+      {choice === 'blankSeparators' && (
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={runDetection}
+            disabled={!!detecting || blockCount === 0}
+            className="self-start rounded border border-line px-3 py-1 text-sm hover:bg-shell disabled:opacity-50"
+          >
+            Trennseiten erkennen
+          </button>
+          {detecting && (
+            <p className="text-sm text-neutral-400">
+              Seite {detecting.done} von {detecting.total} geprueft
+            </p>
+          )}
+          {!detecting && detectedParts && detectedParts.length === 1 && (
+            <p className="text-sm text-amber-400">Keine Trennseiten gefunden.</p>
+          )}
+        </div>
+      )}
+
       <div className="max-h-48 overflow-auto rounded border border-line">
-        {plan.ok ? (
+        {choice === 'blankSeparators' ? (
+          detectedParts ? (
+            <ul className="divide-y divide-line text-sm">
+              {detectedParts.map((part, index) => (
+                <li key={index} className="flex justify-between px-3 py-1">
+                  <span>{part.label}</span>
+                  <span className="text-neutral-400">{describeSplitPart(part)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="px-3 py-2 text-sm text-neutral-400">
+              Noch keine Erkennung ausgefuehrt.
+            </p>
+          )
+        ) : plan.ok ? (
           <ul className="divide-y divide-line text-sm">
             {plan.parts.map((part, index) => (
               <li key={index} className="flex justify-between px-3 py-1">
@@ -115,10 +190,10 @@ export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
         <button
           type="button"
           onClick={apply}
-          disabled={!plan.ok}
+          disabled={!canApply}
           className="rounded bg-sky-600 px-3 py-1 text-sm disabled:opacity-50"
         >
-          {plan.ok ? `${plan.parts.length} Dokumente erstellen` : 'Dokumente erstellen'}
+          {applyLabel}
         </button>
       </div>
     </div>
