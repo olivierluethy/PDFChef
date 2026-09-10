@@ -3,7 +3,7 @@ import tseslint from 'typescript-eslint';
 import importPlugin from 'eslint-plugin-import';
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'public/pdfjs'] },
+  { ignores: ['dist', 'coverage', 'public'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
