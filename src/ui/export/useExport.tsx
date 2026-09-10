@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { buildExportPlan, type ExportPlan } from '../../domain/exportPlan';
+import { analyzeExport } from '../../domain/exportWarnings';
 import type { DirectoryHandleLike } from '../../services/export/fsAccessWriter';
 import { createFsAccessWriter } from '../../services/export/fsAccessWriter';
 import { createZipWriter } from '../../services/export/zipWriter';
@@ -70,6 +71,7 @@ export function useExport(): { open(): void; dialog: ReactNode } {
     dialog: plan ? (
       <ExportDialog
         plan={plan}
+        warnings={analyzeExport(plan)}
         canWriteDirectory={canWriteDirectory}
         progress={progress}
         onExport={(target) => void onExport(target)}
