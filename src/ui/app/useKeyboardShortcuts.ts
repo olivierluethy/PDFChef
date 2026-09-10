@@ -20,6 +20,7 @@ export interface ShortcutHandlers {
   onSearch?(): void;
   onPreview?(): void;
   onRename?(): void;
+  onCommandPalette?(): void;
 }
 
 export function useKeyboardShortcuts(handlers: ShortcutHandlers = {}): void {
@@ -52,6 +53,11 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers = {}): void {
       if (meta && event.key.toLowerCase() === 'f') {
         event.preventDefault();
         handlers.onSearch?.();
+        return;
+      }
+      if (meta && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        handlers.onCommandPalette?.();
         return;
       }
       if (event.key === 'Delete' || event.key === 'Backspace') {
