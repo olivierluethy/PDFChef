@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { FolderUp, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import { buildNodeSnapshot } from '../../domain/trash';
-import type { NodeId, SourceId } from '../../domain/types';
+import { isOutput, type NodeId, type SourceId } from '../../domain/types';
+import { SplitPane } from '../common/SplitPane';
 import type { SaveStatus } from '../../services/persistence/autosave';
 import { createTrashService } from '../../services/persistence/trashService';
 import { SourceGrid } from '../sources/SourceGrid';
@@ -93,6 +95,7 @@ function Workspace() {
   const [sourceSeek, setSourceSeek] = useState<{ index: number; nonce: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(true);
   const trash = useMemo(() => createTrashService(services.db), [services.db]);
 
   const drag = usePointerDrag();
@@ -149,100 +152,157 @@ function Workspace() {
   }, [search.jumpTarget]);
 
   const activeSource = activeSourceId ? workspace.sources[activeSourceId] : undefined;
+  const activeOutput = activeOutputId ? workspace.nodes[activeOutputId] : undefined;
+  const hasSources = workspace.sourceOrder.length > 0;
+  const importFiles = (files: FileList | File[]) =>
+    void services.importForFiles(files).then((report) => {
+      if (report.sources.length > 0) {
+        dispatch({ type: 'importSources', sources: report.sources });
+        setActiveSourceId(report.sources[0].id);
+      }
+    });
 
-  return (
-    <div className="flex h-screen flex-col bg-shell text-neutral-200" {...external.dropHandlers}>
-      <Header
-        onImportFiles={(files) =>
-          void services.importForFiles(files).then((report) => {
-            if (report.sources.length > 0) {
-              dispatch({ type: 'importSources', sources: report.sources });
-              setActiveSourceId(report.sources[0].id);
-            }
-          })
-        }
-        onExport={exportUi.open}
-        saveStatus={status}
-      />
-
-      <div className="flex min-h-0 flex-1">
-        <aside className="flex w-64 flex-col border-r border-line">
-          <div className="flex-1 overflow-auto border-b border-line">
-            <h2 className="px-3 py-2 text-xs uppercase tracking-wide text-neutral-500">Quellen</h2>
-            <DuplicatesNotice />
-            <SourceList activeSourceId={activeSourceId} onSelect={setActiveSourceId} />
-          </div>
-          <div className="flex-1 overflow-auto">
-            <h2 className="px-3 py-2 text-xs uppercase tracking-wide text-neutral-500">Ausgabe</h2>
-            <OutputTree
-              activeOutputId={activeOutputId}
-              onSelectOutput={setActiveOutputId}
-              onDeleteNode={(nodeId) => {
-                const snapshot = buildNodeSnapshot(workspace, nodeId);
-                const node = workspace.nodes[nodeId];
-                void trash
-                  .add({
-                    id: newId(),
-                    kind: 'node',
-                    name: node?.name ?? 'Element',
-                    deletedAt: Date.now(),
-                    snapshot,
-                  })
-                  .then(() => dispatch({ type: 'deleteNode', nodeId }));
-                if (activeOutputId === nodeId) setActiveOutputId(null);
+  const sourcePane = (
+    <section className="flex h-full min-h-0 flex-col">
+      <header className="flex items-center gap-2 border-b border-line px-3 py-2">
+        <span className="text-sm font-medium text-ink">{activeSource ? activeSource.name : 'Quelle'}</span>
+        {activeSource && (
+          <span className="tabular text-xs text-muted">{activeSource.blockCount} Seiten</span>
+        )}
+        <span className="ml-auto text-xs text-muted">Seiten nach unten ins Dokument ziehen</span>
+      </header>
+      {activeSource ? (
+        <>
+          {activeSource.outline && activeSource.outline.length > 0 && (
+            <OutlinePanel
+              outline={activeSource.outline}
+              blockCount={activeSource.blockCount}
+              onNavigate={(blockIndex) => {
+                selectionStore
+                  .getState()
+                  .select({ kind: 'source', sourceId: activeSource.id }, String(blockIndex), [String(blockIndex)]);
+                setSourceSeek({ index: blockIndex, nonce: Date.now() });
               }}
             />
+          )}
+          <RangeField sourceId={activeSource.id} blockCount={activeSource.blockCount} />
+          <div className="min-h-0 flex-1">
+            <SourceGrid
+              source={activeSource}
+              onCellPointerDown={drag.onCellPointerDown}
+              scrollTo={sourceSeek ?? undefined}
+            />
+          </div>
+        </>
+      ) : (
+        <p className="p-4 text-sm text-muted">Waehlen Sie links eine Quelle, um ihre Seiten zu sehen.</p>
+      )}
+    </section>
+  );
+
+  const outputPane = (
+    <section className="flex h-full min-h-0 flex-col">
+      <header className="flex items-center gap-2 border-b border-t border-line px-3 py-2">
+        <span className="text-sm font-medium text-ink">
+          {activeOutput ? activeOutput.name : 'Ausgabedokument'}
+        </span>
+        {activeOutput && isOutput(activeOutput) && (
+          <span className="tabular text-xs text-muted">{activeOutput.items.length} Seiten</span>
+        )}
+      </header>
+      <div className="min-h-0 flex-1">
+        {activeOutputId ? (
+          <OutputGrid outputId={activeOutputId} onCellPointerDown={drag.onCellPointerDown} />
+        ) : (
+          <p className="p-4 text-sm text-muted">
+            Waehlen Sie links ein Ausgabedokument oder legen Sie eines an.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+
+  return (
+    <div className="flex h-screen flex-col bg-shell text-ink" {...external.dropHandlers}>
+      <Header onImportFiles={importFiles} onExport={exportUi.open} saveStatus={status} />
+
+      <div className="flex min-h-0 flex-1">
+        <aside className="flex w-64 flex-col border-r border-line bg-panel">
+          <div className="flex min-h-0 flex-1 flex-col border-b border-line">
+            <h2 className="px-3 pb-1 pt-3 text-xs font-medium text-muted">Quellen</h2>
+            <DuplicatesNotice />
+            <div className="min-h-0 flex-1 overflow-auto">
+              <SourceList activeSourceId={activeSourceId} onSelect={setActiveSourceId} />
+            </div>
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <h2 className="px-3 pb-1 pt-3 text-xs font-medium text-muted">Ausgabestruktur</h2>
+            <div className="min-h-0 flex-1 overflow-auto">
+              <OutputTree
+                activeOutputId={activeOutputId}
+                onSelectOutput={setActiveOutputId}
+                onDeleteNode={(nodeId) => {
+                  const snapshot = buildNodeSnapshot(workspace, nodeId);
+                  const node = workspace.nodes[nodeId];
+                  void trash
+                    .add({
+                      id: newId(),
+                      kind: 'node',
+                      name: node?.name ?? 'Element',
+                      deletedAt: Date.now(),
+                      snapshot,
+                    })
+                    .then(() => dispatch({ type: 'deleteNode', nodeId }));
+                  if (activeOutputId === nodeId) setActiveOutputId(null);
+                }}
+              />
+            </div>
           </div>
         </aside>
 
         <main className="flex min-w-0 flex-1 flex-col">
-          <section className="flex min-h-0 flex-1 flex-col border-b border-line">
-            {activeSource ? (
-              <>
-                {activeSource.outline && activeSource.outline.length > 0 && (
-                  <OutlinePanel
-                    outline={activeSource.outline}
-                    blockCount={activeSource.blockCount}
-                    onNavigate={(blockIndex) => {
-                      selectionStore
-                        .getState()
-                        .select({ kind: 'source', sourceId: activeSource.id }, String(blockIndex), [String(blockIndex)]);
-                      setSourceSeek({ index: blockIndex, nonce: Date.now() });
-                    }}
-                  />
-                )}
-                <RangeField sourceId={activeSource.id} blockCount={activeSource.blockCount} />
-                <div className="min-h-0 flex-1">
-                  <SourceGrid
-                    source={activeSource}
-                    onCellPointerDown={drag.onCellPointerDown}
-                    scrollTo={sourceSeek ?? undefined}
-                  />
-                </div>
-              </>
-            ) : (
-              <p className="p-4 text-sm text-neutral-500">Waehlen Sie links eine Quelle.</p>
-            )}
-          </section>
-          <section className="min-h-0 flex-1">
-            {activeOutputId ? (
-              <OutputGrid outputId={activeOutputId} onCellPointerDown={drag.onCellPointerDown} />
-            ) : (
-              <p className="p-4 text-sm text-neutral-500">Waehlen Sie ein Ausgabedokument.</p>
-            )}
-          </section>
+          {hasSources ? (
+            <SplitPane top={sourcePane} bottom={outputPane} />
+          ) : (
+            <EmptyWorkspace onImportFiles={importFiles} accept={services.registry.acceptAttribute()} />
+          )}
         </main>
 
-        <aside className="flex w-96 border-l border-line">
-          <div className="min-w-0 flex-1">
-            <PreviewPane
-              activeSourceId={activeSourceId}
-              activeOutputId={activeOutputId}
-              onJumpToSource={(ref) => setActiveSourceId(ref.sourceId)}
-            />
-          </div>
-          {search.panel && <div className="w-80 shrink-0">{search.panel}</div>}
-        </aside>
+        {previewOpen ? (
+          <aside className="flex w-96 shrink-0 border-l border-line bg-panel">
+            <div className="flex min-w-0 flex-1 flex-col">
+              <header className="flex items-center gap-2 border-b border-line px-3 py-2">
+                <span className="text-sm font-medium text-ink">Vorschau</span>
+                <button
+                  type="button"
+                  onClick={() => setPreviewOpen(false)}
+                  aria-label="Vorschau einklappen"
+                  className="ml-auto rounded p-1 text-muted hover:bg-raised hover:text-ink"
+                >
+                  <PanelRightClose className="size-4" aria-hidden />
+                </button>
+              </header>
+              <div className="min-h-0 flex-1">
+                <PreviewPane
+                  activeSourceId={activeSourceId}
+                  activeOutputId={activeOutputId}
+                  onJumpToSource={(ref) => setActiveSourceId(ref.sourceId)}
+                />
+              </div>
+            </div>
+            {search.panel && <div className="w-80 shrink-0 border-l border-line">{search.panel}</div>}
+          </aside>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(true)}
+            aria-label="Vorschau ausklappen"
+            className="flex w-9 shrink-0 flex-col items-center gap-2 border-l border-line bg-panel pt-3 text-muted hover:text-ink"
+          >
+            <PanelRightOpen className="size-4" aria-hidden />
+            <span className="[writing-mode:vertical-rl] text-xs">Vorschau</span>
+          </button>
+        )}
       </div>
 
       <ContextBar onRequestSplit={() => activeSourceId && setSplitting(activeSourceId)} />
@@ -257,10 +317,50 @@ function Workspace() {
       {paletteOpen && <CommandPalette actions={paletteActions} onClose={() => setPaletteOpen(false)} />}
       {trashOpen && <TrashPanel onClose={() => setTrashOpen(false)} />}
       {ocr.progress && (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-shell px-4 py-2 text-center text-sm text-neutral-300">
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-shell px-4 py-2 text-center text-sm text-muted">
           Seite {ocr.progress.done} von {ocr.progress.total} erkannt
         </div>
       )}
+    </div>
+  );
+}
+
+interface EmptyWorkspaceProps {
+  onImportFiles(files: FileList | File[]): void;
+  accept: string;
+}
+
+/** Der erste Bildschirm ohne Quellen: eine grosse, offensichtliche Ablageflaeche. */
+function EmptyWorkspace({ onImportFiles, accept }: EmptyWorkspaceProps) {
+  const input = useRef<HTMLInputElement | null>(null);
+  return (
+    <div className="grid h-full place-items-center p-8">
+      <div className="max-w-md text-center">
+        <FolderUp className="mx-auto size-10 text-accent" aria-hidden />
+        <h2 className="mt-4 text-xl font-semibold text-ink">Seiten wie Bausteine ordnen</h2>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Ziehen Sie PDFs oder einen ganzen Ordner hierher. Danach ordnen Sie einzelne Seiten per
+          Maus in neue Dokumente und Ordner um &ndash; ganz ohne Zwischenexport.
+        </p>
+        <input
+          ref={input}
+          type="file"
+          accept={`${accept},application/zip,.zip`}
+          multiple
+          hidden
+          onChange={(e) => {
+            if (e.target.files) onImportFiles(e.target.files);
+            e.target.value = '';
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => input.current?.click()}
+          className="mt-6 rounded-md bg-accent px-4 py-2 text-sm font-medium text-shell hover:brightness-110"
+        >
+          Dateien auswaehlen
+        </button>
+      </div>
     </div>
   );
 }

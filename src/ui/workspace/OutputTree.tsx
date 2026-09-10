@@ -62,7 +62,7 @@ export function OutputTree({ activeOutputId, onSelectOutput, onDeleteNode }: Out
               ) : (
                 <div
                   className={`group flex w-full items-center gap-1 rounded pr-1 text-sm ${
-                    active ? 'bg-panel' : 'hover:bg-panel/60'
+                    active ? 'bg-raised text-ink ring-1 ring-accent/50' : 'hover:bg-raised/60'
                   }`}
                 >
                   <button

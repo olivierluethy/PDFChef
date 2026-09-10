@@ -19,27 +19,28 @@ export function SourceList({ activeSourceId, onSelect }: SourceListProps) {
   const sources = workspace.sourceOrder.map((id) => workspace.sources[id]).filter(Boolean);
 
   if (sources.length === 0) {
-    return <p className="px-3 py-4 text-sm text-neutral-500">Noch keine Dokumente importiert.</p>;
+    return <p className="px-3 py-4 text-sm text-muted">Noch keine Dokumente importiert.</p>;
   }
 
   return (
     <ul className="flex flex-col">
       {sources.map((source) => {
         const usable = source.status === 'ready';
+        const active = activeSourceId === source.id;
         return (
           <li key={source.id}>
             <button
               type="button"
               disabled={!usable}
               onClick={() => usable && onSelect(source.id)}
-              aria-pressed={activeSourceId === source.id}
-              className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm ${
-                activeSourceId === source.id ? 'bg-panel' : 'hover:bg-panel/60'
+              aria-pressed={active}
+              className={`flex w-full items-center gap-2 border-l-2 px-3 py-2 text-left text-sm ${
+                active ? 'border-accent bg-raised text-ink' : 'border-transparent hover:bg-raised/60'
               } ${usable ? '' : 'cursor-not-allowed opacity-60'}`}
             >
               {statusIcon(source)}
               <span className="min-w-0 flex-1 truncate">{source.name}</span>
-              <span className="text-neutral-500">
+              <span className="tabular text-xs text-muted">
                 {source.status === 'ready'
                   ? source.blockKind === 'image'
                     ? '1 Bild'
