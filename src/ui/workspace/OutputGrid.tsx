@@ -71,12 +71,12 @@ export function OutputGrid({ outputId, onCellPointerDown }: OutputGridProps) {
               aria-pressed={selected}
               data-item-id={itemId}
               data-drop-index={position}
-              className={`flex w-full flex-col gap-1 rounded ring-2 ${selected ? 'ring-sky-400' : 'ring-transparent'}`}
+              className={`flex w-full flex-col gap-1 rounded ring-2 transition-shadow ${selected ? 'ring-accent' : 'ring-transparent hover:ring-line'}`}
             >
               <span className="block w-full" style={{ aspectRatio: '1 / 1.35', transform: `rotate(${item.rotation}deg)` }}>
                 <Thumbnail blockRef={{ sourceId: item.sourceId, blockIndex: item.blockIndex }} alt={provenance} />
               </span>
-              <span className="truncate px-1 text-[11px] text-neutral-500">{provenance}</span>
+              <span className="truncate px-1 text-[11px] text-muted">{provenance}</span>
             </button>
           );
         }}

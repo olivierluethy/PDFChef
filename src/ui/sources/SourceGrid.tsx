@@ -69,15 +69,15 @@ export function SourceGrid({ source, onCellPointerDown, scrollTo }: SourceGridPr
                 type="button"
                 onPointerDown={(e) => handleCellPointerDown(e, blockIndex)}
                 aria-pressed={selected}
-                className={`relative block w-full rounded ring-2 ${
-                  selected ? 'ring-sky-400' : 'ring-transparent'
+                className={`relative block w-full rounded ring-2 transition-shadow ${
+                  selected ? 'ring-accent' : 'ring-transparent hover:ring-line'
                 }`}
                 style={{ aspectRatio: '1 / 1.35' }}
               >
                 <Thumbnail blockRef={{ sourceId: source.id, blockIndex }} alt={`${source.name} Seite ${blockIndex + 1}`} />
-                <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-xs">{blockIndex + 1}</span>
+                <span className="tabular absolute bottom-1 left-1 rounded bg-black/70 px-1.5 text-xs text-white">{blockIndex + 1}</span>
                 {count > 0 && (
-                  <span className="absolute right-1 top-1 rounded bg-sky-500/80 px-1 text-xs" aria-label={`in ${count} Dokumenten verwendet`}>
+                  <span className="tabular absolute right-1 top-1 rounded bg-accent px-1.5 text-xs font-medium text-shell" aria-label={`in ${count} Dokumenten verwendet`}>
                     {count}
                   </span>
                 )}
