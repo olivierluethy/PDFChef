@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { newId } from '../../domain/ids';
+import { buildNodeSnapshot } from '../../domain/trash';
 import type { NodeId, SourceId } from '../../domain/types';
 import type { SaveStatus } from '../../services/persistence/autosave';
+import { createTrashService } from '../../services/persistence/trashService';
 import { SourceGrid } from '../sources/SourceGrid';
 import { SourceList } from '../sources/SourceList';
 import { DuplicatesNotice } from '../sources/DuplicatesNotice';
@@ -10,6 +12,7 @@ import { OutlinePanel } from '../sources/OutlinePanel';
 import { OutputGrid } from '../workspace/OutputGrid';
 import { OutputTree } from '../workspace/OutputTree';
 import { SplitPanel } from '../workspace/SplitPanel';
+import { TrashPanel } from '../workspace/TrashPanel';
 import { DragPreview } from '../workspace/DragPreview';
 import { usePointerDrag } from '../workspace/usePointerDrag';
 import { useExternalDrop } from '../workspace/useExternalDrop';
@@ -89,6 +92,8 @@ function Workspace() {
   const [splitting, setSplitting] = useState<SourceId | null>(null);
   const [sourceSeek, setSourceSeek] = useState<{ index: number; nonce: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const trash = useMemo(() => createTrashService(services.db), [services.db]);
 
   const drag = usePointerDrag();
   const external = useExternalDrop();
@@ -114,6 +119,7 @@ function Workspace() {
       },
       { id: 'export', label: 'Exportieren', run: () => exportUi.open() },
       { id: 'search', label: 'Suchen', run: () => search.open() },
+      { id: 'trash', label: 'Papierkorb oeffnen', run: () => setTrashOpen(true) },
       {
         id: 'ocr',
         label: 'Text erkennen (aktuelle Quelle)',
@@ -130,7 +136,7 @@ function Workspace() {
         },
       },
     ],
-    [workspaceStore, dispatch, exportUi, search, ocr, latex, activeSourceId, workspace],
+    [workspaceStore, dispatch, exportUi, search, ocr, latex, activeSourceId, workspace, setTrashOpen],
   );
 
   useEffect(() => services.autosave.subscribe(setStatus), [services]);
@@ -168,7 +174,24 @@ function Workspace() {
           </div>
           <div className="flex-1 overflow-auto">
             <h2 className="px-3 py-2 text-xs uppercase tracking-wide text-neutral-500">Ausgabe</h2>
-            <OutputTree activeOutputId={activeOutputId} onSelectOutput={setActiveOutputId} />
+            <OutputTree
+              activeOutputId={activeOutputId}
+              onSelectOutput={setActiveOutputId}
+              onDeleteNode={(nodeId) => {
+                const snapshot = buildNodeSnapshot(workspace, nodeId);
+                const node = workspace.nodes[nodeId];
+                void trash
+                  .add({
+                    id: newId(),
+                    kind: 'node',
+                    name: node?.name ?? 'Element',
+                    deletedAt: Date.now(),
+                    snapshot,
+                  })
+                  .then(() => dispatch({ type: 'deleteNode', nodeId }));
+                if (activeOutputId === nodeId) setActiveOutputId(null);
+              }}
+            />
           </div>
         </aside>
 
@@ -232,6 +255,7 @@ function Workspace() {
       )}
       {exportUi.dialog}
       {paletteOpen && <CommandPalette actions={paletteActions} onClose={() => setPaletteOpen(false)} />}
+      {trashOpen && <TrashPanel onClose={() => setTrashOpen(false)} />}
       {ocr.progress && (
         <div className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-shell px-4 py-2 text-center text-sm text-neutral-300">
           Seite {ocr.progress.done} von {ocr.progress.total} erkannt
