@@ -6,6 +6,8 @@ import { createDocumentPool } from '../../adapters/pdf/pdfPool';
 import type { PdfDocumentHandle } from '../../adapters/pdf/pdfEngine';
 import { createOffscreenSurface, createPdfjsEngine } from '../../adapters/pdf/pdfjsEngine';
 import { createRegistry } from '../../adapters/registry';
+import { createTextAdapter } from '../../adapters/text/textAdapter';
+import { paginateText } from '../../adapters/text/textLayout';
 import type { AdapterRegistry, BlockAssembler, DocumentAdapter, ImageEmbeddable } from '../../adapters/types';
 import type { SourceId, SourceKind } from '../../domain/types';
 import { newId } from '../../domain/ids';
@@ -52,6 +54,7 @@ export interface AppServices {
   thumbnails: ThumbnailService;
   readBytesForSource(sourceId: SourceId): Promise<Uint8Array>;
   imageEmbeddable(sourceId: SourceId): Promise<ImageEmbeddable>;
+  textPages(sourceId: SourceId): Promise<string[][]>;
   importForDrop(items: DataTransferItem[]): Promise<ImportReport>;
   importForFiles(files: FileList | File[]): Promise<ImportReport>;
   dispose(): Promise<void>;
@@ -88,15 +91,21 @@ export async function createAppServices({
     createSurface: createOffscreenSurface,
     decode: (blob) => createImageBitmap(blob),
   });
+  const textAdapter = createTextAdapter({
+    readBytes: readBytesForSource,
+    createSurface: createOffscreenSurface,
+    decodeText: (bytes) => new TextDecoder().decode(bytes),
+  });
   const assembler = createPdfAssembler();
   const registry = createRegistry();
   registry.register(pdfAdapter);
   registry.register(imageAdapter);
+  registry.register(textAdapter);
   registry.registerAssembler(assembler);
 
   const dispatcher = createDispatchingAdapter({
     sourceKindOf,
-    byKind: { pdf: pdfAdapter, image: imageAdapter },
+    byKind: { pdf: pdfAdapter, image: imageAdapter, text: textAdapter },
   });
 
   const thumbnails = createThumbnailService({
@@ -127,6 +136,9 @@ export async function createAppServices({
     readBytesForSource,
     async imageEmbeddable(sourceId) {
       return imageAdapter.toEmbeddable(await readBytesForSource(sourceId));
+    },
+    async textPages(sourceId) {
+      return paginateText(new TextDecoder().decode(await readBytesForSource(sourceId)));
     },
     async importForDrop(items) {
       return importCandidates(

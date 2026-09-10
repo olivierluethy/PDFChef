@@ -14,6 +14,7 @@ export interface ExportRunDeps {
   readBytes(sourceId: string): Promise<Uint8Array>;
   sourceKind(sourceId: string): SourceKind;
   imageData(sourceId: string): Promise<ImageEmbeddable>;
+  textData(sourceId: string): Promise<string[][]>;
   onProgress?(progress: ExportProgress): void;
   signal?: AbortSignal;
 }
@@ -36,6 +37,7 @@ export async function runExport(
       readBytes: deps.readBytes,
       sourceKind: deps.sourceKind,
       imageData: deps.imageData,
+      textData: deps.textData,
       signal: deps.signal,
     });
     await writer.writeFile(entry.path, entry.fileName, bytes);
