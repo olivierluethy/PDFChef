@@ -1,9 +1,11 @@
-import { Download, FolderTree, X } from 'lucide-react';
+import { Download, FolderTree, Info, TriangleAlert, X } from 'lucide-react';
 import type { ExportPlan } from '../../domain/exportPlan';
+import type { ExportWarning } from '../../domain/exportWarnings';
 import type { ExportProgress } from '../../services/export/exportRunner';
 
 export interface ExportDialogProps {
   plan: ExportPlan;
+  warnings: ExportWarning[];
   canWriteDirectory: boolean;
   progress: ExportProgress | null;
   onExport(target: 'directory' | 'zip'): void;
@@ -15,7 +17,7 @@ function pages(count: number): string {
   return count === 1 ? '1 Seite' : `${count} Seiten`;
 }
 
-export function ExportDialog({ plan, canWriteDirectory, progress, onExport, onCancel, onClose }: ExportDialogProps) {
+export function ExportDialog({ plan, warnings, canWriteDirectory, progress, onExport, onCancel, onClose }: ExportDialogProps) {
   const running = progress !== null;
 
   return (
@@ -38,12 +40,25 @@ export function ExportDialog({ plan, canWriteDirectory, progress, onExport, onCa
               </li>
             ))}
           </ul>
-          {plan.skipped.length > 0 && (
-            <p className="mt-3 text-xs text-neutral-500">
-              Uebergangen (leer): {plan.skipped.map((entry) => entry.name).join(', ')}
-            </p>
-          )}
         </div>
+
+        {warnings.length > 0 && (
+          <div className="flex flex-col gap-1 border-t border-line px-4 py-2 text-xs">
+            {warnings.map((warning, index) => (
+              <div
+                key={`${warning.kind}-${warning.outputId ?? ''}-${index}`}
+                className={`flex items-start gap-1.5 ${warning.severity === 'warn' ? 'text-amber-400' : 'text-neutral-500'}`}
+              >
+                {warning.severity === 'warn' ? (
+                  <TriangleAlert className="size-3.5 shrink-0 translate-y-0.5" />
+                ) : (
+                  <Info className="size-3.5 shrink-0 translate-y-0.5" />
+                )}
+                <span>{warning.message}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="border-t border-line px-4 py-3">
           {running ? (
