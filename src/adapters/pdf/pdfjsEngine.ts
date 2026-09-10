@@ -1,0 +1,143 @@
+import * as pdfjs from 'pdfjs-dist';
+import type { OutlineNode } from '../../domain/types';
+import type { TextSpan } from '../types';
+import type {
+  CreateSurface,
+  PdfDocumentHandle,
+  PdfEngine,
+  PdfPageHandle,
+  RenderSurface,
+} from './pdfEngine';
+
+// Alle Assets kommen aus dem eigenen Bundle (siehe scripts/sync-pdf-assets.mjs).
+// BASE_URL statt eines fuehrenden Schraegstrichs, damit die App auch unter
+// einem Unterpfad ausgeliefert werden kann.
+const base = import.meta.env.BASE_URL;
+pdfjs.GlobalWorkerOptions.workerSrc = `${base}pdfjs/pdf.worker.min.mjs`;
+const CMAP_URL = `${base}pdfjs/cmaps/`;
+const STANDARD_FONT_URL = `${base}pdfjs/standard_fonts/`;
+
+type RawOutline = Awaited<ReturnType<pdfjs.PDFDocumentProxy['getOutline']>>[number];
+
+export const createOffscreenSurface: CreateSurface = (width, height) => {
+  const canvas = new OffscreenCanvas(width, height);
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Der Browser stellt keinen 2D-Kontext bereit.');
+  return {
+    width,
+    height,
+    context: context as unknown as OffscreenCanvasRenderingContext2D,
+    async toBlob(type, quality) {
+      return canvas.convertToBlob({ type, quality });
+    },
+  } satisfies RenderSurface;
+};
+
+export function createPdfjsEngine(): PdfEngine {
+  return {
+    async open(bytes) {
+      // pdf.js uebernimmt den Puffer und leert ihn dabei; deshalb eine Kopie.
+      const task = pdfjs.getDocument(
+        {
+          data: bytes.slice(),
+          cMapUrl: CMAP_URL,
+          cMapPacked: true,
+          standardFontDataUrl: STANDARD_FONT_URL,
+          disableAutoFetch: true,
+          isEvalSupported: false,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any,
+      );
+      return wrapDocument(await task.promise);
+    },
+    isPasswordError(error) {
+      return (
+        typeof error === 'object' &&
+        error !== null &&
+        (error as { name?: string }).name === 'PasswordException'
+      );
+    },
+  };
+}
+
+function wrapDocument(doc: pdfjs.PDFDocumentProxy): PdfDocumentHandle {
+  return {
+    pageCount: doc.numPages,
+    async page(blockIndex) {
+      return wrapPage(await doc.getPage(blockIndex + 1));
+    },
+    async outline() {
+      const raw = await doc.getOutline();
+      if (!raw || raw.length === 0) return undefined;
+      return Promise.all(raw.map((entry) => toOutlineNode(doc, entry)));
+    },
+    async destroy() {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (doc as any).destroy();
+    },
+  };
+}
+
+async function toOutlineNode(doc: pdfjs.PDFDocumentProxy, entry: RawOutline): Promise<OutlineNode> {
+  return {
+    title: entry.title,
+    blockIndex: await resolveDestination(doc, entry.dest),
+    children: await Promise.all((entry.items ?? []).map((child) => toOutlineNode(doc, child))),
+  };
+}
+
+async function resolveDestination(
+  doc: pdfjs.PDFDocumentProxy,
+  dest: RawOutline['dest'],
+): Promise<number | null> {
+  try {
+    const explicit = typeof dest === 'string' ? await doc.getDestination(dest) : dest;
+    const target = Array.isArray(explicit) ? explicit[0] : null;
+    if (!target || typeof target !== 'object') return null;
+    return await doc.getPageIndex(target as Parameters<typeof doc.getPageIndex>[0]);
+  } catch (error) {
+    // Ein Bookmark ohne aufloesbares Ziel ist kein Grund, den Import abzubrechen.
+    console.warn('Bookmark-Ziel konnte nicht aufgeloest werden', error);
+    return null;
+  }
+}
+
+function wrapPage(page: pdfjs.PDFPageProxy): PdfPageHandle {
+  return {
+    rotation: page.rotate,
+    size(scale) {
+      const viewport = page.getViewport({ scale });
+      return { width: viewport.width, height: viewport.height };
+    },
+    async render(surface, scale, signal) {
+      const viewport = page.getViewport({ scale });
+      const task = page.render({
+        canvas: null,
+        canvasContext: surface.context as unknown as CanvasRenderingContext2D,
+        viewport,
+      });
+      const cancel = () => task.cancel();
+      signal?.addEventListener('abort', cancel, { once: true });
+      try {
+        await task.promise;
+      } finally {
+        signal?.removeEventListener('abort', cancel);
+      }
+    },
+    async text(): Promise<TextSpan[]> {
+      const content = await page.getTextContent();
+      const spans: TextSpan[] = [];
+      for (const item of content.items) {
+        if (!('str' in item)) continue;
+        spans.push({
+          text: item.str,
+          rect: [item.transform[4], item.transform[5], item.width, item.height],
+        });
+      }
+      return spans;
+    },
+    release() {
+      page.cleanup();
+    },
+  };
+}
