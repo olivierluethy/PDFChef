@@ -8,6 +8,8 @@ export interface ExportEntry {
   path: string[];
   fileName: string;
   items: CompositionItem[];
+  /** Der gewuenschte Dateiname vor Kollisionsaufloesung, falls umbenannt wurde. */
+  renamedFrom?: string;
 }
 
 export interface SkippedOutput {
@@ -78,8 +80,11 @@ function walk(ws: Workspace, nodeIds: NodeId[], path: string[], plan: ExportPlan
       continue;
     }
 
-    const base = claim(sanitizeName(node.name), usedFileNames);
-    plan.entries.push({ outputId: nodeId, path, fileName: withPdfExtension(base), items });
+    const desired = sanitizeName(node.name);
+    const base = claim(desired, usedFileNames);
+    const entry: ExportEntry = { outputId: nodeId, path, fileName: withPdfExtension(base), items };
+    if (base !== desired) entry.renamedFrom = withPdfExtension(desired);
+    plan.entries.push(entry);
     plan.totalBlocks += items.length;
   }
 }
