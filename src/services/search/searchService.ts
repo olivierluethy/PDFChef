@@ -1,10 +1,12 @@
 import type { PageText } from '../../adapters/types';
+import type { SourceKind } from '../../domain/types';
 import type { PageTextStore } from './pageTextStore';
 import { findPageMatch, normalizeQuery, type PageMatch } from './textMatch';
 
 export interface SearchTarget {
   sourceId: string;
   name: string;
+  kind: SourceKind;
   /** Genau die zu durchsuchenden Seiten dieses Dokuments (0-basiert). */
   indices: number[];
 }
@@ -32,7 +34,10 @@ export function createSearchService({ store, extractUncached }: SearchDeps) {
       if (cached) byIndex.set(index, cached);
       else missing.push(index);
     }
-    if (missing.length > 0) {
+    // Nur PDF-Quellen ziehen fehlende Seiten ueber den Worker nach. Andere
+    // Quellarten beziehen ihren Text ausschliesslich aus dem Cache, den OCR
+    // gefuellt haben mag -- fehlende Seiten bleiben dann einfach unbesetzt.
+    if (missing.length > 0 && target.kind === 'pdf') {
       const extracted = await extractUncached(target.sourceId, missing);
       for (const page of extracted) {
         await store.put(target.sourceId, page);
