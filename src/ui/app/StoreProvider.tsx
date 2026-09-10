@@ -1,5 +1,6 @@
 import { createContext, useContext, type ReactNode } from 'react';
 import { useStore } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import type { Command } from '../../domain/commands';
 import { createEmptyWorkspace, type Workspace } from '../../domain/types';
 import type { AppServices } from '../../services/app/appServices';
@@ -40,11 +41,13 @@ export function useWorkspace(): Workspace {
 }
 
 export function useSelection(): SelectionState {
-  return useStore(useSelectionStore(), (state) => ({
-    scope: state.scope,
-    anchor: state.anchor,
-    ids: state.ids,
-  }));
+  // useShallow memoisiert das Ergebnis: ohne shallow-Vergleich liefert der
+  // Selektor bei jedem Render ein neues Objekt, useSyncExternalStore sieht
+  // einen "neuen" Snapshot und rendert endlos ("Maximum update depth exceeded").
+  return useStore(
+    useSelectionStore(),
+    useShallow((state) => ({ scope: state.scope, anchor: state.anchor, ids: state.ids })),
+  );
 }
 
 export function useDispatch(): (command: Command, selectionAfter?: SelectionSnapshot) => void {
