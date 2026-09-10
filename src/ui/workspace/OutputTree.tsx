@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, FilePlus2, Folder, FolderPlus, FileText } from 'lucide-react';
+import { ChevronRight, FilePlus2, Folder, FolderPlus, FileText, Trash2 } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import type { NodeId } from '../../domain/types';
 import { useDispatch, useWorkspace } from '../app/StoreProvider';
@@ -8,9 +8,10 @@ import { flattenTree } from './treeModel';
 export interface OutputTreeProps {
   activeOutputId: NodeId | null;
   onSelectOutput(id: NodeId): void;
+  onDeleteNode?(nodeId: NodeId): void;
 }
 
-export function OutputTree({ activeOutputId, onSelectOutput }: OutputTreeProps) {
+export function OutputTree({ activeOutputId, onSelectOutput, onDeleteNode }: OutputTreeProps) {
   const workspace = useWorkspace();
   const dispatch = useDispatch();
   const [renaming, setRenaming] = useState<NodeId | null>(null);
@@ -59,27 +60,42 @@ export function OutputTree({ activeOutputId, onSelectOutput }: OutputTreeProps) 
                   aria-label="Name bearbeiten"
                 />
               ) : (
-                <button
-                  type="button"
-                  onClick={() => node.type === 'output' && onSelectOutput(node.id)}
-                  onDoubleClick={() => setRenaming(node.id)}
-                  aria-pressed={active}
-                  data-node-id={node.id}
-                  data-node-type={node.type}
-                  className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm ${
+                <div
+                  className={`group flex w-full items-center gap-1 rounded pr-1 text-sm ${
                     active ? 'bg-panel' : 'hover:bg-panel/60'
                   }`}
                 >
-                  {node.type === 'folder' ? (
-                    <>
-                      <ChevronRight className="size-3 text-neutral-600" aria-hidden />
-                      <Folder className="size-4 text-neutral-400" aria-hidden />
-                    </>
-                  ) : (
-                    <FileText className="size-4 text-neutral-400" aria-hidden />
-                  )}
-                  <span className="truncate">{record.name}</span>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => node.type === 'output' && onSelectOutput(node.id)}
+                    onDoubleClick={() => setRenaming(node.id)}
+                    aria-pressed={active}
+                    data-node-id={node.id}
+                    data-node-type={node.type}
+                    className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
+                  >
+                    {node.type === 'folder' ? (
+                      <>
+                        <ChevronRight className="size-3 text-neutral-600" aria-hidden />
+                        <Folder className="size-4 text-neutral-400" aria-hidden />
+                      </>
+                    ) : (
+                      <FileText className="size-4 text-neutral-400" aria-hidden />
+                    )}
+                    <span className="truncate">{record.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteNode?.(node.id);
+                    }}
+                    aria-label={`"${record.name}" loeschen`}
+                    className="shrink-0 rounded p-1 text-neutral-500 opacity-0 hover:bg-shell hover:text-neutral-300 group-hover:opacity-100"
+                  >
+                    <Trash2 className="size-3.5" aria-hidden />
+                  </button>
+                </div>
               )}
             </li>
           );
