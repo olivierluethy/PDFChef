@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { newId } from '../../domain/ids';
+import type { NodeId } from '../../domain/types';
 import { useDispatch, useSelectionStore, useWorkspaceStore } from '../app/StoreProvider';
 import { buildDropCommand } from './buildDropCommand';
 import type { DragState } from './DragPreview';
@@ -8,7 +9,18 @@ import type { DragOrigin, DropTarget } from './dragLogic';
 const DRAG_THRESHOLD = 4; // Pixel, bevor aus einem Klick ein Drag wird.
 const EDGE = 40; // Randzone fuer Auto-Scroll.
 
-/** Liest aus dem DOM das Drop-Ziel unter dem Zeiger. */
+/** Sichtbare Einfuege-Marke: in welchem Dokument, an welcher Luecke. */
+export interface DropIndicator {
+  outputId: NodeId;
+  index: number;
+}
+
+/**
+ * Liest aus dem DOM das Drop-Ziel unter dem Zeiger. Fuer ein Ausgaberaster wird
+ * die genaue Einfuegeposition bestimmt: vor der Zelle, wenn der Zeiger in ihrer
+ * linken Haelfte liegt, sonst danach -- so zeigt die Linie exakt die Luecke, in
+ * die beim Loslassen eingefuegt wird.
+ */
 function targetAt(x: number, y: number): DropTarget | null {
   const element = document.elementFromPoint(x, y);
   const node = element?.closest('[data-node-id]') as HTMLElement | null;
@@ -19,10 +31,13 @@ function targetAt(x: number, y: number): DropTarget | null {
   }
   const output = element?.closest('[data-output-id]') as HTMLElement | null;
   if (output) {
-    // Die Einfuegeposition liefert das Raster selbst ueber data-drop-index am
-    // naechstgelegenen Zell-Container; fehlt sie, ans Ende.
     const cell = element?.closest('[data-drop-index]') as HTMLElement | null;
-    const index = cell ? Number(cell.dataset.dropIndex) : Number(output.dataset.itemCount ?? 0);
+    let index = Number(output.dataset.itemCount ?? 0);
+    if (cell) {
+      const position = Number(cell.dataset.dropIndex);
+      const rect = cell.getBoundingClientRect();
+      index = x < (rect.left + rect.right) / 2 ? position : position + 1;
+    }
     return { kind: 'output', outputId: output.dataset.outputId!, index };
   }
   return null;
@@ -45,7 +60,9 @@ export function usePointerDrag() {
   const workspaceStore = useWorkspaceStore();
   const selectionStore = useSelectionStore();
   const [preview, setPreview] = useState<DragState | null>(null);
+  const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
   const origin = useRef<DragOrigin | null>(null);
+  const target = useRef<DropTarget | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const dragging = useRef(false);
   const highlighted = useRef<HTMLElement | null>(null);
@@ -53,10 +70,12 @@ export function usePointerDrag() {
   const endDrag = () => {
     dragging.current = false;
     origin.current = null;
+    target.current = null;
     document.body.classList.remove('is-dragging');
     highlighted.current?.removeAttribute('data-drop-active');
     highlighted.current = null;
     setPreview(null);
+    setDropIndicator(null);
   };
 
   const onCellPointerDown = useCallback(
@@ -81,6 +100,16 @@ export function usePointerDrag() {
         setPreview({ count, action, x: e.clientX, y: e.clientY });
         highlighted.current = highlightTarget(e.clientX, e.clientY, highlighted.current);
 
+        // Ziel jetzt bestimmen, damit die sichtbare Einfuege-Linie und der Drop
+        // beim Loslassen dieselbe Position benutzen.
+        const currentTarget = targetAt(e.clientX, e.clientY);
+        target.current = currentTarget;
+        setDropIndicator(
+          currentTarget?.kind === 'output'
+            ? { outputId: currentTarget.outputId, index: currentTarget.index }
+            : null,
+        );
+
         // Auto-Scroll, wenn der Zeiger in die Randzone eines Scrollers faehrt.
         const scroller = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('.overflow-auto');
         if (scroller) {
@@ -95,16 +124,20 @@ export function usePointerDrag() {
         window.removeEventListener('pointerup', up);
         const wasDragging = dragging.current;
         const dragOriginNow = origin.current;
+        // Dasselbe Ziel wie die Linie, statt es beim Loslassen neu zu raten.
+        const dropTarget = target.current;
         if (!wasDragging || !dragOriginNow) {
           endDrag();
           return;
         }
-        const target = targetAt(e.clientX, e.clientY);
         endDrag();
-        if (!target) return;
+        if (!dropTarget) return;
         const command = buildDropCommand({
           origin: dragOriginNow,
-          target: target.kind === 'tree-output' ? { kind: 'output', outputId: target.outputId, index: 0 } : target,
+          target:
+            dropTarget.kind === 'tree-output'
+              ? { kind: 'output', outputId: dropTarget.outputId, index: 0 }
+              : dropTarget,
           modifier: e.metaKey || e.ctrlKey,
           ws: workspaceStore.getState().workspace,
           newId,
@@ -118,5 +151,5 @@ export function usePointerDrag() {
     [dispatch, workspaceStore, selectionStore],
   );
 
-  return { onCellPointerDown, preview };
+  return { onCellPointerDown, preview, dropIndicator };
 }
