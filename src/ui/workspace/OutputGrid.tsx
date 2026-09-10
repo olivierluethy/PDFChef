@@ -1,15 +1,17 @@
 import { useMemo } from 'react';
 import { isOutput, type NodeId } from '../../domain/types';
 import type { SelectionScope } from '../../services/store/selection';
+import type { DragOrigin } from './dragLogic';
 import { Thumbnail } from '../common/Thumbnail';
 import { VirtualGrid } from '../common/VirtualGrid';
 import { useSelection, useSelectionStore, useWorkspace } from '../app/StoreProvider';
 
 export interface OutputGridProps {
   outputId: NodeId;
+  onCellPointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
 }
 
-export function OutputGrid({ outputId }: OutputGridProps) {
+export function OutputGrid({ outputId, onCellPointerDown }: OutputGridProps) {
   const workspace = useWorkspace();
   const selection = useSelection();
   const selectionStore = useSelectionStore();
@@ -25,41 +27,48 @@ export function OutputGrid({ outputId }: OutputGridProps) {
     return <p className="px-3 py-4 text-sm text-neutral-500">Dieses Dokument ist noch leer. Ziehen Sie Seiten hierher.</p>;
   }
 
-  function onPointerDown(event: React.PointerEvent, id: string) {
+  function handlePointerDown(event: React.PointerEvent, id: string) {
     if (event.shiftKey) selectionStore.getState().extend(scope, id, order);
     else if (event.metaKey || event.ctrlKey) selectionStore.getState().toggle(scope, id);
     else selectionStore.getState().select(scope, id, order);
+
+    const inScope = selection.scope?.kind === 'output' && selection.scope.outputId === outputId;
+    const ids = inScope ? (selection.ids.includes(id) ? selection.ids : [...selection.ids, id]) : [id];
+    onCellPointerDown?.(event, { kind: 'output', outputId, itemIds: ids });
   }
 
   return (
-    <VirtualGrid
-      count={itemIds.length}
-      minCellWidth={180}
-      cellAspect={1.45}
-      gap={12}
-      renderCell={(position) => {
-        const itemId = itemIds[position];
-        const item = workspace.items[itemId];
-        if (!item) return null;
-        const source = workspace.sources[item.sourceId];
-        const provenance = `${source?.name ?? 'Quelle'} . Seite ${item.blockIndex + 1}`;
-        const selected = selection.scope?.kind === 'output' &&
-          selection.scope.outputId === outputId && selection.ids.includes(itemId);
-        return (
-          <button
-            type="button"
-            onPointerDown={(e) => onPointerDown(e, itemId)}
-            aria-pressed={selected}
-            data-item-id={itemId}
-            className={`flex w-full flex-col gap-1 rounded ring-2 ${selected ? 'ring-sky-400' : 'ring-transparent'}`}
-          >
-            <span className="block w-full" style={{ aspectRatio: '1 / 1.35', transform: `rotate(${item.rotation}deg)` }}>
-              <Thumbnail blockRef={{ sourceId: item.sourceId, blockIndex: item.blockIndex }} alt={provenance} />
-            </span>
-            <span className="truncate px-1 text-[11px] text-neutral-500">{provenance}</span>
-          </button>
-        );
-      }}
-    />
+    <div className="h-full" data-output-id={outputId} data-item-count={itemIds.length}>
+      <VirtualGrid
+        count={itemIds.length}
+        minCellWidth={180}
+        cellAspect={1.45}
+        gap={12}
+        renderCell={(position) => {
+          const itemId = itemIds[position];
+          const item = workspace.items[itemId];
+          if (!item) return null;
+          const source = workspace.sources[item.sourceId];
+          const provenance = `${source?.name ?? 'Quelle'} . Seite ${item.blockIndex + 1}`;
+          const selected = selection.scope?.kind === 'output' &&
+            selection.scope.outputId === outputId && selection.ids.includes(itemId);
+          return (
+            <button
+              type="button"
+              onPointerDown={(e) => handlePointerDown(e, itemId)}
+              aria-pressed={selected}
+              data-item-id={itemId}
+              data-drop-index={position}
+              className={`flex w-full flex-col gap-1 rounded ring-2 ${selected ? 'ring-sky-400' : 'ring-transparent'}`}
+            >
+              <span className="block w-full" style={{ aspectRatio: '1 / 1.35', transform: `rotate(${item.rotation}deg)` }}>
+                <Thumbnail blockRef={{ sourceId: item.sourceId, blockIndex: item.blockIndex }} alt={provenance} />
+              </span>
+              <span className="truncate px-1 text-[11px] text-neutral-500">{provenance}</span>
+            </button>
+          );
+        }}
+      />
+    </div>
   );
 }
