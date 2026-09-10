@@ -87,6 +87,8 @@ export interface AssembleCtx {
   sourceKind(sourceId: SourceId): SourceKind;
   /** Nur fuer Bildquellen; der Assembler ruft das je Quelle hoechstens einmal. */
   imageData(sourceId: SourceId): Promise<ImageEmbeddable>;
+  /** Nur fuer Textquellen: die paginierten Zeilen. Der Assembler ruft das je Quelle hoechstens einmal. */
+  textData(sourceId: SourceId): Promise<string[][]>;
   signal?: AbortSignal;
   onProgress?: (done: number, total: number) => void;
 }
