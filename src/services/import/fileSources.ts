@@ -1,3 +1,5 @@
+import { unzipSync } from 'fflate';
+
 /** Eine importierbare Datei samt ihres relativen Pfads im gezogenen Ordner. */
 export interface ImportCandidate {
   file: File;
@@ -142,4 +144,78 @@ export async function collectFromDirectoryHandle(
 
   await walk(handle, [handle.name], 0);
   return candidates;
+}
+
+export function isZip(file: { name: string; type: string }): boolean {
+  return (
+    file.name.toLowerCase().endsWith('.zip') ||
+    file.type === 'application/zip' ||
+    file.type === 'application/x-zip-compressed'
+  );
+}
+
+function mimeFromExtension(name: string): string {
+  const dot = name.lastIndexOf('.');
+  const ext = dot >= 0 ? name.slice(dot + 1).toLowerCase() : '';
+  switch (ext) {
+    case 'pdf':
+      return 'application/pdf';
+    case 'png':
+      return 'image/png';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'webp':
+      return 'image/webp';
+    case 'gif':
+      return 'image/gif';
+    default:
+      return '';
+  }
+}
+
+function isIgnoredZipEntry(entryName: string): boolean {
+  const segments = entryName.split('/');
+  const basename = segments[segments.length - 1];
+  return segments.includes('__MACOSX') || basename === '.DS_Store';
+}
+
+export async function collectFromZip(file: File): Promise<ImportCandidate[]> {
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const entries = unzipSync(bytes);
+    const candidates: ImportCandidate[] = [];
+
+    for (const [entryName, entryBytes] of Object.entries(entries)) {
+      if (entryName.endsWith('/')) continue;
+      if (isIgnoredZipEntry(entryName)) continue;
+
+      const segments = entryName.split('/');
+      const basename = segments[segments.length - 1];
+      const entryFile = new File([entryBytes], basename, { type: mimeFromExtension(basename) });
+      candidates.push({ file: entryFile, importPath: entryName });
+    }
+
+    return candidates;
+  } catch (error) {
+    console.warn(`Archiv ${file.name} konnte nicht entpackt werden`, error);
+    return [];
+  }
+}
+
+/**
+ * Ersetzt ZIP-Kandidaten durch ihre entpackten inneren Kandidaten (eine
+ * Ebene; verschachtelte ZIPs bleiben als unbekanntes Format bestehen und
+ * werden spaeter abgelehnt).
+ */
+export async function expandZipCandidates(candidates: ImportCandidate[]): Promise<ImportCandidate[]> {
+  const expanded: ImportCandidate[] = [];
+  for (const candidate of candidates) {
+    if (isZip(candidate.file)) {
+      expanded.push(...(await collectFromZip(candidate.file)));
+    } else {
+      expanded.push(candidate);
+    }
+  }
+  return expanded;
 }

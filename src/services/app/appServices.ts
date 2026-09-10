@@ -18,7 +18,12 @@ import { createWorkspaceRepo, type WorkspaceRepo } from '../persistence/workspac
 import { createBlobUrlCache } from '../thumbnails/thumbnailCache';
 import { createRenderQueue } from '../thumbnails/renderQueue';
 import { createThumbnailService, type ThumbnailService } from '../thumbnails/thumbnailService';
-import { collectFromDataTransfer, collectFromFileList, type DataTransferItemLike } from '../import/fileSources';
+import {
+  collectFromDataTransfer,
+  collectFromFileList,
+  expandZipCandidates,
+  type DataTransferItemLike,
+} from '../import/fileSources';
 import { importCandidates, sha256Hex, type ImportReport } from '../import/importSources';
 
 export interface AppServicesDeps {
@@ -124,10 +129,13 @@ export async function createAppServices({
       return imageAdapter.toEmbeddable(await readBytesForSource(sourceId));
     },
     async importForDrop(items) {
-      return importCandidates(await collectFromDataTransfer(items as DataTransferItemLike[]), importDeps);
+      return importCandidates(
+        await expandZipCandidates(await collectFromDataTransfer(items as DataTransferItemLike[])),
+        importDeps,
+      );
     },
     async importForFiles(files) {
-      return importCandidates(collectFromFileList(files), importDeps);
+      return importCandidates(await expandZipCandidates(collectFromFileList(files)), importDeps);
     },
     async dispose() {
       autosave.dispose();

@@ -31,7 +31,7 @@ export function Header({ onImportFiles, onExport, saveStatus }: HeaderProps) {
         <input
           ref={fileInput}
           type="file"
-          accept={services.registry.acceptAttribute()}
+          accept={`${services.registry.acceptAttribute()},application/zip,.zip`}
           multiple
           hidden
           onChange={(e) => {
