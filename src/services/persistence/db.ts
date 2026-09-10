@@ -1,8 +1,9 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Workspace } from '../../domain/types';
+import type { NodeSnapshot } from '../../domain/trash';
 
 export const DB_NAME = 'pdf-master';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 export interface SourceBlobRecord {
   contentHash: string;
@@ -26,6 +27,15 @@ export interface PageTextRecord {
   createdAt: number;
 }
 
+/** Ein geloeschter Ordner/Output samt Teilbaum, wiederherstellbar aus `snapshot`. */
+export interface TrashRecord {
+  id: string;
+  kind: 'node';
+  name: string;
+  deletedAt: number;
+  snapshot: NodeSnapshot;
+}
+
 export interface PdfMasterDb extends DBSchema {
   /** Permanent: der komplette Workspace-Record. */
   workspaces: { key: string; value: Workspace };
@@ -35,6 +45,8 @@ export interface PdfMasterDb extends DBSchema {
   thumbs: { key: string; value: ThumbRecord };
   /** Verwerfbarer Cache. */
   pageText: { key: string; value: PageTextRecord };
+  /** Geloeschte Ordner/Output-Dokumente, bis sie wiederhergestellt oder endgueltig geloescht werden. */
+  trash: { key: string; value: TrashRecord };
 }
 
 export type Database = IDBPDatabase<PdfMasterDb>;
@@ -48,6 +60,9 @@ export function openWorkspaceDb(name: string = DB_NAME): Promise<Database> {
         db.createObjectStore('sourceBlobs', { keyPath: 'contentHash' });
         db.createObjectStore('thumbs', { keyPath: 'key' });
         db.createObjectStore('pageText', { keyPath: 'key' });
+      }
+      if (oldVersion < 2) {
+        db.createObjectStore('trash', { keyPath: 'id' });
       }
     },
     blocked() {
