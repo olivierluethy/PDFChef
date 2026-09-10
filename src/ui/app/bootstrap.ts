@@ -14,6 +14,7 @@ export async function bootstrapWorkspace(): Promise<StoreContextValue> {
 
   const services = await createAppServices({
     contentHashOf: (sourceId: SourceId) => currentWorkspace.sources[sourceId]?.contentHash,
+    sourceKindOf: (sourceId: SourceId) => currentWorkspace.sources[sourceId]?.kind,
   });
 
   const loaded = await services.repo.loadMostRecent();

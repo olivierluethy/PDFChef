@@ -1,7 +1,7 @@
 import { PDFDocument, degrees } from 'pdf-lib';
-import type { PDFPage } from 'pdf-lib';
+import type { PDFImage, PDFPage } from 'pdf-lib';
 import type { SourceId } from '../../domain/types';
-import type { AssembleCtx, BlockAssembler } from '../types';
+import type { AssembleCtx, BlockAssembler, ImageEmbeddable } from '../types';
 
 export function createPdfAssembler(): BlockAssembler {
   return {
@@ -23,11 +23,20 @@ export function createPdfAssembler(): BlockAssembler {
 
       const out = await PDFDocument.create();
       const copiedBySource = new Map<SourceId, PDFPage[]>();
+      const embeddedBySource = new Map<SourceId, { image: PDFImage; data: ImageEmbeddable }>();
 
-      // Ein Ladevorgang und ein gebuendelter copyPages-Aufruf pro Quelle:
-      // jeder weitere Aufruf wuerde die Objektgraphen erneut einbetten.
-      for (const [sourceId, indices] of indicesBySource) {
+      // Ein Ladevorgang/eine Einbettung pro Quelle: jeder weitere Aufruf
+      // wuerde die Objektgraphen bzw. Bilddaten erneut einbetten.
+      for (const sourceId of indicesBySource.keys()) {
         ctx.signal?.throwIfAborted();
+        if (ctx.sourceKind(sourceId) === 'image') {
+          const data = await ctx.imageData(sourceId);
+          const image = data.format === 'png' ? await out.embedPng(data.bytes) : await out.embedJpg(data.bytes);
+          embeddedBySource.set(sourceId, { image, data });
+          continue;
+        }
+
+        const indices = indicesBySource.get(sourceId) ?? [];
         const bytes = await ctx.readBytes(sourceId);
         const source = await PDFDocument.load(bytes);
         const pageCount = source.getPageCount();
@@ -41,13 +50,23 @@ export function createPdfAssembler(): BlockAssembler {
 
       for (const [position, entry] of plan.entries()) {
         ctx.signal?.throwIfAborted();
-        const page = copiedBySource.get(entry.sourceId)?.[entry.slot];
-        if (!page) throw new Error(`Kopierte Seite fehlt: ${entry.sourceId}#${entry.slot}`);
-        if (entry.rotation !== 0) {
-          // Additiv zur Rotation der Quellseite, die die Kopie schon mitbringt.
-          page.setRotation(degrees((page.getRotation().angle + entry.rotation) % 360));
+        const embedded = embeddedBySource.get(entry.sourceId);
+        if (embedded) {
+          const { image, data } = embedded;
+          const page = out.addPage([data.width, data.height]);
+          page.drawImage(image, { x: 0, y: 0, width: data.width, height: data.height });
+          if (entry.rotation !== 0) {
+            page.setRotation(degrees(entry.rotation % 360));
+          }
+        } else {
+          const page = copiedBySource.get(entry.sourceId)?.[entry.slot];
+          if (!page) throw new Error(`Kopierte Seite fehlt: ${entry.sourceId}#${entry.slot}`);
+          if (entry.rotation !== 0) {
+            // Additiv zur Rotation der Quellseite, die die Kopie schon mitbringt.
+            page.setRotation(degrees((page.getRotation().angle + entry.rotation) % 360));
+          }
+          out.addPage(page);
         }
-        out.addPage(page);
         ctx.onProgress?.(position + 1, plan.length);
       }
 

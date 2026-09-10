@@ -15,7 +15,7 @@ export function targetsForScope(
 ): SearchTarget[] {
   if (kind === 'source') {
     const source = activeSourceId ? ws.sources[activeSourceId] : undefined;
-    return source && source.status === 'ready'
+    return source && source.status === 'ready' && source.kind === 'pdf'
       ? [{ sourceId: source.id, name: source.name, indices: fullRange(source.blockCount) }]
       : [];
   }
@@ -24,10 +24,12 @@ export function targetsForScope(
     const node = activeOutputId ? ws.nodes[activeOutputId] : undefined;
     if (!node || !isOutput(node)) return [];
     // Je Quelle die tatsaechlich enthaltenen Seiten, in Erst-Vorkommen-Reihenfolge.
+    // Bildquellen haben keinen durchsuchbaren Text und werden ausgelassen.
     const bySource = new Map<SourceId, number[]>();
     for (const itemId of node.items) {
       const item = ws.items[itemId];
       if (!item) continue;
+      if (ws.sources[item.sourceId]?.kind !== 'pdf') continue;
       const indices = bySource.get(item.sourceId) ?? [];
       if (!indices.includes(item.blockIndex)) indices.push(item.blockIndex);
       bySource.set(item.sourceId, indices);
@@ -41,6 +43,6 @@ export function targetsForScope(
 
   return ws.sourceOrder
     .map((id) => ws.sources[id])
-    .filter((source) => source && source.status === 'ready')
+    .filter((source) => source && source.status === 'ready' && source.kind === 'pdf')
     .map((source) => ({ sourceId: source.id, name: source.name, indices: fullRange(source.blockCount) }));
 }
