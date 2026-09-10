@@ -6,6 +6,7 @@ import { createOffscreenSurface, createPdfjsEngine } from '../../adapters/pdf/pd
 import { createRegistry } from '../../adapters/registry';
 import type { AdapterRegistry, BlockAssembler, DocumentAdapter } from '../../adapters/types';
 import type { SourceId } from '../../domain/types';
+import { newId } from '../../domain/ids';
 import { createAutosave, type Autosave } from '../persistence/autosave';
 import { openWorkspaceDb, type Database } from '../persistence/db';
 import { createSourceBlobStore, type SourceBlobStore } from '../persistence/sourceBlobStore';
@@ -15,6 +16,8 @@ import { createWorkspaceRepo, type WorkspaceRepo } from '../persistence/workspac
 import { createBlobUrlCache } from '../thumbnails/thumbnailCache';
 import { createRenderQueue } from '../thumbnails/renderQueue';
 import { createThumbnailService, type ThumbnailService } from '../thumbnails/thumbnailService';
+import { collectFromDataTransfer, collectFromFileList, type DataTransferItemLike } from '../import/fileSources';
+import { importCandidates, sha256Hex, type ImportReport } from '../import/importSources';
 
 export interface AppServicesDeps {
   /**
@@ -36,6 +39,8 @@ export interface AppServices {
   autosave: Autosave;
   thumbnails: ThumbnailService;
   readBytesForSource(sourceId: SourceId): Promise<Uint8Array>;
+  importForDrop(items: DataTransferItem[]): Promise<ImportReport>;
+  importForFiles(files: FileList | File[]): Promise<ImportReport>;
   dispose(): Promise<void>;
 }
 
@@ -82,6 +87,8 @@ export async function createAppServices({
 
   const autosave = createAutosave({ save: (ws) => repo.save(ws) });
 
+  const importDeps = { registry, blobStore, storage, hash: sha256Hex, newId };
+
   return {
     db,
     registry,
@@ -93,6 +100,12 @@ export async function createAppServices({
     autosave,
     thumbnails,
     readBytesForSource,
+    async importForDrop(items) {
+      return importCandidates(await collectFromDataTransfer(items as DataTransferItemLike[]), importDeps);
+    },
+    async importForFiles(files) {
+      return importCandidates(collectFromFileList(files), importDeps);
+    },
     async dispose() {
       autosave.dispose();
       thumbnails.clearMemory();
