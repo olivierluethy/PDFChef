@@ -14,6 +14,7 @@ import { DragPreview } from '../workspace/DragPreview';
 import { usePointerDrag } from '../workspace/usePointerDrag';
 import { useExternalDrop } from '../workspace/useExternalDrop';
 import { PreviewPane } from '../preview/PreviewPane';
+import { useOcr } from '../preview/useOcr';
 import { useSearch } from '../preview/useSearch';
 import { useExport } from '../export/useExport';
 import { CommandPalette } from './CommandPalette';
@@ -92,6 +93,7 @@ function Workspace() {
   const external = useExternalDrop();
   const exportUi = useExport();
   const search = useSearch({ sourceId: activeSourceId, outputId: activeOutputId });
+  const ocr = useOcr();
   useKeyboardShortcuts({ onSearch: search.open, onCommandPalette: () => setPaletteOpen(true) });
 
   const paletteActions = useMemo<PaletteAction[]>(
@@ -110,8 +112,16 @@ function Workspace() {
       },
       { id: 'export', label: 'Exportieren', run: () => exportUi.open() },
       { id: 'search', label: 'Suchen', run: () => search.open() },
+      {
+        id: 'ocr',
+        label: 'Text erkennen (aktuelle Quelle)',
+        run: () => {
+          const source = activeSourceId ? workspace.sources[activeSourceId] : undefined;
+          if (activeSourceId && source) void ocr.runForSource(activeSourceId, source.blockCount);
+        },
+      },
     ],
-    [workspaceStore, dispatch, exportUi, search],
+    [workspaceStore, dispatch, exportUi, search, ocr, activeSourceId, workspace],
   );
 
   useEffect(() => services.autosave.subscribe(setStatus), [services]);
@@ -213,6 +223,11 @@ function Workspace() {
       )}
       {exportUi.dialog}
       {paletteOpen && <CommandPalette actions={paletteActions} onClose={() => setPaletteOpen(false)} />}
+      {ocr.progress && (
+        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-shell px-4 py-2 text-center text-sm text-neutral-300">
+          Seite {ocr.progress.done} von {ocr.progress.total} erkannt
+        </div>
+      )}
     </div>
   );
 }
