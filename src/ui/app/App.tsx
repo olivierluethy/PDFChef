@@ -4,6 +4,7 @@ import type { SaveStatus } from '../../services/persistence/autosave';
 import { SourceGrid } from '../sources/SourceGrid';
 import { SourceList } from '../sources/SourceList';
 import { RangeField } from '../sources/RangeField';
+import { OutlinePanel } from '../sources/OutlinePanel';
 import { OutputGrid } from '../workspace/OutputGrid';
 import { OutputTree } from '../workspace/OutputTree';
 import { SplitPanel } from '../workspace/SplitPanel';
@@ -17,7 +18,14 @@ import { ContextBar } from './ContextBar';
 import { Header } from './Header';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { bootstrapWorkspace } from './bootstrap';
-import { StoreProvider, useDispatch, useServices, useWorkspace, type StoreContextValue } from './StoreProvider';
+import {
+  StoreProvider,
+  useDispatch,
+  useServices,
+  useSelectionStore,
+  useWorkspace,
+  type StoreContextValue,
+} from './StoreProvider';
 
 export interface AppProps {
   bootstrap?: () => Promise<StoreContextValue>;
@@ -66,10 +74,12 @@ function Workspace() {
   const workspace = useWorkspace();
   const services = useServices();
   const dispatch = useDispatch();
+  const selectionStore = useSelectionStore();
   const [status, setStatus] = useState<SaveStatus>({ kind: 'idle' });
   const [activeSourceId, setActiveSourceId] = useState<SourceId | null>(null);
   const [activeOutputId, setActiveOutputId] = useState<NodeId | null>(null);
   const [splitting, setSplitting] = useState<SourceId | null>(null);
+  const [sourceSeek, setSourceSeek] = useState<{ index: number; nonce: number } | null>(null);
 
   const drag = usePointerDrag();
   const external = useExternalDrop();
@@ -119,9 +129,25 @@ function Workspace() {
           <section className="flex min-h-0 flex-1 flex-col border-b border-line">
             {activeSource ? (
               <>
+                {activeSource.outline && activeSource.outline.length > 0 && (
+                  <OutlinePanel
+                    outline={activeSource.outline}
+                    blockCount={activeSource.blockCount}
+                    onNavigate={(blockIndex) => {
+                      selectionStore
+                        .getState()
+                        .select({ kind: 'source', sourceId: activeSource.id }, String(blockIndex), [String(blockIndex)]);
+                      setSourceSeek({ index: blockIndex, nonce: Date.now() });
+                    }}
+                  />
+                )}
                 <RangeField sourceId={activeSource.id} blockCount={activeSource.blockCount} />
                 <div className="min-h-0 flex-1">
-                  <SourceGrid source={activeSource} onCellPointerDown={drag.onCellPointerDown} />
+                  <SourceGrid
+                    source={activeSource}
+                    onCellPointerDown={drag.onCellPointerDown}
+                    scrollTo={sourceSeek ?? undefined}
+                  />
                 </div>
               </>
             ) : (

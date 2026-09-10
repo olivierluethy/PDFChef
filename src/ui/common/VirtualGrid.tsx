@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { computeColumns } from './gridLayout';
 
@@ -12,6 +12,8 @@ export interface VirtualGridProps {
   /** Der Scrollcontainer; das interne Drag misst darueber Positionen. */
   scrollRef?: RefObject<HTMLDivElement | null>;
   overscan?: number;
+  /** Springt bei jeder Aenderung von `nonce` zur Zeile von `index` (z. B. Kapitelnavigation). */
+  scrollTo?: { index: number; nonce: number };
 }
 
 export function VirtualGrid({
@@ -22,6 +24,7 @@ export function VirtualGrid({
   renderCell,
   scrollRef,
   overscan = 2,
+  scrollTo,
 }: VirtualGridProps) {
   const ownRef = useRef<HTMLDivElement | null>(null);
   const ref = scrollRef ?? ownRef;
@@ -50,6 +53,11 @@ export function VirtualGrid({
     estimateSize: () => cellHeight + gap,
     overscan,
   });
+
+  useEffect(() => {
+    if (!scrollTo) return;
+    rowVirtualizer.scrollToIndex(Math.floor((scrollTo.index ?? 0) / columns), { align: 'start' });
+  }, [scrollTo?.nonce]);
 
   return (
     <div ref={ref} className="h-full overflow-auto" data-testid="virtual-grid">

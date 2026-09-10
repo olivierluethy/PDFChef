@@ -10,9 +10,11 @@ import { computeSourceUsage } from './sourceUsage';
 export interface SourceGridProps {
   source: SourceDocument;
   onCellPointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
+  /** Springt zur Rasterposition von `index` (z. B. Kapitelnavigation aus `OutlinePanel`). */
+  scrollTo?: { index: number; nonce: number };
 }
 
-export function SourceGrid({ source, onCellPointerDown }: SourceGridProps) {
+export function SourceGrid({ source, onCellPointerDown, scrollTo }: SourceGridProps) {
   const workspace = useWorkspace();
   const selection = useSelection();
   const selectionStore = useSelectionStore();
@@ -55,6 +57,7 @@ export function SourceGrid({ source, onCellPointerDown }: SourceGridProps) {
           cellAspect={1.35}
           gap={12}
           scrollRef={scrollRef}
+          scrollTo={scrollTo}
           renderCell={(position) => {
             const blockIndex = indices[position];
             const id = String(blockIndex);
