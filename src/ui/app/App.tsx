@@ -170,6 +170,17 @@ function Workspace() {
           <span className="tabular text-xs text-muted">{activeSource.blockCount} Seiten</span>
         )}
         <span className="ml-auto text-xs text-muted">Seiten nach unten ins Dokument ziehen</span>
+        {activeSource && (
+          <button
+            type="button"
+            disabled={latex.busy}
+            onClick={() => void latex.runForSource(activeSource.id)}
+            title="Den Text dieses Dokuments als LaTeX-Datei erzeugen"
+            className="rounded border border-line px-2 py-0.5 text-xs hover:border-accent/60 disabled:opacity-50"
+          >
+            {latex.busy ? 'LaTeX…' : 'LaTeX'}
+          </button>
+        )}
       </header>
       {activeSource ? (
         <>

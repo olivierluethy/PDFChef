@@ -36,11 +36,25 @@ export function useLatexExport(): { runForSource(sourceId: SourceId): Promise<vo
           const pageLines = await services.textPages(sourceId);
           pages = pageLines.map((lines) => lines.join('\n'));
         } else {
+          // Text bei Bedarf aus dem Dokument ziehen -- nicht nur aus dem Cache,
+          // sonst waere die LaTeX-Ausgabe leer, solange keine Suche/OCR lief.
           const store = createPageTextStore(services.db);
           pages = [];
           for (let blockIndex = 0; blockIndex < source.blockCount; blockIndex++) {
-            const page = await store.get(sourceId, blockIndex);
-            pages.push(page?.text ?? '');
+            const cached = await store.get(sourceId, blockIndex);
+            if (cached) {
+              pages.push(cached.text);
+              continue;
+            }
+            try {
+              if (!services.adapter.extractText) throw new Error('keine Textextraktion');
+              const extracted = await services.adapter.extractText({ sourceId, blockIndex });
+              await store.put(sourceId, extracted);
+              pages.push(extracted.text);
+            } catch (error) {
+              console.debug('Kein extrahierbarer Text auf Seite', blockIndex, error);
+              pages.push('');
+            }
           }
         }
 
