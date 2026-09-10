@@ -11,3 +11,12 @@ createRoot(container).render(
     <App />
   </StrictMode>,
 );
+
+// Service Worker nur in Produktion registrieren (Entwicklung bleibt ohne Caching).
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .catch((error) => console.warn('SW-Registrierung fehlgeschlagen', error));
+  });
+}
