@@ -223,7 +223,11 @@ function Workspace() {
       </header>
       <div className="min-h-0 flex-1">
         {activeOutputId ? (
-          <OutputGrid outputId={activeOutputId} onCellPointerDown={drag.onCellPointerDown} />
+          <OutputGrid
+            outputId={activeOutputId}
+            onCellPointerDown={drag.onCellPointerDown}
+            dropIndex={drag.dropIndicator?.outputId === activeOutputId ? drag.dropIndicator.index : null}
+          />
         ) : (
           <p className="p-4 text-sm text-muted">
             Waehlen Sie links ein Ausgabedokument oder legen Sie eines an.

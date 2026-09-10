@@ -1,22 +1,28 @@
 import { useCallback, useMemo, useRef } from 'react';
+import { RotateCcw, RotateCw, Scissors, Trash2 } from 'lucide-react';
+import { newId } from '../../domain/ids';
 import { isOutput, type NodeId } from '../../domain/types';
 import type { SelectionScope } from '../../services/store/selection';
 import type { DragOrigin } from './dragLogic';
+import { buildSplitOutputCommand } from './buildSplitOutputCommand';
 import { useMarquee } from './useMarquee';
 import { MarqueeBox } from './MarqueeBox';
 import { Thumbnail } from '../common/Thumbnail';
 import { VirtualGrid } from '../common/VirtualGrid';
-import { useSelection, useSelectionStore, useWorkspace } from '../app/StoreProvider';
+import { useDispatch, useSelection, useSelectionStore, useWorkspace } from '../app/StoreProvider';
 
 export interface OutputGridProps {
   outputId: NodeId;
   onCellPointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
+  /** Luecke (0..Seitenzahl), an der beim Ziehen die Einfuege-Linie steht; null = keine. */
+  dropIndex?: number | null;
 }
 
-export function OutputGrid({ outputId, onCellPointerDown }: OutputGridProps) {
+export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: OutputGridProps) {
   const workspace = useWorkspace();
   const selection = useSelection();
   const selectionStore = useSelectionStore();
+  const dispatch = useDispatch();
   const node = workspace.nodes[outputId];
   const scope: SelectionScope = { kind: 'output', outputId };
   const itemIds = isOutput(node) ? node.items : [];
@@ -66,16 +72,18 @@ export function OutputGrid({ outputId, onCellPointerDown }: OutputGridProps) {
     onCellPointerDown?.(event, { kind: 'output', outputId, itemIds: ids });
   }
 
+  const count = itemIds.length;
+
   return (
     <div
       className="relative h-full"
       data-output-id={outputId}
-      data-item-count={itemIds.length}
+      data-item-count={count}
       ref={gridRef}
       onPointerDown={marquee.onPointerDown}
     >
       <VirtualGrid
-        count={itemIds.length}
+        count={count}
         minCellWidth={180}
         cellAspect={1.45}
         gap={12}
@@ -87,24 +95,109 @@ export function OutputGrid({ outputId, onCellPointerDown }: OutputGridProps) {
           const provenance = `${source?.name ?? 'Quelle'} . Seite ${item.blockIndex + 1}`;
           const selected = selection.scope?.kind === 'output' &&
             selection.scope.outputId === outputId && selection.ids.includes(itemId);
+          // Einfuege-Linie: vor dieser Zelle, oder hinter der letzten Zelle.
+          const lineBefore = dropIndex === position;
+          const lineAfter = dropIndex === count && position === count - 1;
           return (
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               onPointerDown={(e) => handlePointerDown(e, itemId)}
               aria-pressed={selected}
               data-item-id={itemId}
               data-drop-index={position}
-              className={`flex w-full flex-col gap-1 rounded ring-2 transition-shadow ${selected ? 'ring-accent' : 'ring-transparent hover:ring-line'}`}
+              className={`group relative flex w-full cursor-grab flex-col gap-1 rounded ring-2 transition-shadow ${selected ? 'ring-accent' : 'ring-transparent hover:ring-line'}`}
             >
+              {lineBefore && <InsertionLine side="left" />}
+              {lineAfter && <InsertionLine side="right" />}
               <span className="block w-full" style={{ aspectRatio: '1 / 1.35', transform: `rotate(${item.rotation}deg)` }}>
                 <Thumbnail blockRef={{ sourceId: item.sourceId, blockIndex: item.blockIndex }} alt={provenance} />
               </span>
               <span className="truncate px-1 text-[11px] text-muted">{provenance}</span>
-            </button>
+
+              <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+                <CardButton
+                  label="Nach links drehen"
+                  onClick={() => dispatch({ type: 'rotateItems', itemIds: [itemId], delta: 270 })}
+                >
+                  <RotateCcw className="size-3.5" aria-hidden />
+                </CardButton>
+                <CardButton
+                  label="Nach rechts drehen"
+                  onClick={() => dispatch({ type: 'rotateItems', itemIds: [itemId], delta: 90 })}
+                >
+                  <RotateCw className="size-3.5" aria-hidden />
+                </CardButton>
+                <CardButton
+                  label="Dokument hier trennen"
+                  disabled={position === 0}
+                  onClick={() => {
+                    const command = buildSplitOutputCommand({
+                      output: node,
+                      atIndex: position,
+                      parentId: node.parentId,
+                      newOutputId: newId(),
+                    });
+                    if (command) dispatch(command);
+                  }}
+                >
+                  <Scissors className="size-3.5" aria-hidden />
+                </CardButton>
+                <CardButton
+                  label="Seite entfernen"
+                  danger
+                  onClick={() => dispatch({ type: 'removeItems', itemIds: [itemId] })}
+                >
+                  <Trash2 className="size-3.5" aria-hidden />
+                </CardButton>
+              </div>
+            </div>
           );
         }}
       />
       {marquee.marquee && <MarqueeBox rect={marquee.marquee} />}
     </div>
+  );
+}
+
+/** Die amberfarbene Einfuege-Marke in der Luecke neben einer Kachel. */
+function InsertionLine({ side }: { side: 'left' | 'right' }) {
+  const position = side === 'left' ? '-left-[7px]' : '-right-[7px]';
+  return (
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute top-0 ${position} z-10 h-[calc(100%-1.25rem)] w-[3px] rounded-full bg-accent`}
+    />
+  );
+}
+
+interface CardButtonProps {
+  label: string;
+  onClick(): void;
+  children: React.ReactNode;
+  disabled?: boolean;
+  danger?: boolean;
+}
+
+/**
+ * Ein Kachel-Aktionsknopf. Er stoppt den PointerDown, damit weder ein Drag
+ * beginnt noch die Auswahl wechselt, wenn man ihn drueckt.
+ */
+function CardButton({ label, onClick, children, disabled, danger }: CardButtonProps) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      disabled={disabled}
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={`grid size-6 place-items-center rounded bg-shell/80 text-muted ring-1 ring-line backdrop-blur transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-30 ${danger ? 'hover:bg-danger/20 hover:text-danger hover:ring-danger/50' : 'hover:ring-accent/60'}`}
+    >
+      {children}
+    </button>
   );
 }
