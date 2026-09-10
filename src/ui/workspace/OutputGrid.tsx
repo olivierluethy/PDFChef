@@ -24,7 +24,19 @@ export function OutputGrid({ outputId, onCellPointerDown }: OutputGridProps) {
     return <p className="px-3 py-4 text-sm text-neutral-500">Kein Dokument gewaehlt.</p>;
   }
   if (itemIds.length === 0) {
-    return <p className="px-3 py-4 text-sm text-neutral-500">Dieses Dokument ist noch leer. Ziehen Sie Seiten hierher.</p>;
+    // Wichtig: auch der Leerzustand traegt data-output-id, sonst gibt es genau
+    // dort, wo der Text zum Ziehen auffordert, kein Drop-Ziel.
+    return (
+      <div className="h-full p-3" data-output-id={outputId} data-item-count={0} data-drop-index={0}>
+        <div className="grid h-full place-items-center rounded-lg border-2 border-dashed border-line text-center text-sm text-neutral-500">
+          <span>
+            Dieses Dokument ist noch leer.
+            <br />
+            Ziehen Sie Seiten aus einer Quelle hierher.
+          </span>
+        </div>
+      </div>
+    );
   }
 
   function handlePointerDown(event: React.PointerEvent, id: string) {

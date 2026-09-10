@@ -28,6 +28,18 @@ function targetAt(x: number, y: number): DropTarget | null {
   return null;
 }
 
+/** Hebt das Element hervor, das gerade Drop-Ziel ist. */
+function highlightTarget(x: number, y: number, current: HTMLElement | null): HTMLElement | null {
+  const element = document.elementFromPoint(x, y);
+  const node = element?.closest('[data-node-id]') as HTMLElement | null;
+  const output = element?.closest('[data-output-id]') as HTMLElement | null;
+  const next = node ?? output ?? null;
+  if (next === current) return current;
+  current?.removeAttribute('data-drop-active');
+  next?.setAttribute('data-drop-active', 'true');
+  return next;
+}
+
 export function usePointerDrag() {
   const dispatch = useDispatch();
   const workspaceStore = useWorkspaceStore();
@@ -36,6 +48,16 @@ export function usePointerDrag() {
   const origin = useRef<DragOrigin | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const dragging = useRef(false);
+  const highlighted = useRef<HTMLElement | null>(null);
+
+  const endDrag = () => {
+    dragging.current = false;
+    origin.current = null;
+    document.body.classList.remove('is-dragging');
+    highlighted.current?.removeAttribute('data-drop-active');
+    highlighted.current = null;
+    setPreview(null);
+  };
 
   const onCellPointerDown = useCallback(
     (event: React.PointerEvent, dragOrigin: DragOrigin) => {
@@ -48,11 +70,16 @@ export function usePointerDrag() {
         const dx = e.clientX - start.current.x;
         const dy = e.clientY - start.current.y;
         if (!dragging.current && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
-        dragging.current = true;
+        if (!dragging.current) {
+          dragging.current = true;
+          // Kein natives Markieren von Text mehr, waehrend gezogen wird.
+          document.body.classList.add('is-dragging');
+        }
 
         const action = origin.current.kind === 'source' ? 'add' : e.metaKey || e.ctrlKey ? 'copy' : 'move';
         const count = origin.current.kind === 'source' ? origin.current.blockIndices.length : origin.current.itemIds.length;
         setPreview({ count, action, x: e.clientX, y: e.clientY });
+        highlighted.current = highlightTarget(e.clientX, e.clientY, highlighted.current);
 
         // Auto-Scroll, wenn der Zeiger in die Randzone eines Scrollers faehrt.
         const scroller = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('.overflow-auto');
@@ -66,12 +93,17 @@ export function usePointerDrag() {
       const up = (e: PointerEvent) => {
         window.removeEventListener('pointermove', move);
         window.removeEventListener('pointerup', up);
-        setPreview(null);
-        if (!dragging.current || !origin.current) return;
+        const wasDragging = dragging.current;
+        const dragOriginNow = origin.current;
+        if (!wasDragging || !dragOriginNow) {
+          endDrag();
+          return;
+        }
         const target = targetAt(e.clientX, e.clientY);
+        endDrag();
         if (!target) return;
         const command = buildDropCommand({
-          origin: origin.current,
+          origin: dragOriginNow,
           target: target.kind === 'tree-output' ? { kind: 'output', outputId: target.outputId, index: 0 } : target,
           modifier: e.metaKey || e.ctrlKey,
           ws: workspaceStore.getState().workspace,

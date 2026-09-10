@@ -56,7 +56,10 @@ export function createRenderQueue({ concurrency = 3 }: { concurrency?: number } 
         .then(entry.resolve, entry.reject)
         .finally(() => {
           running -= 1;
-          entries.delete(entry.key);
+          // Nur aufraeumen, wenn dieser Eintrag noch der aktuelle ist. Ein
+          // abgebrochener Auftrag, der inzwischen durch einen frischen ersetzt
+          // wurde (Remount derselben Zelle), darf den Nachfolger nicht loeschen.
+          if (entries.get(entry.key) === entry) entries.delete(entry.key);
           pump();
         });
     }
@@ -74,7 +77,10 @@ export function createRenderQueue({ concurrency = 3 }: { concurrency?: number } 
   return {
     run<T>(key: string, priority: number, task: QueueTask<T>): Promise<T> {
       const existing = entries.get(key);
-      if (existing) {
+      // Ein abgebrochener Eintrag (z. B. StrictMode-Unmount waehrend er lief)
+      // darf nicht als gueltige Zusage zurueckgegeben werden -- sonst liefert
+      // die remountete Zelle einen bereits verworfenen Auftrag und rendert nie.
+      if (existing && !existing.controller.signal.aborted) {
         // Eine wieder sichtbar gewordene Zelle darf ihre Aufgabe vordraengen.
         existing.priority = Math.max(existing.priority, priority);
         return existing.promise as Promise<T>;
