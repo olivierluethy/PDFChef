@@ -1,7 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { SelectionScope } from '../../services/store/selection';
 import type { SourceDocument } from '../../domain/types';
 import type { DragOrigin } from '../workspace/dragLogic';
+import { useMarquee } from '../workspace/useMarquee';
+import { MarqueeBox } from '../workspace/MarqueeBox';
 import { Thumbnail } from '../common/Thumbnail';
 import { VirtualGrid } from '../common/VirtualGrid';
 import { useSelection, useSelectionStore, useWorkspace } from '../app/StoreProvider';
@@ -30,6 +32,21 @@ export function SourceGrid({ source, onCellPointerDown, scrollTo }: SourceGridPr
   }, [source.blockCount, onlyUnused, usage]);
   const order = useMemo(() => indices.map(String), [indices]);
 
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const marqueeSelect = useCallback(
+    (ids: string[], additive: boolean) =>
+      selectionStore.getState().replace({ kind: 'source', sourceId: source.id }, ids, ids[0] ?? null, additive),
+    [selectionStore, source.id],
+  );
+  const clearSelection = useCallback(() => selectionStore.getState().clear(), [selectionStore]);
+  const marquee = useMarquee({
+    containerRef: gridRef,
+    cellSelector: '[data-block-index]',
+    idOf: (el) => el.dataset.blockIndex!,
+    onSelect: marqueeSelect,
+    onClear: clearSelection,
+  });
+
   function handleCellPointerDown(event: React.PointerEvent, index: number) {
     const id = String(index);
     if (event.shiftKey) selectionStore.getState().extend(scope, id, order);
@@ -50,7 +67,7 @@ export function SourceGrid({ source, onCellPointerDown, scrollTo }: SourceGridPr
           Nur noch nicht verwendete Seiten
         </label>
       </div>
-      <div className="min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1" ref={gridRef} onPointerDown={marquee.onPointerDown}>
         <VirtualGrid
           count={indices.length}
           minCellWidth={180}
@@ -67,6 +84,7 @@ export function SourceGrid({ source, onCellPointerDown, scrollTo }: SourceGridPr
             return (
               <button
                 type="button"
+                data-block-index={blockIndex}
                 onPointerDown={(e) => handleCellPointerDown(e, blockIndex)}
                 aria-pressed={selected}
                 className={`relative block w-full rounded ring-2 transition-shadow ${
@@ -85,6 +103,7 @@ export function SourceGrid({ source, onCellPointerDown, scrollTo }: SourceGridPr
             );
           }}
         />
+        {marquee.marquee && <MarqueeBox rect={marquee.marquee} />}
       </div>
     </div>
   );
