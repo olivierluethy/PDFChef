@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { SelectionScope } from '../../services/store/selection';
 import type { SourceDocument } from '../../domain/types';
+import type { DragOrigin } from '../workspace/dragLogic';
 import { Thumbnail } from '../common/Thumbnail';
 import { VirtualGrid } from '../common/VirtualGrid';
 import { useSelection, useSelectionStore, useWorkspace } from '../app/StoreProvider';
@@ -8,9 +9,10 @@ import { computeSourceUsage } from './sourceUsage';
 
 export interface SourceGridProps {
   source: SourceDocument;
+  onCellPointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
 }
 
-export function SourceGrid({ source }: SourceGridProps) {
+export function SourceGrid({ source, onCellPointerDown }: SourceGridProps) {
   const workspace = useWorkspace();
   const selection = useSelection();
   const selectionStore = useSelectionStore();
@@ -26,11 +28,15 @@ export function SourceGrid({ source }: SourceGridProps) {
   }, [source.blockCount, onlyUnused, usage]);
   const order = useMemo(() => indices.map(String), [indices]);
 
-  function onCellPointerDown(event: React.PointerEvent, index: number) {
+  function handleCellPointerDown(event: React.PointerEvent, index: number) {
     const id = String(index);
     if (event.shiftKey) selectionStore.getState().extend(scope, id, order);
     else if (event.metaKey || event.ctrlKey) selectionStore.getState().toggle(scope, id);
     else selectionStore.getState().select(scope, id, order);
+
+    const inScope = selection.scope?.kind === 'source' && selection.scope.sourceId === source.id;
+    const ids = inScope ? (selection.ids.includes(id) ? selection.ids : [...selection.ids, id]) : [id];
+    onCellPointerDown?.(event, { kind: 'source', sourceId: source.id, blockIndices: ids.map(Number) });
   }
 
   return (
@@ -58,7 +64,7 @@ export function SourceGrid({ source }: SourceGridProps) {
             return (
               <button
                 type="button"
-                onPointerDown={(e) => onCellPointerDown(e, blockIndex)}
+                onPointerDown={(e) => handleCellPointerDown(e, blockIndex)}
                 aria-pressed={selected}
                 className={`relative block w-full rounded ring-2 ${
                   selected ? 'ring-sky-400' : 'ring-transparent'
