@@ -26,19 +26,19 @@ Die Architektur ist so geschnitten, dass die Sekundaerfunktionen aus Phase 2
 
 ## 2. Technischer Rahmen
 
-| Bereich | Entscheidung | Begruendung |
-| --- | --- | --- |
-| Build | Vite | Native Unterstuetzung fuer Web Worker und WASM, statisches Deployment |
-| UI | React 19 + TypeScript (strict) | Groesstes Oekosystem fuer die benoetigten Bausteine |
-| Styling | Tailwind CSS v4, Lucide Icons | Kein eigenes Designsystem, dunkles Thema als Standard |
-| Store | Zustand + Immer (`produceWithPatches`) | Benannte Commands mit abgeleiteter Undo-Inverse |
-| PDF lesen/rendern | `pdfjs-dist` | Etabliert, Worker- und OffscreenCanvas-faehig |
-| PDF schreiben | `pdf-lib` | Seitenkopie ohne Rasterung, laeuft im Browser |
-| Virtualisierung | `@tanstack/react-virtual` | Grid-Virtualisierung fuer grosse Seitenraster |
-| ZIP | `fflate` | Klein, streaming-faehig |
-| IndexedDB | `idb` | Duenne, typisierte Huelle |
-| Tests | Vitest, Playwright | Domain-Logik per TDD, ein Ende-zu-Ende-Flow |
-| Paketmanager | npm | Einzig installiert (npm 11, Node 26) |
+| Bereich           | Entscheidung                           | Begruendung                                                           |
+| ----------------- | -------------------------------------- | --------------------------------------------------------------------- |
+| Build             | Vite                                   | Native Unterstuetzung fuer Web Worker und WASM, statisches Deployment |
+| UI                | React 19 + TypeScript (strict)         | Groesstes Oekosystem fuer die benoetigten Bausteine                   |
+| Styling           | Tailwind CSS v4, Lucide Icons          | Kein eigenes Designsystem, dunkles Thema als Standard                 |
+| Store             | Zustand + Immer (`produceWithPatches`) | Benannte Commands mit abgeleiteter Undo-Inverse                       |
+| PDF lesen/rendern | `pdfjs-dist`                           | Etabliert, Worker- und OffscreenCanvas-faehig                         |
+| PDF schreiben     | `pdf-lib`                              | Seitenkopie ohne Rasterung, laeuft im Browser                         |
+| Virtualisierung   | `@tanstack/react-virtual`              | Grid-Virtualisierung fuer grosse Seitenraster                         |
+| ZIP               | `fflate`                               | Klein, streaming-faehig                                               |
+| IndexedDB         | `idb`                                  | Duenne, typisierte Huelle                                             |
+| Tests             | Vitest, Playwright                     | Domain-Logik per TDD, ein Ende-zu-Ende-Flow                           |
+| Paketmanager      | npm                                    | Einzig installiert (npm 11, Node 26)                                  |
 
 Kein Server-Framework: die App hat bewusst keinen Server, ein solches Framework
 wuerde nur Build-Komplexitaet einkaufen.
@@ -96,19 +96,23 @@ DOCX -> Dokumentstruktur plus gerenderte Seiten.
 
 ```ts
 type BlockKind = 'page' | 'slide' | 'sheet' | 'image' | 'section';
-type SourceKind = 'pdf';                     // Phase 1
+type SourceKind = 'pdf'; // Phase 1
 
-interface BlockRef { sourceId: SourceId; blockIndex: number }
+interface BlockRef {
+  sourceId: SourceId;
+  blockIndex: number;
+}
 
 interface DocumentAdapter {
   readonly kind: SourceKind;
   accepts(file: { name: string; type: string }): boolean;
-  probe(blob: Blob): Promise<SourceProbeResult>;      // blockCount, blockKind, Rotationen, Outline, Status
+  probe(blob: Blob): Promise<SourceProbeResult>; // blockCount, blockKind, Rotationen, Outline, Status
   renderBlock(ref: BlockRef, opts: RenderOpts): Promise<RenderedBitmap>;
   extractText?(ref: BlockRef): Promise<PageText>;
 }
 
-interface BlockAssembler {                   // pro Zielformat, nicht pro Quellformat
+interface BlockAssembler {
+  // pro Zielformat, nicht pro Quellformat
   readonly targetFormat: 'pdf';
   assemble(items: CompositionItem[], ctx: AssembleCtx): Promise<Uint8Array>;
 }
@@ -123,41 +127,54 @@ waehrend PDF-Bloecke weiterhin objektweise kopiert werden.
 
 ```ts
 interface SourceDocument {
-  id: SourceId;                  // ULID, stabil ueber Sessions
+  id: SourceId; // ULID, stabil ueber Sessions
   kind: SourceKind;
-  name: string;                  // Anzeigename, aus Dateiname abgeleitet
-  importPath?: string;           // relativer Pfad bei Ordner-Import ("2026/Bank/UBS.pdf")
-  blobKey: string;               // = contentHash, Schluessel im sourceBlobStore
+  name: string; // Anzeigename, aus Dateiname abgeleitet
+  importPath?: string; // relativer Pfad bei Ordner-Import ("2026/Bank/UBS.pdf")
+  blobKey: string; // = contentHash, Schluessel im sourceBlobStore
   byteSize: number;
-  contentHash: string;           // SHA-256 der Bytes
+  contentHash: string; // SHA-256 der Bytes
   blockKind: BlockKind;
   blockCount: number;
-  blockRotations: number[];      // Rotation der Quellseite laut PDF /Rotate
-  outline?: OutlineNode[];       // Bookmarks: Daten in Phase 1, UI in Phase 2
+  blockRotations: number[]; // Rotation der Quellseite laut PDF /Rotate
+  outline?: OutlineNode[]; // Bookmarks: Daten in Phase 1, UI in Phase 2
   status: 'ready' | 'error' | 'encrypted';
   statusDetail?: string;
 }
 
-interface CompositionItem {      // eine Instanz einer Quellseite in einem Output
-  id: ItemId;                    // eigene Identitaet: eine Kopie ist ein zweites Item
+interface CompositionItem {
+  // eine Instanz einer Quellseite in einem Output
+  id: ItemId; // eigene Identitaet: eine Kopie ist ein zweites Item
   sourceId: SourceId;
-  blockIndex: number;            // 0-basiert
-  rotation: 0 | 90 | 180 | 270;  // additiv zur Quellrotation
+  blockIndex: number; // 0-basiert
+  rotation: 0 | 90 | 180 | 270; // additiv zur Quellrotation
 }
 
-interface FolderNode   { id: NodeId; type: 'folder'; name: string; parentId: NodeId | null }
+interface FolderNode {
+  id: NodeId;
+  type: 'folder';
+  name: string;
+  parentId: NodeId | null;
+}
 interface OutputDocument {
-  id: NodeId; type: 'output'; name: string; parentId: NodeId | null;
+  id: NodeId;
+  type: 'output';
+  name: string;
+  parentId: NodeId | null;
   targetFormat: 'pdf';
-  items: ItemId[];               // die Reihenfolge IST diese Liste
+  items: ItemId[]; // die Reihenfolge IST diese Liste
 }
 
 interface Workspace {
-  id: string; name: string; createdAt: number; updatedAt: number;
+  id: string;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
   schemaVersion: 1;
-  sources: Record<SourceId, SourceDocument>;  sourceOrder: SourceId[];
+  sources: Record<SourceId, SourceDocument>;
+  sourceOrder: SourceId[];
   nodes: Record<NodeId, FolderNode | OutputDocument>;
-  childOrder: Record<string, NodeId[]>;       // Key = parentId oder 'root'
+  childOrder: Record<string, NodeId[]>; // Key = parentId oder 'root'
   items: Record<ItemId, CompositionItem>;
 }
 ```
@@ -165,7 +182,7 @@ interface Workspace {
 Begruendungen:
 
 - **Seitenidentitaet vs. Item-Identitaet.** Die Herkunft ist `(sourceId,
-  blockIndex)`, wodurch die App immer "Bank.pdf Seite 17" kennt (Herkunft
+blockIndex)`, wodurch die App immer "Bank.pdf Seite 17" kennt (Herkunft
   anzeigen, Original oeffnen, Mehrfachverwendung finden). Die Item-`id` macht
   zwei Kopien derselben Quellseite unterscheidbar, sodass eine davon einzeln
   gedreht oder entfernt werden kann.
@@ -198,7 +215,7 @@ ueber `produceWithPatches` an und legt einen History-Eintrag ab:
 
 ```ts
 interface HistoryEntry {
-  label: string;                 // "46 Seiten verschoben"
+  label: string; // "46 Seiten verschoben"
   patches: Patch[];
   inversePatches: Patch[];
   selectionBefore: SelectionState;
@@ -241,12 +258,12 @@ Migrationspflicht bei jeder Modelaenderung, kein Gegenwert ohne Sync).
 
 IndexedDB `pdf-master`, vier Object Stores:
 
-| Store | Key | Wert | Lebensdauer |
-| --- | --- | --- | --- |
-| `workspaces` | Workspace-Id | kompletter Workspace-Record | permanent |
-| `sourceBlobs` | `contentHash` | `Blob` der Originaldatei | referenzgezaehlt |
-| `thumbs` | `sourceId:index:breite` | WebP-Blob | Cache, verwerfbar |
-| `pageText` | `sourceId:index` | extrahierter Text | Cache, verwerfbar |
+| Store         | Key                     | Wert                        | Lebensdauer       |
+| ------------- | ----------------------- | --------------------------- | ----------------- |
+| `workspaces`  | Workspace-Id            | kompletter Workspace-Record | permanent         |
+| `sourceBlobs` | `contentHash`           | `Blob` der Originaldatei    | referenzgezaehlt  |
+| `thumbs`      | `sourceId:index:breite` | WebP-Blob                   | Cache, verwerfbar |
+| `pageText`    | `sourceId:index`        | extrahierter Text           | Cache, verwerfbar |
 
 Die Quell-Bytes werden beim Import als Blob nach IndexedDB kopiert. Das
 funktioniert in allen Browsern und bei jedem Importweg, und der Workspace
@@ -476,20 +493,20 @@ bei der Benennung neuer Outputs, Abschnitt 9). Aus
 Import: `Contract.pdf` (100 Seiten), `Bank.pdf` (50), `Insurance.pdf` (30).
 Anlegen von `Tax 2026/` mit `Bank/`, `Insurance/`, `Contracts/`. Dann:
 
-| Schritt | Umsetzung |
-| --- | --- |
-| `Contract.pdf` 4-49 -> `Tax 2026/Contracts` | Range-Feld `4-49`, Drag auf Ordner -> neues Output |
-| `Contract.pdf` 1-3 und 50-100 -> weiteres Output | Range-Feld `1-3,50-100`, Drag auf Ordner |
-| `Bank.pdf` 10-20 -> `Tax 2026/Bank` | Range-Feld, Drag auf Ordner |
-| `Insurance.pdf` Seite 7 -> `Tax 2026/Insurance` | Klick, Drag auf Ordner -> Output `Insurance` |
+| Schritt                                                 | Umsetzung                                                                                                                                                        |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Contract.pdf` 4-49 -> `Tax 2026/Contracts`             | Range-Feld `4-49`, Drag auf Ordner -> neues Output                                                                                                               |
+| `Contract.pdf` 1-3 und 50-100 -> weiteres Output        | Range-Feld `1-3,50-100`, Drag auf Ordner                                                                                                                         |
+| `Bank.pdf` 10-20 -> `Tax 2026/Bank`                     | Range-Feld, Drag auf Ordner                                                                                                                                      |
+| `Insurance.pdf` Seite 7 -> `Tax 2026/Insurance`         | Klick, Drag auf Ordner -> Output `Insurance`                                                                                                                     |
 | `Bank.pdf` Seite 17 zusaetzlich -> `Tax 2026/Insurance` | Drag auf das bestehende Output `Insurance` (aus einer Quelle ist jeder Drag ein Hinzufuegen; die Seite bleibt in `Bank.pdf` und zeigt danach ein Nutzungs-Badge) |
-| Seiten umsortieren | Drag im Output-Raster, quellenuebergreifend |
-| Outputs umbenennen | `F2` oder Doppelklick im Baum |
-| Jedes Ergebnis pruefen | Output im Baum waehlen -> Ergebnis-Preview |
-| Text suchen | `Ctrl/Cmd+F`, Bereich waehlen, Treffer anspringen |
-| Korrektur, Undo, erneute Korrektur | Command-History mit Selektionswiederherstellung |
-| Ordnerstruktur exportieren | `showDirectoryPicker` -> rekursives Schreiben |
-| Dieselbe Struktur als ZIP | derselbe `ExportPlan`, `fflate`-Writer |
+| Seiten umsortieren                                      | Drag im Output-Raster, quellenuebergreifend                                                                                                                      |
+| Outputs umbenennen                                      | `F2` oder Doppelklick im Baum                                                                                                                                    |
+| Jedes Ergebnis pruefen                                  | Output im Baum waehlen -> Ergebnis-Preview                                                                                                                       |
+| Text suchen                                             | `Ctrl/Cmd+F`, Bereich waehlen, Treffer anspringen                                                                                                                |
+| Korrektur, Undo, erneute Korrektur                      | Command-History mit Selektionswiederherstellung                                                                                                                  |
+| Ordnerstruktur exportieren                              | `showDirectoryPicker` -> rekursives Schreiben                                                                                                                    |
+| Dieselbe Struktur als ZIP                               | derselbe `ExportPlan`, `fflate`-Writer                                                                                                                           |
 
 Zu keinem Zeitpunkt entsteht eine Zwischendatei. Das Entfernen einer Seite aus
 einem Output aendert ausschliesslich die `items`-Liste; der Quell-Blob bleibt
@@ -524,7 +541,7 @@ Importierte Dateien sind unvertraute Eingabe:
 - Verschluesselte oder defekte Dateien erhalten Status `encrypted`/`error` und
   blockieren den Import der uebrigen Dateien nicht.
 - Nutzertexte sind verstaendlich (`Diese PDF konnte nicht gelesen werden. Sie
-  ist moeglicherweise beschaedigt oder verschluesselt.`); Stacktraces gehen in
+ist moeglicherweise beschaedigt oder verschluesselt.`); Stacktraces gehen in
   die Konsole.
 - Kein Netzwerkverkehr mit Dokumentinhalten, kein Analytics, keine externen
   Laufzeit-Requests. pdf.js-Worker und Schriften werden mit dem Bundle
