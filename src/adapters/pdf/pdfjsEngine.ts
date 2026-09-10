@@ -48,7 +48,7 @@ export function createPdfjsEngine(): PdfEngine {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any,
       );
-      return wrapDocument(await task.promise);
+      return wrapDocument(await task.promise, task);
     },
     isPasswordError(error) {
       return (
@@ -60,7 +60,10 @@ export function createPdfjsEngine(): PdfEngine {
   };
 }
 
-function wrapDocument(doc: pdfjs.PDFDocumentProxy): PdfDocumentHandle {
+function wrapDocument(
+  doc: pdfjs.PDFDocumentProxy,
+  task: ReturnType<typeof pdfjs.getDocument>,
+): PdfDocumentHandle {
   return {
     pageCount: doc.numPages,
     async page(blockIndex) {
@@ -72,8 +75,9 @@ function wrapDocument(doc: pdfjs.PDFDocumentProxy): PdfDocumentHandle {
       return Promise.all(raw.map((entry) => toOutlineNode(doc, entry)));
     },
     async destroy() {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (doc as any).destroy();
+      // pdf.js v6 hat kein PDFDocumentProxy.destroy() mehr; der Abbau (Dokument
+      // samt Worker-Transport) laeuft ueber den LoadingTask.
+      await task.destroy();
     },
   };
 }
