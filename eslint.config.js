@@ -10,7 +10,7 @@ export default tseslint.config(
     // Node-Skripte ausserhalb des Browser-Bundles (Build-/Asset-Skripte).
     files: ['scripts/**/*.mjs', '*.config.{js,ts}'],
     languageOptions: {
-      globals: { process: 'readonly', console: 'readonly' },
+      globals: { process: 'readonly', console: 'readonly', fetch: 'readonly' },
     },
   },
   {

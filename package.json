@@ -13,9 +13,10 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "sync:pdf-assets": "node scripts/sync-pdf-assets.mjs",
-    "predev": "npm run sync:pdf-assets",
-    "prebuild": "npm run sync:pdf-assets",
-    "pretest": "npm run sync:pdf-assets"
+    "sync:tesseract-assets": "node scripts/sync-tesseract-assets.mjs",
+    "predev": "npm run sync:pdf-assets && npm run sync:tesseract-assets",
+    "prebuild": "npm run sync:pdf-assets && npm run sync:tesseract-assets",
+    "pretest": "npm run sync:pdf-assets && npm run sync:tesseract-assets"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.11",
@@ -27,6 +28,7 @@
     "pdfjs-dist": "^6.3.289",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "tesseract.js": "^7.0.0",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
