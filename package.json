@@ -11,10 +11,17 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "sync:pdf-assets": "node scripts/sync-pdf-assets.mjs",
+    "predev": "npm run sync:pdf-assets",
+    "prebuild": "npm run sync:pdf-assets",
+    "pretest": "npm run sync:pdf-assets"
   },
   "dependencies": {
+    "idb": "^8.0.3",
     "immer": "^10.2.0",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^6.3.289",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
