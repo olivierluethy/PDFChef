@@ -1,7 +1,8 @@
-import { PDFDocument, degrees } from 'pdf-lib';
-import type { PDFImage, PDFPage } from 'pdf-lib';
+import { PDFDocument, StandardFonts, degrees } from 'pdf-lib';
+import type { PDFFont, PDFImage, PDFPage } from 'pdf-lib';
 import type { SourceId } from '../../domain/types';
 import type { AssembleCtx, BlockAssembler, ImageEmbeddable } from '../types';
+import { TEXT_PAGE } from '../text/textLayout';
 
 export function createPdfAssembler(): BlockAssembler {
   return {
@@ -18,12 +19,19 @@ export function createPdfAssembler(): BlockAssembler {
         const indices = indicesBySource.get(item.sourceId) ?? [];
         indices.push(item.blockIndex);
         indicesBySource.set(item.sourceId, indices);
-        return { sourceId: item.sourceId, slot: indices.length - 1, rotation: item.rotation };
+        return {
+          sourceId: item.sourceId,
+          slot: indices.length - 1,
+          rotation: item.rotation,
+          blockIndex: item.blockIndex,
+        };
       });
 
       const out = await PDFDocument.create();
       const copiedBySource = new Map<SourceId, PDFPage[]>();
       const embeddedBySource = new Map<SourceId, { image: PDFImage; data: ImageEmbeddable }>();
+      const textPagesBySource = new Map<SourceId, string[][]>();
+      let courierFont: PDFFont | undefined;
 
       // Ein Ladevorgang/eine Einbettung pro Quelle: jeder weitere Aufruf
       // wuerde die Objektgraphen bzw. Bilddaten erneut einbetten.
@@ -33,6 +41,10 @@ export function createPdfAssembler(): BlockAssembler {
           const data = await ctx.imageData(sourceId);
           const image = data.format === 'png' ? await out.embedPng(data.bytes) : await out.embedJpg(data.bytes);
           embeddedBySource.set(sourceId, { image, data });
+          continue;
+        }
+        if (ctx.sourceKind(sourceId) === 'text') {
+          textPagesBySource.set(sourceId, await ctx.textData(sourceId));
           continue;
         }
 
@@ -51,10 +63,26 @@ export function createPdfAssembler(): BlockAssembler {
       for (const [position, entry] of plan.entries()) {
         ctx.signal?.throwIfAborted();
         const embedded = embeddedBySource.get(entry.sourceId);
+        const textPages = textPagesBySource.get(entry.sourceId);
         if (embedded) {
           const { image, data } = embedded;
           const page = out.addPage([data.width, data.height]);
           page.drawImage(image, { x: 0, y: 0, width: data.width, height: data.height });
+          if (entry.rotation !== 0) {
+            page.setRotation(degrees(entry.rotation % 360));
+          }
+        } else if (textPages) {
+          courierFont ??= await out.embedFont(StandardFonts.Courier);
+          const lines = textPages[entry.blockIndex] ?? [];
+          const page = out.addPage([TEXT_PAGE.width, TEXT_PAGE.height]);
+          lines.forEach((line, i) => {
+            page.drawText(line, {
+              x: TEXT_PAGE.margin,
+              y: TEXT_PAGE.height - TEXT_PAGE.margin - (i + 1) * TEXT_PAGE.lineHeight,
+              size: TEXT_PAGE.fontSize,
+              font: courierFont,
+            });
+          });
           if (entry.rotation !== 0) {
             page.setRotation(degrees(entry.rotation % 360));
           }
