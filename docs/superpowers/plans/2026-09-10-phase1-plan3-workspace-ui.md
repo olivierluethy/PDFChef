@@ -45,45 +45,43 @@ Plan 4 haengt an diese Naht: der Viewer liest `useWorkspace`/`useSelection`, die
 
 ## Dateistruktur dieses Plans
 
-| Datei                                  | Verantwortung                                                                                   |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `vite.config.ts` (Modify)              | jsdom fuer `*.test.tsx`, `test/setup.ts` als `setupFiles`                                       |
-| `test/setup.ts`                        | `@testing-library/jest-dom`, `ResizeObserver`- und `scrollTo`-Stubs fuer jsdom                  |
-| `src/services/store/selection.ts`      | reine Selektionslogik, `SelectionState`, `SelectionSnapshot`                                    |
-| `src/services/store/workspaceStore.ts` | Workspace-Store mit `produceWithPatches` und History                                            |
-| `src/services/store/selectionStore.ts` | Selektions-Store ueber `selection.ts`                                                           |
-| `src/ui/app/StoreProvider.tsx`         | Kontext und Hooks fuer Stores und Dienste                                                       |
-| `src/ui/app/useKeyboardShortcuts.ts`   | globale Tastaturkuerzel                                                                         |
-| `src/ui/app/App.tsx` (Modify)          | Shell, Layout, Bootstrapping, Workspace laden                                                   |
-| `src/ui/app/Header.tsx`                | Workspace-Name, Speicherstatus, Import- und Export-Knopf (Export-Knopf: Platzhalter bis Plan 4) |
-| `src/ui/app/ContextBar.tsx`            | Kontextaktionen (Auswahlzahl, Drehen, Entfernen, Split)                                         |
-| `src/ui/common/useBlobUrl.ts`          | (bereits in Plan 2 vorbereitet; hier nur konsumiert)                                            |
-| `src/ui/common/Thumbnail.tsx`          | eine virtualisierte Rasterzelle mit Thumbnail-Anforderung                                       |
-| `src/ui/common/VirtualGrid.tsx`        | Grid-Virtualisierung ueber `@tanstack/react-virtual`                                            |
-| `src/ui/sources/SourceList.tsx`        | Liste der Quellen mit Status und Nutzungsschalter                                               |
-| `src/ui/sources/SourceGrid.tsx`        | virtualisiertes Quellraster einer Quelle                                                        |
-| `src/ui/sources/RangeField.tsx`        | permanentes Range-Feld ueber dem Quellraster                                                    |
-| `src/ui/workspace/OutputTree.tsx`      | Ordner-/Ausgabebaum mit Umbenennen und Verschieben                                              |
-| `src/ui/workspace/OutputGrid.tsx`      | virtualisiertes Output-Raster                                                                   |
-| `src/ui/workspace/dragLogic.ts`        | reine Drag-/Drop-/Marquee-Entscheidungen                                                        |
-| `src/ui/workspace/usePointerDrag.ts`   | internes Pointer-Drag inkl. Auto-Scroll und Vorschau                                            |
-| `src/ui/workspace/DragPreview.tsx`     | gestapelte Kartenvorschau mit Zaehler                                                           |
-| `src/ui/workspace/useExternalDrop.ts`  | native Datei-/Ordner-Drops                                                                      |
-| `src/ui/workspace/SplitPanel.tsx`      | Split-Panel mit Vorschau der Bereiche                                                           |
-| `tests/e2e/`                           | unveraendert aus Plan 2; der Akzeptanz-Flow folgt in Plan 4                                     |
+| Datei | Verantwortung |
+| --- | --- |
+| `vite.config.ts` (Modify) | jsdom fuer `*.test.tsx`, `test/setup.ts` als `setupFiles` |
+| `test/setup.ts` | `@testing-library/jest-dom`, `ResizeObserver`- und `scrollTo`-Stubs fuer jsdom |
+| `src/services/store/selection.ts` | reine Selektionslogik, `SelectionState`, `SelectionSnapshot` |
+| `src/services/store/workspaceStore.ts` | Workspace-Store mit `produceWithPatches` und History |
+| `src/services/store/selectionStore.ts` | Selektions-Store ueber `selection.ts` |
+| `src/ui/app/StoreProvider.tsx` | Kontext und Hooks fuer Stores und Dienste |
+| `src/ui/app/useKeyboardShortcuts.ts` | globale Tastaturkuerzel |
+| `src/ui/app/App.tsx` (Modify) | Shell, Layout, Bootstrapping, Workspace laden |
+| `src/ui/app/Header.tsx` | Workspace-Name, Speicherstatus, Import- und Export-Knopf (Export-Knopf: Platzhalter bis Plan 4) |
+| `src/ui/app/ContextBar.tsx` | Kontextaktionen (Auswahlzahl, Drehen, Entfernen, Split) |
+| `src/ui/common/useBlobUrl.ts` | (bereits in Plan 2 vorbereitet; hier nur konsumiert) |
+| `src/ui/common/Thumbnail.tsx` | eine virtualisierte Rasterzelle mit Thumbnail-Anforderung |
+| `src/ui/common/VirtualGrid.tsx` | Grid-Virtualisierung ueber `@tanstack/react-virtual` |
+| `src/ui/sources/SourceList.tsx` | Liste der Quellen mit Status und Nutzungsschalter |
+| `src/ui/sources/SourceGrid.tsx` | virtualisiertes Quellraster einer Quelle |
+| `src/ui/sources/RangeField.tsx` | permanentes Range-Feld ueber dem Quellraster |
+| `src/ui/workspace/OutputTree.tsx` | Ordner-/Ausgabebaum mit Umbenennen und Verschieben |
+| `src/ui/workspace/OutputGrid.tsx` | virtualisiertes Output-Raster |
+| `src/ui/workspace/dragLogic.ts` | reine Drag-/Drop-/Marquee-Entscheidungen |
+| `src/ui/workspace/usePointerDrag.ts` | internes Pointer-Drag inkl. Auto-Scroll und Vorschau |
+| `src/ui/workspace/DragPreview.tsx` | gestapelte Kartenvorschau mit Zaehler |
+| `src/ui/workspace/useExternalDrop.ts` | native Datei-/Ordner-Drops |
+| `src/ui/workspace/SplitPanel.tsx` | Split-Panel mit Vorschau der Bereiche |
+| `tests/e2e/` | unveraendert aus Plan 2; der Akzeptanz-Flow folgt in Plan 4 |
 
 ---
 
 ### Task 1: UI-Test-Infrastruktur und neue Abhaengigkeiten
 
 **Files:**
-
 - Create: `test/setup.ts`
 - Modify: `vite.config.ts`, `package.json`
 - Test: `src/ui/app/App.test.tsx`
 
 **Interfaces:**
-
 - Consumes: die Shell `App` aus Plan 1
 - Produces: eine funktionierende jsdom-Testumgebung fuer `*.test.tsx`; die Laufzeit-Abhaengigkeiten `zustand`, `@tanstack/react-virtual`, `lucide-react` und die Test-Abhaengigkeiten `jsdom`, `@testing-library/react`, `@testing-library/user-event`, `@testing-library/jest-dom`
 
@@ -224,12 +222,10 @@ PLANEOF
 ### Task 2: Selektionsmodell (`selection.ts`)
 
 **Files:**
-
 - Create: `src/services/store/selection.ts`
 - Test: `src/services/store/selection.test.ts`
 
 **Interfaces:**
-
 - Consumes: `SourceId`, `NodeId`, `ItemId` aus `../../domain/types`
 - Produces:
   - `type SelectionScope = { kind: 'source'; sourceId: SourceId } | { kind: 'output'; outputId: NodeId }`
@@ -302,11 +298,7 @@ describe('applySelect', () => {
 
   it('ersetzt eine Selektion in einem anderen Scope vollstaendig', () => {
     const before = { scope: other, anchor: '0', ids: ['0', '1'] };
-    expect(applySelect(before, source, '3', order)).toEqual({
-      scope: source,
-      anchor: '3',
-      ids: ['3'],
-    });
+    expect(applySelect(before, source, '3', order)).toEqual({ scope: source, anchor: '3', ids: ['3'] });
   });
 });
 
@@ -330,22 +322,14 @@ describe('applyExtend', () => {
 
   it('setzt bei Scopewechsel neu auf, ohne fremde Ids zu behalten', () => {
     const before = { scope: other, anchor: '0', ids: ['0', '1'] };
-    expect(applyExtend(before, source, '2', order)).toEqual({
-      scope: source,
-      anchor: '2',
-      ids: ['2'],
-    });
+    expect(applyExtend(before, source, '2', order)).toEqual({ scope: source, anchor: '2', ids: ['2'] });
   });
 });
 
 describe('applyToggle', () => {
   it('nimmt eine Id in dieselbe Selektion auf und verschiebt den Anker', () => {
     const before = applySelect(EMPTY_SELECTION, source, '1', order);
-    expect(applyToggle(before, source, '4')).toEqual({
-      scope: source,
-      anchor: '4',
-      ids: ['1', '4'],
-    });
+    expect(applyToggle(before, source, '4')).toEqual({ scope: source, anchor: '4', ids: ['1', '4'] });
   });
 
   it('entfernt eine bereits gewaehlte Id', () => {
@@ -406,7 +390,8 @@ Expected: FAIL, `Failed to resolve import "./selection"`.
 import type { NodeId, SourceId } from '../../domain/types';
 
 export type SelectionScope =
-  { kind: 'source'; sourceId: SourceId } | { kind: 'output'; outputId: NodeId };
+  | { kind: 'source'; sourceId: SourceId }
+  | { kind: 'output'; outputId: NodeId };
 
 /**
  * `ids` sind Zeichenketten: im Quellraster der Blockindex als Text, im
@@ -535,12 +520,10 @@ PLANEOF
 ### Task 3: Workspace-Store mit `produceWithPatches` und History
 
 **Files:**
-
 - Create: `src/services/store/workspaceStore.ts`
 - Test: `src/services/store/workspaceStore.test.ts`
 
 **Interfaces:**
-
 - Consumes: `applyCommand`, `describeCommand`, `type Command`, `type CommandCtx` aus `../../domain/commands`; `assertWorkspaceInvariants` aus `../../domain/invariants`; `type Workspace` aus `../../domain/types`; `type SelectionSnapshot` aus `./selection`; `produceWithPatches`, `applyPatches`, `enablePatches`, `type Patch` aus `immer`; `createStore` aus `zustand/vanilla`
 - Produces:
   - `interface HistoryEntry { label: string; patches: Patch[]; inversePatches: Patch[]; selectionBefore: SelectionSnapshot; selectionAfter: SelectionSnapshot }`
@@ -881,12 +864,10 @@ PLANEOF
 ### Task 4: Selektions-Store und Dispatch-Bruecke
 
 **Files:**
-
 - Create: `src/services/store/selectionStore.ts`
 - Test: `src/services/store/selectionStore.test.ts`
 
 **Interfaces:**
-
 - Consumes: alle Operationen aus `./selection`; `createStore` aus `zustand/vanilla`
 - Produces:
   - `interface SelectionStoreState extends SelectionState` mit den Aktionen `select`, `extend`, `toggle`, `replace`, `selectAll`, `clear`, `restore`, und den Ablesern `snapshot()`, `has(scope, id)`
@@ -1058,12 +1039,10 @@ PLANEOF
 ### Task 5: Reine Drag-, Drop- und Marquee-Entscheidungen (`dragLogic.ts`)
 
 **Files:**
-
 - Create: `src/ui/workspace/dragLogic.ts`
 - Test: `src/ui/workspace/dragLogic.test.ts`
 
 **Interfaces:**
-
 - Consumes: `type NodeId`, `type ItemId` aus `../../domain/types`
 - Produces:
   - `type DragOrigin = { kind: 'source'; sourceId: SourceId; blockIndices: number[] } | { kind: 'output'; outputId: NodeId; itemIds: ItemId[] }`
@@ -1102,9 +1081,7 @@ const fromOutput: DragOrigin = { kind: 'output', outputId: 'out-1', itemIds: ['i
 describe('resolveDropAction', () => {
   it('aus einer Quelle auf einen Ordner: neues Output', () => {
     const target: DropTarget = { kind: 'folder', nodeId: 'f1' };
-    expect(resolveDropAction(fromSource, target, false)).toEqual({
-      kind: 'createOutputFromFolder',
-    });
+    expect(resolveDropAction(fromSource, target, false)).toEqual({ kind: 'createOutputFromFolder' });
   });
 
   it('aus einer Quelle direkt auf ein Output: hinzufuegen, egal ob Modifier', () => {
@@ -1125,9 +1102,7 @@ describe('resolveDropAction', () => {
 
   it('aus einem Output auf einen Ordner: neues Output aus den Items', () => {
     const target: DropTarget = { kind: 'folder', nodeId: 'f1' };
-    expect(resolveDropAction(fromOutput, target, false)).toEqual({
-      kind: 'createOutputFromFolder',
-    });
+    expect(resolveDropAction(fromOutput, target, false)).toEqual({ kind: 'createOutputFromFolder' });
   });
 
   it('ein Output auf sich selbst verschieben ist keine Aktion', () => {
@@ -1255,9 +1230,7 @@ export function hitTestMarquee(cells: CellRect[], marquee: Marquee): string[] {
   const bottom = Math.max(marquee.y0, marquee.y1);
   // Echte Ueberlappung, keine blosse Beruehrung: strikte Vergleiche.
   return cells
-    .filter(
-      (cell) => cell.left < right && cell.right > left && cell.top < bottom && cell.bottom > top,
-    )
+    .filter((cell) => cell.left < right && cell.right > left && cell.top < bottom && cell.bottom > top)
     .map((cell) => cell.id);
 }
 
@@ -1312,13 +1285,11 @@ PLANEOF
 ### Task 6: StoreProvider, Hooks und App-Bootstrapping
 
 **Files:**
-
 - Create: `src/ui/app/StoreProvider.tsx`
 - Modify: `src/ui/app/App.tsx`
 - Test: `src/ui/app/StoreProvider.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `createWorkspaceStore`, `type WorkspaceStore` aus `../../services/store/workspaceStore`; `createSelectionStore`, `type SelectionStore` aus `../../services/store/selectionStore`; `type AppServices` aus `../../services/app/appServices`; `newId` aus `../../domain/ids`; `createEmptyWorkspace`, `type Command`, `type Workspace` aus `domain`; `useStore` aus `zustand`
 - Produces:
   - `interface StoreContextValue { workspaceStore: WorkspaceStore; selectionStore: SelectionStore; services: AppServices }`
@@ -1339,13 +1310,7 @@ PLANEOF
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import {
-  StoreProvider,
-  useDispatch,
-  useSelection,
-  useWorkspace,
-  wireStores,
-} from './StoreProvider';
+import { StoreProvider, useDispatch, useSelection, useWorkspace, wireStores } from './StoreProvider';
 import { makeWorkspace } from '../../domain/__fixtures__/workspace';
 import type { AppServices } from '../../services/app/appServices';
 
@@ -1362,20 +1327,14 @@ function Probe() {
     <div>
       <span>Name: {workspace.name}</span>
       <span>Auswahl: {selection.ids.length}</span>
-      <button onClick={() => dispatch({ type: 'renameWorkspace', name: 'Umbenannt' })}>
-        rename
-      </button>
+      <button onClick={() => dispatch({ type: 'renameWorkspace', name: 'Umbenannt' })}>rename</button>
     </div>
   );
 }
 
 describe('StoreProvider', () => {
   it('stellt Workspace und Dispatch bereit und rendert bei Aenderung neu', async () => {
-    const value = wireStores({
-      services: fakeServices(),
-      initialWorkspace: makeWorkspace(),
-      now: () => 1,
-    });
+    const value = wireStores({ services: fakeServices(), initialWorkspace: makeWorkspace(), now: () => 1 });
     render(
       <StoreProvider value={value}>
         <Probe />
@@ -1387,11 +1346,7 @@ describe('StoreProvider', () => {
   });
 
   it('verdrahtet Selektion in die History: Undo stellt sie wieder her', () => {
-    const value = wireStores({
-      services: fakeServices(),
-      initialWorkspace: makeWorkspace(),
-      now: () => 1,
-    });
+    const value = wireStores({ services: fakeServices(), initialWorkspace: makeWorkspace(), now: () => 1 });
     const { workspaceStore, selectionStore } = value;
     selectionStore.getState().select({ kind: 'source', sourceId: 'src-a' }, '1', ['0', '1', '2']);
     workspaceStore.getState().dispatch({ type: 'renameWorkspace', name: 'A' });
@@ -1428,13 +1383,7 @@ export interface StoreContextValue {
 
 const StoreContext = createContext<StoreContextValue | null>(null);
 
-export function StoreProvider({
-  value,
-  children,
-}: {
-  value: StoreContextValue;
-  children: ReactNode;
-}) {
+export function StoreProvider({ value, children }: { value: StoreContextValue; children: ReactNode }) {
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
 
@@ -1527,12 +1476,10 @@ PLANEOF
 ### Task 7: Virtualisiertes Raster und Thumbnail-Zelle
 
 **Files:**
-
 - Create: `src/ui/common/VirtualGrid.tsx`, `src/ui/common/gridLayout.ts`, `src/ui/common/Thumbnail.tsx`
 - Test: `src/ui/common/gridLayout.test.ts`, `src/ui/common/Thumbnail.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `useVirtualizer` aus `@tanstack/react-virtual`; `useServices` aus `../app/StoreProvider`; `THUMBNAIL_WIDTH` aus `../../services/thumbnails/thumbnailService`; `type BlockRef` aus `../../domain/types`
 - Produces:
   - `computeColumns(containerWidth: number, minCellWidth: number, gap: number): number` (rein)
@@ -1660,8 +1607,7 @@ export function VirtualGrid({
   }, [ref]);
 
   const columns = computeColumns(width, minCellWidth, gap);
-  const cellWidth =
-    columns > 0 ? (width - gap * (columns - 1)) / columns || minCellWidth : minCellWidth;
+  const cellWidth = columns > 0 ? (width - gap * (columns - 1)) / columns || minCellWidth : minCellWidth;
   const cellHeight = cellWidth * cellAspect;
   const rowCount = Math.ceil(count / columns);
 
@@ -1677,9 +1623,7 @@ export function VirtualGrid({
       <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const start = virtualRow.index * columns;
-          const indices = Array.from({ length: columns }, (_, i) => start + i).filter(
-            (i) => i < count,
-          );
+          const indices = Array.from({ length: columns }, (_, i) => start + i).filter((i) => i < count);
           return (
             <div
               key={virtualRow.key}
@@ -1732,10 +1676,7 @@ describe('Thumbnail', () => {
   it('zeigt sofort ein bereits zwischengespeichertes Bild ohne Anforderung', () => {
     const request = vi.fn();
     renderWithServices({ peek: () => 'blob:cached', request });
-    expect(screen.getByRole('img', { name: 'Bank.pdf Seite 5' })).toHaveAttribute(
-      'src',
-      'blob:cached',
-    );
+    expect(screen.getByRole('img', { name: 'Bank.pdf Seite 5' })).toHaveAttribute('src', 'blob:cached');
     expect(request).not.toHaveBeenCalled();
   });
 
@@ -1743,10 +1684,7 @@ describe('Thumbnail', () => {
     const request = vi.fn(async () => 'blob:fresh');
     renderWithServices({ peek: () => undefined, request });
     await waitFor(() =>
-      expect(screen.getByRole('img', { name: 'Bank.pdf Seite 5' })).toHaveAttribute(
-        'src',
-        'blob:fresh',
-      ),
+      expect(screen.getByRole('img', { name: 'Bank.pdf Seite 5' })).toHaveAttribute('src', 'blob:fresh'),
     );
     expect(request).toHaveBeenCalledWith(
       expect.objectContaining({ ref: { sourceId: 'src-a', blockIndex: 4 } }),
@@ -1772,12 +1710,7 @@ export interface ThumbnailProps {
   alt: string;
 }
 
-export function Thumbnail({
-  blockRef,
-  width = THUMBNAIL_WIDTH,
-  priority = 0,
-  alt,
-}: ThumbnailProps) {
+export function Thumbnail({ blockRef, width = THUMBNAIL_WIDTH, priority = 0, alt }: ThumbnailProps) {
   const { thumbnails } = useServices();
   // Synchroner Blick in den Speicher-Cache: ein bereits gerendertes Thumbnail
   // erscheint ohne Flackern und ohne einen zweiten Renderauftrag.
@@ -1806,16 +1739,9 @@ export function Thumbnail({
   }, [thumbnails, blockRef.sourceId, blockRef.blockIndex, width, priority]);
 
   if (!url) {
-    return (
-      <div
-        className="h-full w-full animate-pulse rounded bg-panel"
-        aria-label={`${alt} wird geladen`}
-      />
-    );
+    return <div className="h-full w-full animate-pulse rounded bg-panel" aria-label={`${alt} wird geladen`} />;
   }
-  return (
-    <img src={url} alt={alt} className="h-full w-full rounded object-contain" draggable={false} />
-  );
+  return <img src={url} alt={alt} className="h-full w-full rounded object-contain" draggable={false} />;
 }
 ```
 
@@ -1847,12 +1773,10 @@ PLANEOF
 ### Task 8: Quellnutzung und permanentes Range-Feld
 
 **Files:**
-
 - Create: `src/ui/sources/sourceUsage.ts`, `src/ui/sources/RangeField.tsx`
 - Test: `src/ui/sources/sourceUsage.test.ts`, `src/ui/sources/RangeField.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `type Workspace`, `type SourceId` aus `../../domain/types`; `parseRanges`, `formatRanges`, `rangesToIndices` aus `../../domain/ranges`; `useSelectionStore`, `useSelection` aus `../app/StoreProvider`
 - Produces:
   - `computeSourceUsage(ws: Workspace, sourceId: SourceId): Map<number, number>` (Blockindex -> Zahl der Outputs, die ihn verwenden)
@@ -2009,10 +1933,9 @@ export function RangeField({ sourceId, blockCount }: RangeFieldProps) {
     selectionStore.replace({ kind: 'source', sourceId }, ids, ids[0] ?? null, false);
   }
 
-  const count =
-    selection.scope?.kind === 'source' && selection.scope.sourceId === sourceId
-      ? selection.ids.length
-      : 0;
+  const count = selection.scope?.kind === 'source' && selection.scope.sourceId === sourceId
+    ? selection.ids.length
+    : 0;
 
   return (
     <div className="flex items-center gap-3 px-3 py-2 text-sm">
@@ -2073,12 +1996,10 @@ PLANEOF
 ### Task 9: Quellenliste und Quellraster
 
 **Files:**
-
 - Create: `src/ui/sources/SourceList.tsx`, `src/ui/sources/SourceGrid.tsx`
 - Test: `src/ui/sources/SourceList.test.tsx`, `src/ui/sources/SourceGrid.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `VirtualGrid`, `Thumbnail`; `computeSourceUsage`; `RangeField`; `useWorkspace`, `useSelection`, `useSelectionStore` aus `../app/StoreProvider`; `type SourceDocument` aus `../../domain/types`
 - Produces:
   - `SourceList(props: { activeSourceId: SourceId | null; onSelect(sourceId: SourceId): void })`
@@ -2100,11 +2021,7 @@ import { makeWorkspace, IDS } from '../../domain/__fixtures__/workspace';
 import type { AppServices } from '../../services/app/appServices';
 
 function setup(onSelect = vi.fn()) {
-  const value = wireStores({
-    services: {} as AppServices,
-    initialWorkspace: makeWorkspace(),
-    now: () => 1,
-  });
+  const value = wireStores({ services: {} as AppServices, initialWorkspace: makeWorkspace(), now: () => 1 });
   render(
     <StoreProvider value={value}>
       <SourceList activeSourceId={null} onSelect={onSelect} />
@@ -2143,10 +2060,8 @@ export interface SourceListProps {
 }
 
 function statusIcon(source: SourceDocument) {
-  if (source.status === 'encrypted')
-    return <Lock className="size-4 text-amber-400" aria-label="verschluesselt" />;
-  if (source.status === 'error')
-    return <TriangleAlert className="size-4 text-red-400" aria-label="fehlerhaft" />;
+  if (source.status === 'encrypted') return <Lock className="size-4 text-amber-400" aria-label="verschluesselt" />;
+  if (source.status === 'error') return <TriangleAlert className="size-4 text-red-400" aria-label="fehlerhaft" />;
   return <FileText className="size-4 text-neutral-400" aria-hidden />;
 }
 
@@ -2207,14 +2122,7 @@ import { makeWorkspace, IDS } from '../../domain/__fixtures__/workspace';
 import type { AppServices } from '../../services/app/appServices';
 
 function setup() {
-  const services = {
-    thumbnails: {
-      peek: () => undefined,
-      request: async () => 'blob:x',
-      cancel: () => {},
-      keepOnly: () => {},
-    },
-  } as unknown as AppServices;
+  const services = { thumbnails: { peek: () => undefined, request: async () => 'blob:x', cancel: () => {}, keepOnly: () => {} } } as unknown as AppServices;
   const value = wireStores({ services, initialWorkspace: makeWorkspace(), now: () => 1 });
   const source = value.workspaceStore.getState().workspace.sources[IDS.bank];
   render(
@@ -2281,11 +2189,7 @@ export function SourceGrid({ source }: SourceGridProps) {
       <div className="flex items-center justify-between px-3 py-1 text-xs text-neutral-500">
         <span>{source.name}</span>
         <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={onlyUnused}
-            onChange={(e) => setOnlyUnused(e.target.checked)}
-          />
+          <input type="checkbox" checked={onlyUnused} onChange={(e) => setOnlyUnused(e.target.checked)} />
           Nur noch nicht verwendete Seiten
         </label>
       </div>
@@ -2299,10 +2203,8 @@ export function SourceGrid({ source }: SourceGridProps) {
           renderCell={(position) => {
             const blockIndex = indices[position];
             const id = String(blockIndex);
-            const selected =
-              selection.scope?.kind === 'source' &&
-              selection.scope.sourceId === source.id &&
-              selection.ids.includes(id);
+            const selected = selection.scope?.kind === 'source' &&
+              selection.scope.sourceId === source.id && selection.ids.includes(id);
             const count = usage.get(blockIndex) ?? 0;
             return (
               <button
@@ -2314,18 +2216,10 @@ export function SourceGrid({ source }: SourceGridProps) {
                 }`}
                 style={{ aspectRatio: '1 / 1.35' }}
               >
-                <Thumbnail
-                  blockRef={{ sourceId: source.id, blockIndex }}
-                  alt={`${source.name} Seite ${blockIndex + 1}`}
-                />
-                <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-xs">
-                  {blockIndex + 1}
-                </span>
+                <Thumbnail blockRef={{ sourceId: source.id, blockIndex }} alt={`${source.name} Seite ${blockIndex + 1}`} />
+                <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1 text-xs">{blockIndex + 1}</span>
                 {count > 0 && (
-                  <span
-                    className="absolute right-1 top-1 rounded bg-sky-500/80 px-1 text-xs"
-                    aria-label={`in ${count} Dokumenten verwendet`}
-                  >
+                  <span className="absolute right-1 top-1 rounded bg-sky-500/80 px-1 text-xs" aria-label={`in ${count} Dokumenten verwendet`}>
                     {count}
                   </span>
                 )}
@@ -2369,12 +2263,10 @@ PLANEOF
 ### Task 10: Ausgabe-Baum und Output-Raster
 
 **Files:**
-
 - Create: `src/ui/workspace/treeModel.ts`, `src/ui/workspace/OutputTree.tsx`, `src/ui/workspace/OutputGrid.tsx`
 - Test: `src/ui/workspace/treeModel.test.ts`, `src/ui/workspace/OutputTree.test.tsx`, `src/ui/workspace/OutputGrid.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `ROOT`, `isFolder`, `isOutput`, `type NodeId`, `type Workspace` aus `../../domain/types`; `newId` aus `../../domain/ids`; `useWorkspace`, `useDispatch`, `useSelection`, `useSelectionStore` aus `../app/StoreProvider`; `Thumbnail`, `VirtualGrid`
 - Produces:
   - `interface FlatNode { id: NodeId; depth: number; type: 'folder' | 'output' }`
@@ -2453,11 +2345,7 @@ import { makeWorkspace, IDS } from '../../domain/__fixtures__/workspace';
 import type { AppServices } from '../../services/app/appServices';
 
 function setup(onSelectOutput = vi.fn()) {
-  const value = wireStores({
-    services: {} as AppServices,
-    initialWorkspace: makeWorkspace(),
-    now: () => 1,
-  });
+  const value = wireStores({ services: {} as AppServices, initialWorkspace: makeWorkspace(), now: () => 1 });
   render(
     <StoreProvider value={value}>
       <OutputTree activeOutputId={null} onSelectOutput={onSelectOutput} />
@@ -2521,24 +2409,14 @@ export function OutputTree({ activeOutputId, onSelectOutput }: OutputTreeProps) 
       <div className="flex items-center gap-1 px-2 py-1">
         <button
           type="button"
-          onClick={() =>
-            dispatch({
-              type: 'createFolder',
-              node: { id: newId(), name: 'Neuer Ordner', parentId: null },
-            })
-          }
+          onClick={() => dispatch({ type: 'createFolder', node: { id: newId(), name: 'Neuer Ordner', parentId: null } })}
           className="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-panel"
         >
           <FolderPlus className="size-4" aria-hidden /> Ordner anlegen
         </button>
         <button
           type="button"
-          onClick={() =>
-            dispatch({
-              type: 'createOutput',
-              node: { id: newId(), name: 'Neues Dokument', parentId: null },
-            })
-          }
+          onClick={() => dispatch({ type: 'createOutput', node: { id: newId(), name: 'Neues Dokument', parentId: null } })}
           className="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-panel"
         >
           <FilePlus2 className="size-4" aria-hidden /> Dokument anlegen
@@ -2614,14 +2492,7 @@ import { makeWorkspace, IDS } from '../../domain/__fixtures__/workspace';
 import type { AppServices } from '../../services/app/appServices';
 
 function setup() {
-  const services = {
-    thumbnails: {
-      peek: () => 'blob:x',
-      request: async () => 'blob:x',
-      cancel: () => {},
-      keepOnly: () => {},
-    },
-  } as unknown as AppServices;
+  const services = { thumbnails: { peek: () => 'blob:x', request: async () => 'blob:x', cancel: () => {}, keepOnly: () => {} } } as unknown as AppServices;
   const value = wireStores({ services, initialWorkspace: makeWorkspace(), now: () => 1 });
   render(
     <StoreProvider value={value}>
@@ -2642,10 +2513,7 @@ describe('OutputGrid', () => {
   it('waehlt ein Item per Klick im Output-Scope', async () => {
     const value = setup();
     await userEvent.click(screen.getByRole('button', { name: /Insurance\.pdf . Seite 7/ }));
-    expect(value.selectionStore.getState().scope).toEqual({
-      kind: 'output',
-      outputId: IDS.outInsurance,
-    });
+    expect(value.selectionStore.getState().scope).toEqual({ kind: 'output', outputId: IDS.outInsurance });
     expect(value.selectionStore.getState().ids).toEqual(['i-i7']);
   });
 });
@@ -2680,11 +2548,7 @@ export function OutputGrid({ outputId }: OutputGridProps) {
     return <p className="px-3 py-4 text-sm text-neutral-500">Kein Dokument gewaehlt.</p>;
   }
   if (itemIds.length === 0) {
-    return (
-      <p className="px-3 py-4 text-sm text-neutral-500">
-        Dieses Dokument ist noch leer. Ziehen Sie Seiten hierher.
-      </p>
-    );
+    return <p className="px-3 py-4 text-sm text-neutral-500">Dieses Dokument ist noch leer. Ziehen Sie Seiten hierher.</p>;
   }
 
   function onPointerDown(event: React.PointerEvent, id: string) {
@@ -2705,10 +2569,8 @@ export function OutputGrid({ outputId }: OutputGridProps) {
         if (!item) return null;
         const source = workspace.sources[item.sourceId];
         const provenance = `${source?.name ?? 'Quelle'} . Seite ${item.blockIndex + 1}`;
-        const selected =
-          selection.scope?.kind === 'output' &&
-          selection.scope.outputId === outputId &&
-          selection.ids.includes(itemId);
+        const selected = selection.scope?.kind === 'output' &&
+          selection.scope.outputId === outputId && selection.ids.includes(itemId);
         return (
           <button
             type="button"
@@ -2717,14 +2579,8 @@ export function OutputGrid({ outputId }: OutputGridProps) {
             data-item-id={itemId}
             className={`flex w-full flex-col gap-1 rounded ring-2 ${selected ? 'ring-sky-400' : 'ring-transparent'}`}
           >
-            <span
-              className="block w-full"
-              style={{ aspectRatio: '1 / 1.35', transform: `rotate(${item.rotation}deg)` }}
-            >
-              <Thumbnail
-                blockRef={{ sourceId: item.sourceId, blockIndex: item.blockIndex }}
-                alt={provenance}
-              />
+            <span className="block w-full" style={{ aspectRatio: '1 / 1.35', transform: `rotate(${item.rotation}deg)` }}>
+              <Thumbnail blockRef={{ sourceId: item.sourceId, blockIndex: item.blockIndex }} alt={provenance} />
             </span>
             <span className="truncate px-1 text-[11px] text-neutral-500">{provenance}</span>
           </button>
@@ -2763,12 +2619,10 @@ PLANEOF
 ### Task 11: Die beiden Drag-Systeme
 
 **Files:**
-
 - Create: `src/ui/workspace/buildDropCommand.ts`, `src/ui/workspace/DragPreview.tsx`, `src/ui/workspace/usePointerDrag.ts`, `src/ui/workspace/useExternalDrop.ts`
 - Test: `src/ui/workspace/buildDropCommand.test.ts`, `src/ui/workspace/useExternalDrop.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `resolveDropAction`, `type DragOrigin`, `type DropTarget` aus `./dragLogic`; `newId` aus `../../domain/ids`; `isOutput`, `type Command`, `type CompositionItem`, `type Workspace` aus `../../domain/types`; `collectFromDataTransfer`, `importCandidates` aus `../../services/import/*`
 - Produces:
   - `buildDropCommand(params: { origin: DragOrigin; target: DropTarget; modifier: boolean; ws: Workspace; newId(): string }): Command | null` (rein)
@@ -2809,11 +2663,7 @@ describe('buildDropCommand', () => {
   });
 
   it('Output -> anderes Output ohne Modifier: moveItems', () => {
-    const origin: DragOrigin = {
-      kind: 'output',
-      outputId: IDS.outContracts,
-      itemIds: ['i-c4', 'i-c5'],
-    };
+    const origin: DragOrigin = { kind: 'output', outputId: IDS.outContracts, itemIds: ['i-c4', 'i-c5'] };
     const target: DropTarget = { kind: 'output', outputId: IDS.outInsurance, index: 0 };
     expect(buildDropCommand({ origin, target, modifier: false, ws: ws(), newId })).toEqual({
       type: 'moveItems',
@@ -2836,11 +2686,7 @@ describe('buildDropCommand', () => {
 
   it('Output -> anderes Output mit Modifier: copyItems mit neuen Ids', () => {
     counter = 0;
-    const origin: DragOrigin = {
-      kind: 'output',
-      outputId: IDS.outContracts,
-      itemIds: ['i-c4', 'i-c5'],
-    };
+    const origin: DragOrigin = { kind: 'output', outputId: IDS.outContracts, itemIds: ['i-c4', 'i-c5'] };
     const target: DropTarget = { kind: 'output', outputId: IDS.outInsurance, index: 2 };
     expect(buildDropCommand({ origin, target, modifier: true, ws: ws(), newId })).toEqual({
       type: 'copyItems',
@@ -2878,7 +2724,10 @@ describe('buildDropCommand', () => {
     const command = buildDropCommand({ origin, target, modifier: false, ws: ws(), newId });
     expect(command).toMatchObject({
       type: 'batch',
-      commands: [{ type: 'createOutput' }, { type: 'moveItems', itemIds: ['i-c4'], index: 0 }],
+      commands: [
+        { type: 'createOutput' },
+        { type: 'moveItems', itemIds: ['i-c4'], index: 0 },
+      ],
     });
   });
 
@@ -2917,11 +2766,7 @@ function pagesLabel(count: number): string {
 }
 
 /** Neue Items aus Quellseiten; jede Instanz bekommt eine eigene Identitaet. */
-function itemsFromSource(
-  sourceId: string,
-  blockIndices: number[],
-  newId: () => string,
-): CompositionItem[] {
+function itemsFromSource(sourceId: string, blockIndices: number[], newId: () => string): CompositionItem[] {
   return blockIndices.map((blockIndex) => ({ id: newId(), sourceId, blockIndex, rotation: 0 }));
 }
 
@@ -2934,13 +2779,7 @@ function itemCount(origin: DragOrigin): number {
  * einen Ordner erzeugt ein neues Output und fuellt es -- beides zusammen als ein
  * batch, damit es ein einziger Undo-Schritt ist.
  */
-export function buildDropCommand({
-  origin,
-  target,
-  modifier,
-  ws,
-  newId,
-}: BuildDropParams): Command | null {
+export function buildDropCommand({ origin, target, modifier, ws, newId }: BuildDropParams): Command | null {
   if (itemCount(origin) === 0) return null;
   const action = resolveDropAction(origin, target, modifier);
 
@@ -2958,19 +2797,9 @@ export function buildDropCommand({
       if (origin.kind !== 'output' || target.kind !== 'output') return null;
       // Dasselbe Output umsortieren ist reorderItems, nicht moveItems.
       if (origin.outputId === target.outputId) {
-        return {
-          type: 'reorderItems',
-          outputId: target.outputId,
-          itemIds: origin.itemIds,
-          index: target.index,
-        };
+        return { type: 'reorderItems', outputId: target.outputId, itemIds: origin.itemIds, index: target.index };
       }
-      return {
-        type: 'moveItems',
-        itemIds: origin.itemIds,
-        outputId: target.outputId,
-        index: target.index,
-      };
+      return { type: 'moveItems', itemIds: origin.itemIds, outputId: target.outputId, index: target.index };
     }
     case 'copyItems': {
       if (origin.kind !== 'output' || target.kind !== 'output') return null;
@@ -2987,10 +2816,7 @@ export function buildDropCommand({
       const folder = ws.nodes[target.nodeId];
       const name = folder && isFolder(folder) ? folder.name : 'Neues Dokument';
       const outputId = newId();
-      const create: Command = {
-        type: 'createOutput',
-        node: { id: outputId, name, parentId: target.nodeId },
-      };
+      const create: Command = { type: 'createOutput', node: { id: outputId, name, parentId: target.nodeId } };
       if (origin.kind === 'source') {
         const items = itemsFromSource(origin.sourceId, origin.blockIndices, newId);
         return {
@@ -3050,9 +2876,7 @@ export function DragPreview({ state }: { state: DragState }) {
           {state.count}
         </span>
       </div>
-      <span className="mt-1 block rounded bg-black/70 px-1 text-center text-[11px]">
-        {LABEL[state.action]}
-      </span>
+      <span className="mt-1 block rounded bg-black/70 px-1 text-center text-[11px]">{LABEL[state.action]}</span>
     </div>,
     document.body,
   );
@@ -3116,18 +2940,12 @@ export function usePointerDrag() {
         if (!dragging.current && Math.hypot(dx, dy) < DRAG_THRESHOLD) return;
         dragging.current = true;
 
-        const action =
-          origin.current.kind === 'source' ? 'add' : e.metaKey || e.ctrlKey ? 'copy' : 'move';
-        const count =
-          origin.current.kind === 'source'
-            ? origin.current.blockIndices.length
-            : origin.current.itemIds.length;
+        const action = origin.current.kind === 'source' ? 'add' : e.metaKey || e.ctrlKey ? 'copy' : 'move';
+        const count = origin.current.kind === 'source' ? origin.current.blockIndices.length : origin.current.itemIds.length;
         setPreview({ count, action, x: e.clientX, y: e.clientY });
 
         // Auto-Scroll, wenn der Zeiger in die Randzone eines Scrollers faehrt.
-        const scroller = (
-          document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
-        )?.closest('.overflow-auto');
+        const scroller = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest('.overflow-auto');
         if (scroller) {
           const rect = scroller.getBoundingClientRect();
           if (e.clientY - rect.top < EDGE) scroller.scrollBy({ top: -12 });
@@ -3144,10 +2962,7 @@ export function usePointerDrag() {
         if (!target) return;
         const command = buildDropCommand({
           origin: origin.current,
-          target:
-            target.kind === 'tree-output'
-              ? { kind: 'output', outputId: target.outputId, index: 0 }
-              : target,
+          target: target.kind === 'tree-output' ? { kind: 'output', outputId: target.outputId, index: 0 } : target,
           modifier: e.metaKey || e.ctrlKey,
           ws: workspaceStore.getState().workspace,
           newId,
@@ -3206,13 +3021,8 @@ describe('useExternalDrop', () => {
       </StoreProvider>,
     );
 
-    const file = new File([new Uint8Array([37, 80, 68, 70])], 'Neu.pdf', {
-      type: 'application/pdf',
-    });
-    const dataTransfer = {
-      items: [{ kind: 'file', type: file.type, getAsFile: () => file }],
-      files: [file],
-    };
+    const file = new File([new Uint8Array([37, 80, 68, 70])], 'Neu.pdf', { type: 'application/pdf' });
+    const dataTransfer = { items: [{ kind: 'file', type: file.type, getAsFile: () => file }], files: [file] };
     fireEvent.drop(screen.getByTestId('dropzone'), { dataTransfer });
 
     await waitFor(() => expect(dispatchSpy).toHaveBeenCalled());
@@ -3332,12 +3142,10 @@ PLANEOF
 ### Task 12: Split-Panel
 
 **Files:**
-
 - Create: `src/ui/workspace/buildSplitCommand.ts`, `src/ui/workspace/SplitPanel.tsx`
 - Test: `src/ui/workspace/buildSplitCommand.test.ts`, `src/ui/workspace/SplitPanel.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `planSplit`, `describeSplitPart`, `type SplitStrategy`, `type SplitPart` aus `../../domain/split`; `withPdfExtension`/`sanitizeName` werden nicht gebraucht (Kollision loest die Command-Schicht); `newId` aus `../../domain/ids`; `type Command`, `type SplitOutputSpec` aus `../../domain/commands`; `useDispatch`, `useWorkspace` aus `../app/StoreProvider`
 - Produces:
   - `buildSplitCommand(params: { sourceId; sourceName; parentId; parts: SplitPart[]; newId(): string }): Command` (rein)
@@ -3416,13 +3224,7 @@ function baseName(sourceName: string): string {
   return sourceName.replace(/\.pdf$/i, '');
 }
 
-export function buildSplitCommand({
-  sourceId,
-  sourceName,
-  parentId,
-  parts,
-  newId,
-}: BuildSplitParams): Command {
+export function buildSplitCommand({ sourceId, sourceName, parentId, parts, newId }: BuildSplitParams): Command {
   const base = baseName(sourceName);
   const specs: SplitOutputSpec[] = parts.map((part, index) => ({
     outputId: newId(),
@@ -3450,11 +3252,7 @@ import { makeWorkspace, IDS } from '../../domain/__fixtures__/workspace';
 import type { AppServices } from '../../services/app/appServices';
 
 function setup(onClose = vi.fn()) {
-  const value = wireStores({
-    services: {} as AppServices,
-    initialWorkspace: makeWorkspace(),
-    now: () => 1,
-  });
+  const value = wireStores({ services: {} as AppServices, initialWorkspace: makeWorkspace(), now: () => 1 });
   render(
     <StoreProvider value={value}>
       <SplitPanel sourceId={IDS.contract} parentId={null} onClose={onClose} />
@@ -3525,10 +3323,9 @@ export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
       case 'custom':
         return { kind: 'customRanges', input: custom };
       case 'selection': {
-        const indices =
-          selection.scope?.kind === 'source' && selection.scope.sourceId === sourceId
-            ? selection.ids.map(Number)
-            : [];
+        const indices = selection.scope?.kind === 'source' && selection.scope.sourceId === sourceId
+          ? selection.ids.map(Number)
+          : [];
         return { kind: 'selection', indices };
       }
     }
@@ -3539,23 +3336,13 @@ export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
   function apply() {
     if (!plan.ok) return;
     dispatch(
-      buildSplitCommand({
-        sourceId,
-        sourceName: source?.name ?? 'Dokument',
-        parentId,
-        parts: plan.parts,
-        newId,
-      }),
+      buildSplitCommand({ sourceId, sourceName: source?.name ?? 'Dokument', parentId, parts: plan.parts, newId }),
     );
     onClose();
   }
 
   return (
-    <div
-      className="flex flex-col gap-3 border-t border-line bg-panel p-4"
-      role="dialog"
-      aria-label="Dokument aufteilen"
-    >
+    <div className="flex flex-col gap-3 border-t border-line bg-panel p-4" role="dialog" aria-label="Dokument aufteilen">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-medium">{source?.name} aufteilen</h2>
         <select
@@ -3610,11 +3397,7 @@ export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
       </div>
 
       <div className="flex justify-end gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded px-3 py-1 text-sm hover:bg-shell"
-        >
+        <button type="button" onClick={onClose} className="rounded px-3 py-1 text-sm hover:bg-shell">
           Abbrechen
         </button>
         <button
@@ -3659,12 +3442,10 @@ PLANEOF
 ### Task 13: Kontextleiste und Tastaturkuerzel
 
 **Files:**
-
 - Create: `src/ui/app/ContextBar.tsx`, `src/ui/app/useKeyboardShortcuts.ts`
 - Test: `src/ui/app/ContextBar.test.tsx`, `src/ui/app/useKeyboardShortcuts.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `isOutput`, `type Workspace` aus `../../domain/types`; `useWorkspace`, `useSelection`, `useSelectionStore`, `useWorkspaceStore`, `useDispatch` aus `./StoreProvider`
 - Produces:
   - `ContextBar(props: { onRequestSplit(): void })`
@@ -3687,11 +3468,7 @@ import { makeWorkspace, IDS } from '../../domain/__fixtures__/workspace';
 import type { AppServices } from '../../services/app/appServices';
 
 function setup() {
-  const value = wireStores({
-    services: {} as AppServices,
-    initialWorkspace: makeWorkspace(),
-    now: () => 1,
-  });
+  const value = wireStores({ services: {} as AppServices, initialWorkspace: makeWorkspace(), now: () => 1 });
   render(
     <StoreProvider value={value}>
       <ContextBar onRequestSplit={vi.fn()} />
@@ -3703,26 +3480,20 @@ function setup() {
 describe('ContextBar', () => {
   it('nennt die Zahl der ausgewaehlten Elemente', () => {
     const value = setup();
-    value.selectionStore
-      .getState()
-      .replace({ kind: 'output', outputId: IDS.outInsurance }, ['i-i7', 'i-b17'], 'i-i7', false);
+    value.selectionStore.getState().replace({ kind: 'output', outputId: IDS.outInsurance }, ['i-i7', 'i-b17'], 'i-i7', false);
     expect(screen.getByText('2 ausgewaehlt')).toBeInTheDocument();
   });
 
   it('entfernt eine Output-Selektion ueber removeItems', async () => {
     const value = setup();
-    value.selectionStore
-      .getState()
-      .replace({ kind: 'output', outputId: IDS.outInsurance }, ['i-i7'], 'i-i7', false);
+    value.selectionStore.getState().replace({ kind: 'output', outputId: IDS.outInsurance }, ['i-i7'], 'i-i7', false);
     await userEvent.click(screen.getByRole('button', { name: 'Entfernen' }));
     expect(value.workspaceStore.getState().workspace.items['i-i7']).toBeUndefined();
   });
 
   it('dreht eine Output-Selektion ueber rotateItems', async () => {
     const value = setup();
-    value.selectionStore
-      .getState()
-      .replace({ kind: 'output', outputId: IDS.outInsurance }, ['i-i7'], 'i-i7', false);
+    value.selectionStore.getState().replace({ kind: 'output', outputId: IDS.outInsurance }, ['i-i7'], 'i-i7', false);
     await userEvent.click(screen.getByRole('button', { name: 'Drehen' }));
     expect(value.workspaceStore.getState().workspace.items['i-i7'].rotation).toBe(90);
   });
@@ -3761,9 +3532,7 @@ export function ContextBar({ onRequestSplit }: ContextBarProps) {
       <button
         type="button"
         disabled={!inOutput}
-        onClick={() =>
-          inOutput && dispatch({ type: 'rotateItems', itemIds: selection.ids, delta: 90 })
-        }
+        onClick={() => inOutput && dispatch({ type: 'rotateItems', itemIds: selection.ids, delta: 90 })}
         className="flex items-center gap-1 rounded px-2 py-1 hover:bg-panel disabled:opacity-40"
       >
         <RotateCw className="size-4" aria-hidden /> Drehen
@@ -3776,11 +3545,7 @@ export function ContextBar({ onRequestSplit }: ContextBarProps) {
       >
         <Trash2 className="size-4" aria-hidden /> Entfernen
       </button>
-      <button
-        type="button"
-        onClick={onRequestSplit}
-        className="flex items-center gap-1 rounded px-2 py-1 hover:bg-panel"
-      >
+      <button type="button" onClick={onRequestSplit} className="flex items-center gap-1 rounded px-2 py-1 hover:bg-panel">
         <Scissors className="size-4" aria-hidden /> Split
       </button>
     </div>
@@ -3807,11 +3572,7 @@ function Host({ onSearch }: { onSearch: () => void }) {
 }
 
 function setup(onSearch = vi.fn()) {
-  const value = wireStores({
-    services: {} as AppServices,
-    initialWorkspace: makeWorkspace(),
-    now: () => 1,
-  });
+  const value = wireStores({ services: {} as AppServices, initialWorkspace: makeWorkspace(), now: () => 1 });
   render(
     <StoreProvider value={value}>
       <Host onSearch={onSearch} />
@@ -3832,18 +3593,14 @@ describe('useKeyboardShortcuts', () => {
 
   it('entfernt mit Delete eine Output-Selektion', async () => {
     const { value } = setup();
-    value.selectionStore
-      .getState()
-      .replace({ kind: 'output', outputId: IDS.outInsurance }, ['i-i7'], 'i-i7', false);
+    value.selectionStore.getState().replace({ kind: 'output', outputId: IDS.outInsurance }, ['i-i7'], 'i-i7', false);
     await userEvent.keyboard('{Delete}');
     expect(value.workspaceStore.getState().workspace.items['i-i7']).toBeUndefined();
   });
 
   it('hebt mit Escape die Selektion auf', async () => {
     const { value } = setup();
-    value.selectionStore
-      .getState()
-      .replace({ kind: 'output', outputId: IDS.outInsurance }, ['i-i7'], 'i-i7', false);
+    value.selectionStore.getState().replace({ kind: 'output', outputId: IDS.outInsurance }, ['i-i7'], 'i-i7', false);
     await userEvent.keyboard('{Escape}');
     expect(value.selectionStore.getState().ids).toEqual([]);
   });
@@ -3892,10 +3649,7 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers = {}): void {
   useEffect(() => {
     function isTypingTarget(target: EventTarget | null): boolean {
       const element = target as HTMLElement | null;
-      return (
-        !!element &&
-        (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.isContentEditable)
-      );
+      return !!element && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA' || element.isContentEditable);
     }
 
     function onKeyDown(event: KeyboardEvent) {
@@ -3912,10 +3666,7 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers = {}): void {
       if (meta && event.key.toLowerCase() === 'a') {
         event.preventDefault();
         const scope = selectionStore.getState().scope;
-        if (scope)
-          selectionStore
-            .getState()
-            .selectAll(scope, orderOfScope(workspaceStore.getState().workspace, scope));
+        if (scope) selectionStore.getState().selectAll(scope, orderOfScope(workspaceStore.getState().workspace, scope));
         return;
       }
       if (meta && event.key.toLowerCase() === 'f') {
@@ -3978,14 +3729,12 @@ PLANEOF
 ### Task 14: Header, Zusammenbau, Bootstrapping und Integrationstest
 
 **Files:**
-
 - Create: `src/ui/app/Header.tsx`, `src/ui/app/bootstrap.ts`
 - Modify: `src/ui/app/App.tsx`, `src/main.tsx`, `src/services/app/appServices.ts` (die `contentHashOf`-Naht und `importForFiles`)
 - Delete: `src/ui/dev/ImportProbe.tsx` (die provisorische Oberflaeche aus Plan 2)
 - Test: `src/ui/app/App.test.tsx` (ersetzt den Smoke-Test aus Task 1 durch den Integrationstest)
 
 **Interfaces:**
-
 - Consumes: `createAppServices`, `type AppServices` aus `../../services/app/appServices`; `wireStores`, `StoreProvider`, `type StoreContextValue` aus `./StoreProvider`; `describeSaveStatus`, `type SaveStatus` aus `../../services/persistence/autosave`; alle Komponenten der Tasks 5-13
 - Produces:
   - `bootstrapWorkspace(): Promise<StoreContextValue>` (Dienste bauen, letzten Workspace laden, Autosave verdrahten)
@@ -4015,10 +3764,7 @@ import { wireStores, type StoreContextValue } from './StoreProvider';
  * trotzdem den Inhalt-Hash zu jeder Quelle.
  */
 export async function bootstrapWorkspace(): Promise<StoreContextValue> {
-  let currentWorkspace: Workspace = createEmptyWorkspace({
-    id: newId(),
-    name: 'Neuer Arbeitsbereich',
-  });
+  let currentWorkspace: Workspace = createEmptyWorkspace({ id: newId(), name: 'Neuer Arbeitsbereich' });
 
   const services = await createAppServices({
     contentHashOf: (sourceId: SourceId) => currentWorkspace.sources[sourceId]?.contentHash,
@@ -4134,13 +3880,7 @@ import { ContextBar } from './ContextBar';
 import { Header } from './Header';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { bootstrapWorkspace } from './bootstrap';
-import {
-  StoreProvider,
-  useDispatch,
-  useServices,
-  useWorkspace,
-  type StoreContextValue,
-} from './StoreProvider';
+import { StoreProvider, useDispatch, useServices, useWorkspace, type StoreContextValue } from './StoreProvider';
 
 export interface AppProps {
   bootstrap?: () => Promise<StoreContextValue>;
@@ -4256,15 +3996,10 @@ function Workspace() {
       </div>
 
       <ContextBar onRequestSplit={() => activeSourceId && setSplitting(activeSourceId)} />
-      {splitting && (
-        <SplitPanel sourceId={splitting} parentId={null} onClose={() => setSplitting(null)} />
-      )}
+      {splitting && <SplitPanel sourceId={splitting} parentId={null} onClose={() => setSplitting(null)} />}
       {drag.preview && <DragPreview state={drag.preview} />}
       {external.rejected.length > 0 && (
-        <div
-          role="alert"
-          className="border-t border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-300"
-        >
+        <div role="alert" className="border-t border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-300">
           {external.rejected.join(' · ')}
         </div>
       )}
@@ -4313,12 +4048,7 @@ import type { AppServices } from '../../services/app/appServices';
 
 function fakeStore(): StoreContextValue {
   const services = {
-    thumbnails: {
-      peek: () => 'blob:x',
-      request: async () => 'blob:x',
-      cancel: () => {},
-      keepOnly: () => {},
-    },
+    thumbnails: { peek: () => 'blob:x', request: async () => 'blob:x', cancel: () => {}, keepOnly: () => {} },
     autosave: { subscribe: () => () => {}, schedule: () => {}, flush: async () => {} },
     importForFiles: vi.fn(async () => ({ sources: [], rejected: [] })),
   } as unknown as AppServices;
@@ -4344,15 +4074,11 @@ describe('App-Zusammenbau', () => {
     render(<App bootstrap={async () => store} />);
     await userEvent.click(await screen.findByRole('button', { name: 'Ordner anlegen' }));
     expect(
-      Object.values(store.workspaceStore.getState().workspace.nodes).some(
-        (n) => n.name === 'Neuer Ordner',
-      ),
+      Object.values(store.workspaceStore.getState().workspace.nodes).some((n) => n.name === 'Neuer Ordner'),
     ).toBe(true);
     await userEvent.keyboard('{Control>}z{/Control}');
     expect(
-      Object.values(store.workspaceStore.getState().workspace.nodes).some(
-        (n) => n.name === 'Neuer Ordner',
-      ),
+      Object.values(store.workspaceStore.getState().workspace.nodes).some((n) => n.name === 'Neuer Ordner'),
     ).toBe(false);
   });
 
@@ -4396,25 +4122,25 @@ PLANEOF
 
 Abgleich mit `docs/superpowers/specs/2026-09-10-document-workspace-design.md`, Bereiche, die dieser Plan traegt:
 
-| Abschnitt der Spezifikation                                                          | In diesem Plan                                        |
-| ------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| 6 Store, `produceWithPatches`, abgeleitete Inverse, 200er-Stack, batch = ein Schritt | Task 3                                                |
-| 6 Selektionsstore separat, Snapshot in der History, Fokuswiederherstellung           | Task 2, 4, 6                                          |
-| 8 Virtualisierung beider Raster, rund 60 Knoten                                      | Task 7, 9, 10                                         |
-| 9 Layout: beide Raster gleichzeitig sichtbar, Baum, Kontextaktionen                  | Task 14                                               |
-| 9 Zwei getrennte Drag-Systeme (intern Pointer, extern nativ)                         | Task 5, 11                                            |
-| 9 Selektion: Klick/Shift/Ctrl/Marquee, nicht-zusammenhaengend, Ctrl/Cmd+A            | Task 2, 9, 10, 13                                     |
-| 9 Range-Feld permanent, 1-basiert, inline-Fehler                                     | Task 8                                                |
-| 9 Move vs. Copy, Nutzungs-Badge, "nur unbenutzte"                                    | Task 5, 8, 9, 11                                      |
-| 9 Drop-Regel (Ordner -> neues Output, Output -> einsortieren)                        | Task 5, 11                                            |
-| 9 Split-Panel mit Vorschau, ein History-Eintrag                                      | Task 12                                               |
-| 9 Tastaturkuerzel Phase 1                                                            | Task 13                                               |
-| 10 Preview und Suche                                                                 | **Plan 4** (hier nur Platzhalter)                     |
-| 11 Import ueber Dateidialog und Drop (in bestehenden Workspace)                      | Task 11, 14                                           |
-| 11 Export                                                                            | **Plan 4** (Header-Knopf ist Platzhalter)             |
-| 12 Akzeptanzszenario von Hand bedienbar bis zum Umsortieren/Undo                     | Task 14 (der Playwright-Flow bis ZIP folgt in Plan 4) |
-| 7 Autosave an jede Aenderung, Flush bei visibilitychange, Header-Status              | Task 14                                               |
-| 5 Invarianten in Entwicklungsbuilds nach jedem Command                               | Task 3                                                |
+| Abschnitt der Spezifikation | In diesem Plan |
+| --- | --- |
+| 6 Store, `produceWithPatches`, abgeleitete Inverse, 200er-Stack, batch = ein Schritt | Task 3 |
+| 6 Selektionsstore separat, Snapshot in der History, Fokuswiederherstellung | Task 2, 4, 6 |
+| 8 Virtualisierung beider Raster, rund 60 Knoten | Task 7, 9, 10 |
+| 9 Layout: beide Raster gleichzeitig sichtbar, Baum, Kontextaktionen | Task 14 |
+| 9 Zwei getrennte Drag-Systeme (intern Pointer, extern nativ) | Task 5, 11 |
+| 9 Selektion: Klick/Shift/Ctrl/Marquee, nicht-zusammenhaengend, Ctrl/Cmd+A | Task 2, 9, 10, 13 |
+| 9 Range-Feld permanent, 1-basiert, inline-Fehler | Task 8 |
+| 9 Move vs. Copy, Nutzungs-Badge, "nur unbenutzte" | Task 5, 8, 9, 11 |
+| 9 Drop-Regel (Ordner -> neues Output, Output -> einsortieren) | Task 5, 11 |
+| 9 Split-Panel mit Vorschau, ein History-Eintrag | Task 12 |
+| 9 Tastaturkuerzel Phase 1 | Task 13 |
+| 10 Preview und Suche | **Plan 4** (hier nur Platzhalter) |
+| 11 Import ueber Dateidialog und Drop (in bestehenden Workspace) | Task 11, 14 |
+| 11 Export | **Plan 4** (Header-Knopf ist Platzhalter) |
+| 12 Akzeptanzszenario von Hand bedienbar bis zum Umsortieren/Undo | Task 14 (der Playwright-Flow bis ZIP folgt in Plan 4) |
+| 7 Autosave an jede Aenderung, Flush bei visibilitychange, Header-Status | Task 14 |
+| 5 Invarianten in Entwicklungsbuilds nach jedem Command | Task 3 |
 
 Bewusst offen (Plan 4): Viewer fuer Quelle und Ergebnis, Textextraktions-Worker und Suche mit Bereichsumschalter, `fsAccessWriter`/`zipWriter` auf dem `ExportPlan`, Export-Fortschritt, der Playwright-Test des Akzeptanzszenarios bis zum ZIP. Die Naehte dafuer stehen: `useKeyboardShortcuts` reicht `onSearch`/`onPreview` durch, der Preview-Bereich und der Export-Knopf sind beschriftete Platzhalter, und `buildExportPlan` (Plan 1) plus `services.assembler` (Plan 2) liegen bereit.
 

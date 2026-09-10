@@ -34,35 +34,33 @@ Aus `ui`/Stores (Plan 3): `useServices`, `useWorkspace`, `useSelection`, `useSel
 
 ## Dateistruktur dieses Plans
 
-| Datei                                                  | Verantwortung                                                       |
-| ------------------------------------------------------ | ------------------------------------------------------------------- |
-| `src/ui/common/useObjectUrl.ts`                        | Blob-URL-Lebenszyklus (Erzeugen und Freigeben) einer einzelnen URL  |
-| `src/ui/preview/usePageImage.ts`                       | rendert eine `BlockRef` in voller Ansichtsgroesse ueber den Adapter |
-| `src/ui/preview/Viewer.tsx`                            | Viewer fuer Quelle und Ergebnis (dieselbe Komponente)               |
-| `src/workers/pdfText.worker.ts`                        | Textextraktion in einem eigenen Worker                              |
-| `src/services/search/textMatch.ts`                     | reine Trefferlogik (Query -> Treffer mit Ausschnitt und Spans)      |
-| `src/services/search/pageTextStore.ts`                 | Cache der Seitentexte im `pageText`-Store                           |
-| `src/services/search/searchService.ts`                 | verbindet Worker, Cache und Trefferlogik; lazy je Dokument          |
-| `src/ui/preview/SearchPanel.tsx`                       | Suchoberflaeche mit Bereichsumschalter und Trefferliste             |
-| `src/services/export/writer.ts`                        | `Writer`-Vertrag, den beide Export-Wege erfuellen                   |
-| `src/services/export/fsAccessWriter.ts`                | Verzeichnis-Writer ueber die File System Access API                 |
-| `src/services/export/zipWriter.ts`                     | ZIP-Writer ueber `fflate`                                           |
-| `src/services/export/exportRunner.ts`                  | Assembler je Eintrag, Fortschritt, Abbruch                          |
-| `src/ui/export/ExportDialog.tsx`                       | Plan-Vorschau, Zielwahl, Fortschritt, Abbruch                       |
-| `src/ui/app/App.tsx` (Modify)                          | Viewer, Suche und Export statt der Platzhalter                      |
-| `playwright.config.ts`, `tests/e2e/acceptance.spec.ts` | der Akzeptanz-Flow bis zum ZIP                                      |
+| Datei | Verantwortung |
+| --- | --- |
+| `src/ui/common/useObjectUrl.ts` | Blob-URL-Lebenszyklus (Erzeugen und Freigeben) einer einzelnen URL |
+| `src/ui/preview/usePageImage.ts` | rendert eine `BlockRef` in voller Ansichtsgroesse ueber den Adapter |
+| `src/ui/preview/Viewer.tsx` | Viewer fuer Quelle und Ergebnis (dieselbe Komponente) |
+| `src/workers/pdfText.worker.ts` | Textextraktion in einem eigenen Worker |
+| `src/services/search/textMatch.ts` | reine Trefferlogik (Query -> Treffer mit Ausschnitt und Spans) |
+| `src/services/search/pageTextStore.ts` | Cache der Seitentexte im `pageText`-Store |
+| `src/services/search/searchService.ts` | verbindet Worker, Cache und Trefferlogik; lazy je Dokument |
+| `src/ui/preview/SearchPanel.tsx` | Suchoberflaeche mit Bereichsumschalter und Trefferliste |
+| `src/services/export/writer.ts` | `Writer`-Vertrag, den beide Export-Wege erfuellen |
+| `src/services/export/fsAccessWriter.ts` | Verzeichnis-Writer ueber die File System Access API |
+| `src/services/export/zipWriter.ts` | ZIP-Writer ueber `fflate` |
+| `src/services/export/exportRunner.ts` | Assembler je Eintrag, Fortschritt, Abbruch |
+| `src/ui/export/ExportDialog.tsx` | Plan-Vorschau, Zielwahl, Fortschritt, Abbruch |
+| `src/ui/app/App.tsx` (Modify) | Viewer, Suche und Export statt der Platzhalter |
+| `playwright.config.ts`, `tests/e2e/acceptance.spec.ts` | der Akzeptanz-Flow bis zum ZIP |
 
 ---
 
 ### Task 1: Blob-URL-Lebenszyklus und Seiten-Render-Hook
 
 **Files:**
-
 - Create: `src/ui/common/useObjectUrl.ts`, `src/ui/preview/usePageImage.ts`
 - Test: `src/ui/common/useObjectUrl.test.tsx`, `src/ui/preview/usePageImage.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `useServices` aus `../app/StoreProvider`; `type BlockRef` aus `../../domain/types`
 - Produces:
   - `useObjectUrl(blob: Blob | undefined): string | undefined`
@@ -85,10 +83,7 @@ beforeEach(() => {
 
 describe('useObjectUrl', () => {
   it('erzeugt eine URL fuer einen Blob und gibt sie bei Wechsel frei', () => {
-    const create = vi
-      .spyOn(URL, 'createObjectURL')
-      .mockReturnValueOnce('blob:a')
-      .mockReturnValueOnce('blob:b');
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValueOnce('blob:a').mockReturnValueOnce('blob:b');
     const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
 
     const first = new Blob(['a']);
@@ -170,9 +165,7 @@ import type { ReactNode } from 'react';
 function wrapper(renderBlock: AppServices['adapter']['renderBlock']) {
   const services = { adapter: { renderBlock } } as unknown as AppServices;
   const value = wireStores({ services, now: () => 1 });
-  return ({ children }: { children: ReactNode }) => (
-    <StoreProvider value={value}>{children}</StoreProvider>
-  );
+  return ({ children }: { children: ReactNode }) => <StoreProvider value={value}>{children}</StoreProvider>;
 }
 
 describe('usePageImage', () => {
@@ -215,10 +208,7 @@ import { useServices } from '../app/StoreProvider';
 export type PageImageStatus = 'idle' | 'loading' | 'ready' | 'error';
 
 /** Rendert eine Seite in voller Ansichtsgroesse; das Thumbnail-Raster deckelt bei 180 px, der Viewer nicht. */
-export function usePageImage(
-  ref: BlockRef,
-  targetWidth: number,
-): { url: string | undefined; status: PageImageStatus } {
+export function usePageImage(ref: BlockRef, targetWidth: number): { url: string | undefined; status: PageImageStatus } {
   const { adapter } = useServices();
   const [blob, setBlob] = useState<Blob | undefined>(undefined);
   const [status, setStatus] = useState<PageImageStatus>('idle');
@@ -278,12 +268,10 @@ PLANEOF
 ### Task 2: Viewer fuer Quelle und Ergebnis
 
 **Files:**
-
 - Create: `src/ui/preview/viewerModel.ts`, `src/ui/preview/Viewer.tsx`
 - Test: `src/ui/preview/viewerModel.test.ts`, `src/ui/preview/Viewer.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `usePageImage`; `type BlockRef`, `type Rotation` aus `../../domain/types`
 - Produces:
   - `interface ViewerPage { ref: BlockRef; rotation: Rotation; provenance: string }`
@@ -366,13 +354,7 @@ import type { AppServices } from '../../services/app/appServices';
 
 function setup(pages: ViewerPage[], onJumpToSource = vi.fn()) {
   const services = {
-    adapter: {
-      renderBlock: vi.fn(async () => ({
-        blob: new Blob(['x'], { type: 'image/webp' }),
-        width: 800,
-        height: 1100,
-      })),
-    },
+    adapter: { renderBlock: vi.fn(async () => ({ blob: new Blob(['x'], { type: 'image/webp' }), width: 800, height: 1100 })) },
   } as unknown as AppServices;
   const value = wireStores({ services, now: () => 1 });
   render(
@@ -445,11 +427,7 @@ export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
   const [extraRotation, setExtraRotation] = useState<Rotation>(0);
 
   if (pages.length === 0) {
-    return (
-      <p className="grid h-full place-items-center text-sm text-neutral-500">
-        {emptyLabel ?? 'Nichts zum Anzeigen.'}
-      </p>
-    );
+    return <p className="grid h-full place-items-center text-sm text-neutral-500">{emptyLabel ?? 'Nichts zum Anzeigen.'}</p>;
   }
 
   const current = pages[clampPageIndex(index, pages.length)];
@@ -458,13 +436,7 @@ export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-line px-3 py-1 text-sm">
-        <button
-          type="button"
-          aria-label="Vorige Seite"
-          disabled={index === 0}
-          onClick={() => setIndex((i) => clampPageIndex(i - 1, pages.length))}
-          className="rounded p-1 hover:bg-panel disabled:opacity-40"
-        >
+        <button type="button" aria-label="Vorige Seite" disabled={index === 0} onClick={() => setIndex((i) => clampPageIndex(i - 1, pages.length))} className="rounded p-1 hover:bg-panel disabled:opacity-40">
           <ChevronLeft className="size-4" />
         </button>
         <label className="flex items-center gap-1">
@@ -479,61 +451,30 @@ export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
           />
           von {pages.length}
         </label>
-        <button
-          type="button"
-          aria-label="Naechste Seite"
-          disabled={index >= pages.length - 1}
-          onClick={() => setIndex((i) => clampPageIndex(i + 1, pages.length))}
-          className="rounded p-1 hover:bg-panel disabled:opacity-40"
-        >
+        <button type="button" aria-label="Naechste Seite" disabled={index >= pages.length - 1} onClick={() => setIndex((i) => clampPageIndex(i + 1, pages.length))} className="rounded p-1 hover:bg-panel disabled:opacity-40">
           <ChevronRight className="size-4" />
         </button>
         <span className="mx-2 h-4 w-px bg-line" />
-        <button
-          type="button"
-          aria-label="Verkleinern"
-          onClick={() => setZoom((z) => nextZoom(z, -1))}
-          className="rounded p-1 hover:bg-panel"
-        >
+        <button type="button" aria-label="Verkleinern" onClick={() => setZoom((z) => nextZoom(z, -1))} className="rounded p-1 hover:bg-panel">
           <ZoomOut className="size-4" />
         </button>
         <span className="w-12 text-center">{Math.round(zoom * 100)}%</span>
-        <button
-          type="button"
-          aria-label="Vergroessern"
-          onClick={() => setZoom((z) => nextZoom(z, 1))}
-          className="rounded p-1 hover:bg-panel"
-        >
+        <button type="button" aria-label="Vergroessern" onClick={() => setZoom((z) => nextZoom(z, 1))} className="rounded p-1 hover:bg-panel">
           <ZoomIn className="size-4" />
         </button>
-        <button
-          type="button"
-          aria-label="Drehen"
-          onClick={() => setExtraRotation((r) => ((r + 90) % 360) as Rotation)}
-          className="rounded p-1 hover:bg-panel"
-        >
+        <button type="button" aria-label="Drehen" onClick={() => setExtraRotation((r) => ((r + 90) % 360) as Rotation)} className="rounded p-1 hover:bg-panel">
           <RotateCw className="size-4" />
         </button>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto bg-black/30 p-4">
-        <PageImage
-          ref={current.ref}
-          zoom={zoom}
-          rotation={rotation}
-          provenance={current.provenance}
-        />
+        <PageImage ref={current.ref} zoom={zoom} rotation={rotation} provenance={current.provenance} />
       </div>
 
       <div className="flex items-center justify-between border-t border-line px-3 py-1 text-xs text-neutral-400">
         <span>{current.provenance}</span>
         {onJumpToSource && (
-          <button
-            type="button"
-            onClick={() => onJumpToSource(current.ref)}
-            className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-panel"
-            aria-label={`Zur Quelle: ${current.provenance}`}
-          >
+          <button type="button" onClick={() => onJumpToSource(current.ref)} className="flex items-center gap-1 rounded px-2 py-0.5 hover:bg-panel" aria-label={`Zur Quelle: ${current.provenance}`}>
             <ExternalLink className="size-3" /> Zur Quelle
           </button>
         )}
@@ -542,32 +483,13 @@ export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
   );
 }
 
-function PageImage({
-  ref,
-  zoom,
-  rotation,
-  provenance,
-}: {
-  ref: BlockRef;
-  zoom: number;
-  rotation: Rotation;
-  provenance: string;
-}) {
+function PageImage({ ref, zoom, rotation, provenance }: { ref: BlockRef; zoom: number; rotation: Rotation; provenance: string }) {
   const { url, status } = usePageImage(ref, VIEW_WIDTH);
   if (status === 'error') {
-    return (
-      <p className="grid h-40 place-items-center text-sm text-amber-400">
-        Diese Seite konnte nicht gerendert werden.
-      </p>
-    );
+    return <p className="grid h-40 place-items-center text-sm text-amber-400">Diese Seite konnte nicht gerendert werden.</p>;
   }
   if (!url) {
-    return (
-      <div
-        className="mx-auto h-[60vh] w-2/3 animate-pulse rounded bg-panel"
-        aria-label={`${provenance} wird geladen`}
-      />
-    );
+    return <div className="mx-auto h-[60vh] w-2/3 animate-pulse rounded bg-panel" aria-label={`${provenance} wird geladen`} />;
   }
   return (
     <img
@@ -609,12 +531,10 @@ PLANEOF
 ### Task 3: Trefferlogik, Seitentext-Cache und Text-Worker
 
 **Files:**
-
 - Create: `src/services/search/textMatch.ts`, `src/services/search/pageTextStore.ts`, `src/workers/pdfText.worker.ts`
 - Test: `src/services/search/textMatch.test.ts`, `src/services/search/pageTextStore.test.ts`
 
 **Interfaces:**
-
 - Consumes: `type PageText`, `type TextSpan` aus `../../adapters/types`; `type Database` aus `../persistence/db`; `idb`; `pdfjs-dist` (nur im Worker)
 - Produces:
   - `interface PageMatch { blockIndex: number; snippet: string; count: number; spanRects: TextSpan['rect'][] }`
@@ -762,11 +682,7 @@ describe('pageTextKey', () => {
 describe('createPageTextStore', () => {
   it('legt Seitentext ab und liest ihn wieder', async () => {
     const store = createPageTextStore(db);
-    await store.put('src-a', {
-      blockIndex: 3,
-      text: 'Saldo',
-      spans: [{ text: 'Saldo', rect: [1, 2, 3, 4] }],
-    });
+    await store.put('src-a', { blockIndex: 3, text: 'Saldo', spans: [{ text: 'Saldo', rect: [1, 2, 3, 4] }] });
     const read = await store.get('src-a', 3);
     expect(read?.text).toBe('Saldo');
     expect(read?.spans).toHaveLength(1);
@@ -804,17 +720,12 @@ export interface PageTextStore {
 export function createPageTextStore(db: Database): PageTextStore {
   return {
     async get(sourceId, blockIndex) {
-      const record = (await db.get('pageText', pageTextKey(sourceId, blockIndex))) as
-        StoredPageText | undefined;
+      const record = (await db.get('pageText', pageTextKey(sourceId, blockIndex))) as StoredPageText | undefined;
       if (!record) return undefined;
       return { blockIndex: record.blockIndex, text: record.text, spans: record.spans };
     },
     async put(sourceId, page) {
-      const record: StoredPageText = {
-        ...page,
-        sourceId,
-        key: pageTextKey(sourceId, page.blockIndex),
-      };
+      const record: StoredPageText = { ...page, sourceId, key: pageTextKey(sourceId, page.blockIndex) };
       await db.put('pageText', record);
     },
     async clear() {
@@ -871,38 +782,19 @@ self.onmessage = async (event: MessageEvent<ExtractRequest>) => {
       const page = await doc.getPage(blockIndex + 1);
       const content = await page.getTextContent();
       const spans: TextSpan[] = content.items
-        .filter(
-          (
-            item,
-          ): item is typeof item & {
-            str: string;
-            transform: number[];
-            width: number;
-            height: number;
-          } => 'str' in item,
-        )
+        .filter((item): item is typeof item & { str: string; transform: number[]; width: number; height: number } => 'str' in item)
         .map((item) => ({
           text: item.str,
           rect: [item.transform[4], item.transform[5], item.width, item.height],
         }));
       page.cleanup();
-      post({
-        type: 'page',
-        sourceId: request.sourceId,
-        blockIndex,
-        text: spans.map((s) => s.text).join(' '),
-        spans,
-      });
+      post({ type: 'page', sourceId: request.sourceId, blockIndex, text: spans.map((s) => s.text).join(' '), spans });
     }
     await doc.destroy();
     post({ type: 'done', sourceId: request.sourceId });
   } catch (error) {
     console.error('Textextraktion fehlgeschlagen', error);
-    post({
-      type: 'error',
-      sourceId: request.sourceId,
-      message: 'Der Text dieses Dokuments konnte nicht gelesen werden.',
-    });
+    post({ type: 'error', sourceId: request.sourceId, message: 'Der Text dieses Dokuments konnte nicht gelesen werden.' });
   }
 };
 ```
@@ -935,12 +827,10 @@ PLANEOF
 ### Task 4: Suchdienst (`searchService.ts`)
 
 **Files:**
-
 - Create: `src/services/search/searchService.ts`
 - Test: `src/services/search/searchService.test.ts`
 
 **Interfaces:**
-
 - Consumes: `findPageMatch`, `type PageMatch` aus `./textMatch`; `type PageTextStore` aus `./pageTextStore`; `type PageText` aus `../../adapters/types`
 - Produces:
   - `interface SearchTarget { sourceId: string; name: string; indices: number[] }`
@@ -978,19 +868,13 @@ function fakeStore(seed: Record<string, PageText> = {}): PageTextStore & { puts:
   };
 }
 
-const page = (blockIndex: number, text: string): PageText => ({
-  blockIndex,
-  text,
-  spans: [{ text, rect: [0, 0, 10, 10] }],
-});
+const page = (blockIndex: number, text: string): PageText => ({ blockIndex, text, spans: [{ text, rect: [0, 0, 10, 10] }] });
 const bank: SearchTarget = { sourceId: 'bank', name: 'Bank.pdf', indices: [0, 1] };
 
 describe('createSearchService', () => {
   it('extrahiert nur die ungecachten Seiten und cacht sie', async () => {
     const store = fakeStore({ 'bank:0': page(0, 'Konto Saldo') });
-    const extractUncached = vi.fn(async (_sourceId: string, indices: number[]) =>
-      indices.map((i) => page(i, 'Saldo neu')),
-    );
+    const extractUncached = vi.fn(async (_sourceId: string, indices: number[]) => indices.map((i) => page(i, 'Saldo neu')));
     const service = createSearchService({ store, extractUncached });
 
     const results = await service.search('saldo', [bank]);
@@ -1001,9 +885,7 @@ describe('createSearchService', () => {
 
   it('meldet ein Dokument ohne Text als nicht durchsuchbar', async () => {
     const store = fakeStore();
-    const extractUncached = vi.fn(async (_sourceId: string, indices: number[]) =>
-      indices.map((i) => page(i, '')),
-    );
+    const extractUncached = vi.fn(async (_sourceId: string, indices: number[]) => indices.map((i) => page(i, '')));
     const service = createSearchService({ store, extractUncached });
 
     const results = await service.search('saldo', [bank]);
@@ -1013,8 +895,7 @@ describe('createSearchService', () => {
 
   it('meldet Fortschritt je Dokument', async () => {
     const store = fakeStore();
-    const extractUncached = async (_sourceId: string, indices: number[]) =>
-      indices.map((i) => page(i, 'Saldo'));
+    const extractUncached = async (_sourceId: string, indices: number[]) => indices.map((i) => page(i, 'Saldo'));
     const onProgress = vi.fn();
     await createSearchService({ store, extractUncached }).search('saldo', [bank], onProgress);
     expect(onProgress).toHaveBeenLastCalledWith(1, 1);
@@ -1022,10 +903,7 @@ describe('createSearchService', () => {
 
   it('liefert nichts fuer eine leere Anfrage, ohne zu extrahieren', async () => {
     const extractUncached = vi.fn();
-    const results = await createSearchService({ store: fakeStore(), extractUncached }).search(
-      '   ',
-      [bank],
-    );
+    const results = await createSearchService({ store: fakeStore(), extractUncached }).search('   ', [bank]);
     expect(results).toEqual([]);
     expect(extractUncached).not.toHaveBeenCalled();
   });
@@ -1141,12 +1019,10 @@ PLANEOF
 ### Task 5: Suchbereiche, Worker-Adapter und Suchoberflaeche
 
 **Files:**
-
 - Create: `src/services/search/searchScope.ts`, `src/services/search/workerExtractor.ts`, `src/ui/preview/SearchPanel.tsx`
 - Test: `src/services/search/searchScope.test.ts`, `src/services/search/workerExtractor.test.ts`, `src/ui/preview/SearchPanel.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `type SearchTarget`, `type DocumentResult` aus `./searchService`; `type PageText` aus `../../adapters/types`; `isOutput`, `type NodeId`, `type SourceId`, `type Workspace` aus `../../domain/types`; `ExtractRequest`, `ExtractResponse` aus `../../workers/pdfText.worker`
 - Produces:
   - `type SearchScopeKind = 'source' | 'output' | 'all'`
@@ -1184,9 +1060,7 @@ describe('targetsForScope', () => {
 
   it('alle Quellen: jede lesbare Quelle mit vollem Bereich', () => {
     const targets = targetsForScope(makeWorkspace(), 'all', null, null);
-    expect(targets.map((t) => t.sourceId).sort()).toEqual(
-      [IDS.bank, IDS.contract, IDS.insurance].sort(),
-    );
+    expect(targets.map((t) => t.sourceId).sort()).toEqual([IDS.bank, IDS.contract, IDS.insurance].sort());
   });
 
   it('leere Liste, wenn nichts aktiv ist', () => {
@@ -1245,11 +1119,7 @@ export function targetsForScope(
   return ws.sourceOrder
     .map((id) => ws.sources[id])
     .filter((source) => source && source.status === 'ready')
-    .map((source) => ({
-      sourceId: source.id,
-      name: source.name,
-      indices: fullRange(source.blockCount),
-    }));
+    .map((source) => ({ sourceId: source.id, name: source.name, indices: fullRange(source.blockCount) }));
 }
 ```
 
@@ -1272,13 +1142,7 @@ function fakeWorker(): WorkerLike {
     postMessage(message: ExtractRequest) {
       queueMicrotask(() => {
         for (const index of message.indices) {
-          const page: ExtractResponse = {
-            type: 'page',
-            sourceId: message.sourceId,
-            blockIndex: index,
-            text: `Seite ${index}`,
-            spans: [],
-          };
+          const page: ExtractResponse = { type: 'page', sourceId: message.sourceId, blockIndex: index, text: `Seite ${index}`, spans: [] };
           listeners.forEach((cb) => cb({ data: page } as MessageEvent<ExtractResponse>));
         }
         const done: ExtractResponse = { type: 'done', sourceId: message.sourceId };
@@ -1302,11 +1166,7 @@ describe('createWorkerExtractor', () => {
   it('lehnt ab, wenn der Worker einen Fehler meldet', async () => {
     const worker: WorkerLike = {
       postMessage(message: ExtractRequest) {
-        queueMicrotask(() =>
-          handler?.({
-            data: { type: 'error', sourceId: message.sourceId, message: 'kaputt' },
-          } as MessageEvent<ExtractResponse>),
-        );
+        queueMicrotask(() => handler?.({ data: { type: 'error', sourceId: message.sourceId, message: 'kaputt' } } as MessageEvent<ExtractResponse>));
       },
       addEventListener: (_t, cb) => (handler = cb as never),
       removeEventListener: () => (handler = null),
@@ -1329,10 +1189,7 @@ import type { ExtractRequest, ExtractResponse } from '../../workers/pdfText.work
 export interface WorkerLike {
   postMessage(message: ExtractRequest): void;
   addEventListener(type: 'message', callback: (event: MessageEvent<ExtractResponse>) => void): void;
-  removeEventListener(
-    type: 'message',
-    callback: (event: MessageEvent<ExtractResponse>) => void,
-  ): void;
+  removeEventListener(type: 'message', callback: (event: MessageEvent<ExtractResponse>) => void): void;
 }
 
 export interface WorkerExtractorDeps {
@@ -1460,12 +1317,7 @@ export function SearchPanel({ runSearch, onJump, onClose }: SearchPanelProps) {
       <form onSubmit={submit} className="flex flex-col gap-2 border-b border-line p-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-medium">Suchen</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Suche schliessen"
-            className="rounded p-1 hover:bg-panel"
-          >
+          <button type="button" onClick={onClose} aria-label="Suche schliessen" className="rounded p-1 hover:bg-panel">
             <X className="size-4" />
           </button>
         </div>
@@ -1477,10 +1329,7 @@ export function SearchPanel({ runSearch, onJump, onClose }: SearchPanelProps) {
             placeholder="Text im Dokument suchen"
             className="min-w-0 flex-1 rounded border border-line bg-panel px-2 py-1 text-sm"
           />
-          <button
-            type="submit"
-            className="flex items-center gap-1 rounded bg-sky-600 px-3 py-1 text-sm"
-          >
+          <button type="submit" className="flex items-center gap-1 rounded bg-sky-600 px-3 py-1 text-sm">
             <Search className="size-4" /> Suchen
           </button>
         </div>
@@ -1509,9 +1358,7 @@ export function SearchPanel({ runSearch, onJump, onClose }: SearchPanelProps) {
             <section key={result.sourceId} className="mb-3">
               <h3 className="mb-1 font-medium">{result.name}</h3>
               {!result.searchable ? (
-                <p className="text-neutral-500">
-                  Dieses Dokument enthaelt keinen durchsuchbaren Text.
-                </p>
+                <p className="text-neutral-500">Dieses Dokument enthaelt keinen durchsuchbaren Text.</p>
               ) : (
                 <ul className="flex flex-col gap-1">
                   {result.matches.map((match) => (
@@ -1565,12 +1412,10 @@ PLANEOF
 ### Task 6: Writer-Vertrag, ZIP-Writer und Verzeichnis-Writer
 
 **Files:**
-
 - Create: `src/services/export/writer.ts`, `src/services/export/zipWriter.ts`, `src/services/export/fsAccessWriter.ts`
 - Test: `src/services/export/zipWriter.test.ts`, `src/services/export/fsAccessWriter.test.ts`
 
 **Interfaces:**
-
 - Consumes: `zipSync`, `unzipSync` aus `fflate` (Letzteres nur im Test)
 - Produces:
   - `type ExportArtifact = { kind: 'directory' } | { kind: 'zip'; blob: Blob; fileName: string }`
@@ -1657,11 +1502,7 @@ export function createZipWriter(zipName: string): ExportWriter {
     },
     async finalize(): Promise<ExportArtifact> {
       const zipped = zipSync(files);
-      return {
-        kind: 'zip',
-        blob: new Blob([zipped], { type: 'application/zip' }),
-        fileName: zipName,
-      };
+      return { kind: 'zip', blob: new Blob([zipped], { type: 'application/zip' }), fileName: zipName };
     },
   };
 }
@@ -1788,12 +1629,10 @@ PLANEOF
 ### Task 7: Export-Runner
 
 **Files:**
-
 - Create: `src/services/export/exportRunner.ts`
 - Test: `src/services/export/exportRunner.test.ts`
 
 **Interfaces:**
-
 - Consumes: `type ExportWriter`, `type ExportArtifact` aus `./writer`; `type ExportPlan`, `type ExportEntry` aus `../../domain/exportPlan`; `type BlockAssembler` aus `../../adapters/types`
 - Produces:
   - `interface ExportProgress { done: number; total: number; currentName: string }`
@@ -1831,21 +1670,8 @@ function fakeAssembler(): BlockAssembler {
 
 const plan: ExportPlan = {
   entries: [
-    {
-      outputId: 'o1',
-      path: ['Tax 2026', 'Contracts'],
-      fileName: 'Contracts.pdf',
-      items: [{ id: 'i1', sourceId: 's', blockIndex: 0, rotation: 0 }],
-    },
-    {
-      outputId: 'o2',
-      path: ['Tax 2026', 'Insurance'],
-      fileName: 'Insurance.pdf',
-      items: [
-        { id: 'i2', sourceId: 's', blockIndex: 1, rotation: 0 },
-        { id: 'i3', sourceId: 's', blockIndex: 2, rotation: 0 },
-      ],
-    },
+    { outputId: 'o1', path: ['Tax 2026', 'Contracts'], fileName: 'Contracts.pdf', items: [{ id: 'i1', sourceId: 's', blockIndex: 0, rotation: 0 }] },
+    { outputId: 'o2', path: ['Tax 2026', 'Insurance'], fileName: 'Insurance.pdf', items: [{ id: 'i2', sourceId: 's', blockIndex: 1, rotation: 0 }, { id: 'i3', sourceId: 's', blockIndex: 2, rotation: 0 }] },
   ],
   skipped: [],
   totalBlocks: 3,
@@ -1854,10 +1680,7 @@ const plan: ExportPlan = {
 describe('runExport', () => {
   it('assembliert jeden Eintrag und schreibt ihn an seinen Pfad', async () => {
     const { writer, files } = fakeWriter();
-    const artifact = await runExport(plan, writer, {
-      assembler: fakeAssembler(),
-      readBytes: async () => new Uint8Array(),
-    });
+    const artifact = await runExport(plan, writer, { assembler: fakeAssembler(), readBytes: async () => new Uint8Array() });
     expect(artifact).toEqual({ kind: 'directory' });
     expect(files).toEqual([
       { path: ['Tax 2026', 'Contracts'], fileName: 'Contracts.pdf', size: 1 },
@@ -1868,11 +1691,7 @@ describe('runExport', () => {
   it('meldet Fortschritt je Eintrag mit Namen', async () => {
     const { writer } = fakeWriter();
     const onProgress = vi.fn();
-    await runExport(plan, writer, {
-      assembler: fakeAssembler(),
-      readBytes: async () => new Uint8Array(),
-      onProgress,
-    });
+    await runExport(plan, writer, { assembler: fakeAssembler(), readBytes: async () => new Uint8Array(), onProgress });
     expect(onProgress.mock.calls.map((call) => call[0])).toEqual([
       { done: 1, total: 2, currentName: 'Contracts.pdf' },
       { done: 2, total: 2, currentName: 'Insurance.pdf' },
@@ -1884,11 +1703,7 @@ describe('runExport', () => {
     const controller = new AbortController();
     controller.abort();
     await expect(
-      runExport(plan, writer, {
-        assembler: fakeAssembler(),
-        readBytes: async () => new Uint8Array(),
-        signal: controller.signal,
-      }),
+      runExport(plan, writer, { assembler: fakeAssembler(), readBytes: async () => new Uint8Array(), signal: controller.signal }),
     ).rejects.toThrow();
   });
 });
@@ -1974,12 +1789,10 @@ PLANEOF
 ### Task 8: Export-Dialog (Plan-Vorschau und Zielwahl)
 
 **Files:**
-
 - Create: `src/ui/export/ExportDialog.tsx`
 - Test: `src/ui/export/ExportDialog.test.tsx`
 
 **Interfaces:**
-
 - Consumes: `type ExportPlan` aus `../../domain/exportPlan`; `type ExportProgress` aus `../../services/export/exportRunner`
 - Produces:
   - `ExportDialog(props: { plan: ExportPlan; canWriteDirectory: boolean; progress: ExportProgress | null; onExport(target: 'directory' | 'zip'): void; onCancel(): void; onClose(): void })`
@@ -1999,21 +1812,8 @@ import type { ExportPlan } from '../../domain/exportPlan';
 
 const plan: ExportPlan = {
   entries: [
-    {
-      outputId: 'o1',
-      path: ['Tax 2026', 'Contracts'],
-      fileName: 'Contracts.pdf',
-      items: [
-        { id: 'i1', sourceId: 's', blockIndex: 0, rotation: 0 },
-        { id: 'i2', sourceId: 's', blockIndex: 1, rotation: 0 },
-      ],
-    },
-    {
-      outputId: 'o2',
-      path: ['Tax 2026', 'Insurance'],
-      fileName: 'Insurance.pdf',
-      items: [{ id: 'i3', sourceId: 's', blockIndex: 2, rotation: 0 }],
-    },
+    { outputId: 'o1', path: ['Tax 2026', 'Contracts'], fileName: 'Contracts.pdf', items: [{ id: 'i1', sourceId: 's', blockIndex: 0, rotation: 0 }, { id: 'i2', sourceId: 's', blockIndex: 1, rotation: 0 }] },
+    { outputId: 'o2', path: ['Tax 2026', 'Insurance'], fileName: 'Insurance.pdf', items: [{ id: 'i3', sourceId: 's', blockIndex: 2, rotation: 0 }] },
   ],
   skipped: [{ outputId: 'o3', name: 'Leeres Dokument', reason: 'empty' }],
   totalBlocks: 3,
@@ -2021,16 +1821,7 @@ const plan: ExportPlan = {
 
 describe('ExportDialog', () => {
   it('zeigt den Plan mit Pfad, Dateiname und Seitenzahl', () => {
-    render(
-      <ExportDialog
-        plan={plan}
-        canWriteDirectory
-        progress={null}
-        onExport={vi.fn()}
-        onCancel={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<ExportDialog plan={plan} canWriteDirectory progress={null} onExport={vi.fn()} onCancel={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText(/Tax 2026 . Contracts . Contracts\.pdf/)).toBeInTheDocument();
     expect(screen.getByText('2 Seiten')).toBeInTheDocument();
     expect(screen.getByText(/Leeres Dokument/)).toBeInTheDocument(); // uebergangen, aber genannt
@@ -2038,46 +1829,19 @@ describe('ExportDialog', () => {
 
   it('startet den ZIP-Export', async () => {
     const onExport = vi.fn();
-    render(
-      <ExportDialog
-        plan={plan}
-        canWriteDirectory
-        progress={null}
-        onExport={onExport}
-        onCancel={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<ExportDialog plan={plan} canWriteDirectory progress={null} onExport={onExport} onCancel={vi.fn()} onClose={vi.fn()} />);
     await userEvent.click(screen.getByRole('button', { name: /Als ZIP/ }));
     expect(onExport).toHaveBeenCalledWith('zip');
   });
 
   it('deaktiviert den Ordner-Export ohne API und erklaert den Grund', () => {
-    render(
-      <ExportDialog
-        plan={plan}
-        canWriteDirectory={false}
-        progress={null}
-        onExport={vi.fn()}
-        onCancel={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<ExportDialog plan={plan} canWriteDirectory={false} progress={null} onExport={vi.fn()} onCancel={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByRole('button', { name: /In Ordner exportieren/ })).toBeDisabled();
     expect(screen.getByText(/Dieser Browser/)).toBeInTheDocument();
   });
 
   it('zeigt den Fortschritt und den Abbrechen-Knopf waehrend des Laufs', () => {
-    render(
-      <ExportDialog
-        plan={plan}
-        canWriteDirectory
-        progress={{ done: 1, total: 2, currentName: 'Contracts.pdf' }}
-        onExport={vi.fn()}
-        onCancel={vi.fn()}
-        onClose={vi.fn()}
-      />,
-    );
+    render(<ExportDialog plan={plan} canWriteDirectory progress={{ done: 1, total: 2, currentName: 'Contracts.pdf' }} onExport={vi.fn()} onCancel={vi.fn()} onClose={vi.fn()} />);
     expect(screen.getByText(/Contracts\.pdf/)).toBeInTheDocument();
     expect(screen.getByText('1 von 2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Abbrechen' })).toBeInTheDocument();
@@ -2107,40 +1871,21 @@ function pages(count: number): string {
   return count === 1 ? '1 Seite' : `${count} Seiten`;
 }
 
-export function ExportDialog({
-  plan,
-  canWriteDirectory,
-  progress,
-  onExport,
-  onCancel,
-  onClose,
-}: ExportDialogProps) {
+export function ExportDialog({ plan, canWriteDirectory, progress, onExport, onCancel, onClose }: ExportDialogProps) {
   const running = progress !== null;
 
   return (
-    <div
-      className="fixed inset-0 z-40 grid place-items-center bg-black/50"
-      role="dialog"
-      aria-label="Exportieren"
-    >
+    <div className="fixed inset-0 z-40 grid place-items-center bg-black/50" role="dialog" aria-label="Exportieren">
       <div className="flex max-h-[80vh] w-[32rem] flex-col rounded-lg border border-line bg-panel">
         <div className="flex items-center justify-between border-b border-line px-4 py-2">
           <h2 className="text-sm font-medium">Exportieren</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Schliessen"
-            disabled={running}
-            className="rounded p-1 hover:bg-shell disabled:opacity-40"
-          >
+          <button type="button" onClick={onClose} aria-label="Schliessen" disabled={running} className="rounded p-1 hover:bg-shell disabled:opacity-40">
             <X className="size-4" />
           </button>
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto px-4 py-3 text-sm">
-          <p className="mb-2 text-neutral-400">
-            {plan.entries.length} Dokumente, {pages(plan.totalBlocks)} insgesamt.
-          </p>
+          <p className="mb-2 text-neutral-400">{plan.entries.length} Dokumente, {pages(plan.totalBlocks)} insgesamt.</p>
           <ul className="flex flex-col gap-1">
             {plan.entries.map((entry) => (
               <li key={entry.outputId} className="flex justify-between">
@@ -2162,11 +1907,7 @@ export function ExportDialog({
               <span className="text-sm text-neutral-300">
                 {progress.currentName} · {progress.done} von {progress.total}
               </span>
-              <button
-                type="button"
-                onClick={onCancel}
-                className="rounded px-3 py-1 text-sm hover:bg-shell"
-              >
+              <button type="button" onClick={onCancel} className="rounded px-3 py-1 text-sm hover:bg-shell">
                 Abbrechen
               </button>
             </div>
@@ -2181,18 +1922,13 @@ export function ExportDialog({
                 >
                   <FolderTree className="size-4" /> In Ordner exportieren
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onExport('zip')}
-                  className="flex items-center gap-1 rounded bg-sky-600 px-3 py-1 text-sm"
-                >
+                <button type="button" onClick={() => onExport('zip')} className="flex items-center gap-1 rounded bg-sky-600 px-3 py-1 text-sm">
                   <Download className="size-4" /> Als ZIP herunterladen
                 </button>
               </div>
               {!canWriteDirectory && (
                 <p className="text-right text-xs text-neutral-500">
-                  Dieser Browser kann nicht direkt in einen Ordner schreiben; nutzen Sie den
-                  ZIP-Export.
+                  Dieser Browser kann nicht direkt in einen Ordner schreiben; nutzen Sie den ZIP-Export.
                 </p>
               )}
             </div>
@@ -2232,13 +1968,11 @@ PLANEOF
 ### Task 9: Viewer, Suche und Export in die App verdrahten
 
 **Files:**
-
 - Create: `src/ui/preview/PreviewPane.tsx`, `src/ui/export/useExport.ts`, `src/ui/preview/useSearch.ts`
 - Modify: `src/ui/app/App.tsx`
 - Test: `src/ui/app/App.export.test.tsx`, `src/ui/preview/PreviewPane.test.tsx`
 
 **Interfaces:**
-
 - Consumes: alle Bausteine der Tasks 1-8; `buildExportPlan` aus `../../domain/exportPlan`; `createZipWriter`, `createFsAccessWriter`, `runExport`; `createSearchService`, `createWorkerExtractor`, `createPageTextStore`, `targetsForScope`; `useServices`, `useWorkspace`, `useSelection`
 - Produces:
   - `PreviewPane(props: { activeSourceId: SourceId | null; activeOutputId: NodeId | null; onJumpToSource(ref: BlockRef): void })`
@@ -2261,22 +1995,12 @@ import type { AppServices } from '../../services/app/appServices';
 
 function setup(props: { activeSourceId?: string | null; activeOutputId?: string | null } = {}) {
   const services = {
-    adapter: {
-      renderBlock: vi.fn(async () => ({
-        blob: new Blob(['x'], { type: 'image/webp' }),
-        width: 800,
-        height: 1100,
-      })),
-    },
+    adapter: { renderBlock: vi.fn(async () => ({ blob: new Blob(['x'], { type: 'image/webp' }), width: 800, height: 1100 })) },
   } as unknown as AppServices;
   const value = wireStores({ services, initialWorkspace: makeWorkspace(), now: () => 1 });
   render(
     <StoreProvider value={value}>
-      <PreviewPane
-        activeSourceId={props.activeSourceId ?? null}
-        activeOutputId={props.activeOutputId ?? null}
-        onJumpToSource={vi.fn()}
-      />
+      <PreviewPane activeSourceId={props.activeSourceId ?? null} activeOutputId={props.activeOutputId ?? null} onJumpToSource={vi.fn()} />
     </StoreProvider>,
   );
 }
@@ -2342,13 +2066,7 @@ export function PreviewPane({ activeSourceId, activeOutputId, onJumpToSource }: 
     return [];
   }, [workspace, activeSourceId, activeOutputId]);
 
-  return (
-    <Viewer
-      pages={pages}
-      onJumpToSource={onJumpToSource}
-      emptyLabel="Waehlen Sie eine Quelle oder ein Dokument fuer die Vorschau."
-    />
-  );
+  return <Viewer pages={pages} onJumpToSource={onJumpToSource} emptyLabel="Waehlen Sie eine Quelle oder ein Dokument fuer die Vorschau." />;
 }
 ```
 
@@ -2376,8 +2094,7 @@ function download(blob: Blob, fileName: string): void {
   URL.revokeObjectURL(url);
 }
 
-const canWriteDirectory =
-  typeof (globalThis as { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function';
+const canWriteDirectory = typeof (globalThis as { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function';
 
 export function useExport(): { open(): void; dialog: ReactNode } {
   const services = useServices();
@@ -2401,11 +2118,7 @@ export function useExport(): { open(): void; dialog: ReactNode } {
         const writer =
           target === 'zip'
             ? createZipWriter(`${workspace.name}.zip`)
-            : createFsAccessWriter(
-                await (
-                  globalThis as { showDirectoryPicker(): Promise<never> }
-                ).showDirectoryPicker(),
-              );
+            : createFsAccessWriter(await (globalThis as { showDirectoryPicker(): Promise<never> }).showDirectoryPicker());
         const artifact = await runExport(current, writer, {
           assembler: services.assembler,
           readBytes: services.readBytesForSource,
@@ -2468,9 +2181,7 @@ export function useSearch(active: { sourceId: SourceId | null; outputId: NodeId 
   // suchen, brauchen so keinen Worker.
   const getService = useCallback(() => {
     if (!serviceRef.current) {
-      const worker = new Worker(new URL('../../workers/pdfText.worker.ts', import.meta.url), {
-        type: 'module',
-      });
+      const worker = new Worker(new URL('../../workers/pdfText.worker.ts', import.meta.url), { type: 'module' });
       serviceRef.current = createSearchService({
         store: createPageTextStore(services.db),
         extractUncached: createWorkerExtractor({ worker, readBytes: services.readBytesForSource }),
@@ -2481,10 +2192,7 @@ export function useSearch(active: { sourceId: SourceId | null; outputId: NodeId 
 
   const runSearch = useCallback(
     (query: string, kind: SearchScopeKind) =>
-      getService().search(
-        query,
-        targetsForScope(workspace, kind, active.sourceId, active.outputId),
-      ),
+      getService().search(query, targetsForScope(workspace, kind, active.sourceId, active.outputId)),
     [getService, workspace, active.sourceId, active.outputId],
   );
 
@@ -2552,11 +2260,7 @@ Und in `Header.tsx` den Export-Knopf:
 
 ```tsx
 // Prop ergaenzen: onExport(): void;
-<button
-  type="button"
-  onClick={onExport}
-  className="flex items-center gap-1 rounded bg-panel px-3 py-1 text-sm hover:bg-panel/80"
->
+<button type="button" onClick={onExport} className="flex items-center gap-1 rounded bg-panel px-3 py-1 text-sm hover:bg-panel/80">
   <Download className="size-4" aria-hidden /> Exportieren
 </button>
 ```
@@ -2576,13 +2280,7 @@ import type { AppServices } from '../../services/app/appServices';
 
 function fakeStore(): StoreContextValue {
   const services = {
-    adapter: {
-      renderBlock: vi.fn(async () => ({
-        blob: new Blob(['x'], { type: 'image/webp' }),
-        width: 800,
-        height: 1100,
-      })),
-    },
+    adapter: { renderBlock: vi.fn(async () => ({ blob: new Blob(['x'], { type: 'image/webp' }), width: 800, height: 1100 })) },
     assembler: { targetFormat: 'pdf', assemble: vi.fn(async () => new Uint8Array([1])) },
     readBytesForSource: vi.fn(async () => new Uint8Array()),
     autosave: { subscribe: () => () => {}, schedule: () => {}, flush: async () => {} },
@@ -2632,13 +2330,11 @@ PLANEOF
 ### Task 10: Playwright-Akzeptanztest bis zum ZIP-Export
 
 **Files:**
-
 - Create: `tests/e2e/fixtures/makePdf.ts`, `tests/e2e/acceptance.spec.ts`
 - Modify: `playwright.config.ts` (aus Plan 2, nur falls noetig)
 - Test: der Playwright-Lauf selbst
 
 **Interfaces:**
-
 - Consumes: die laufende App unter der Vite-Vorschau; `pdf-lib` (Fixture-Erzeugung); `fflate` (`unzipSync`, ZIP-Pruefung); `@playwright/test`
 - Produces: `makeAcceptancePdfs(dir): Promise<{ contract; bank; insurance }>` und der Akzeptanztest
 
@@ -2664,9 +2360,7 @@ async function makePdf(title: string, count: number): Promise<Uint8Array> {
   return doc.save();
 }
 
-export async function makeAcceptancePdfs(
-  dir: string,
-): Promise<{ contract: string; bank: string; insurance: string }> {
+export async function makeAcceptancePdfs(dir: string): Promise<{ contract: string; bank: string; insurance: string }> {
   await mkdir(dir, { recursive: true });
   const files = {
     contract: join(dir, 'Contract.pdf'),
@@ -2712,9 +2406,7 @@ test('Import, Komposition per Drag und ZIP-Export', async ({ page }) => {
 
   // 1) Import ueber den Dateidialog (drei Dokumente).
   await page.getByRole('button', { name: /Importieren/ }).click();
-  await page
-    .locator('input[type=file]')
-    .setInputFiles([files.contract, files.bank, files.insurance]);
+  await page.locator('input[type=file]').setInputFiles([files.contract, files.bank, files.insurance]);
   await expect(page.getByText('Contract.pdf')).toBeVisible();
   await expect(page.getByText('100 Seiten')).toBeVisible();
 
@@ -2801,22 +2493,22 @@ PLANEOF
 
 Abgleich mit `docs/superpowers/specs/2026-09-10-document-workspace-design.md`, Bereiche, die dieser Plan traegt:
 
-| Abschnitt der Spezifikation                                                                          | In diesem Plan                          |
-| ---------------------------------------------------------------------------------------------------- | --------------------------------------- |
-| 10 Ergebnis-Preview rendert Quellseiten in Reihenfolge, dieselbe Komponente fuer Quelle und Ergebnis | Task 1, 2, 9                            |
-| 10 Viewer: Zoom, Einpassen, Seitennavigation mit Nummernfeld, Rotation, Herkunftszeile mit Sprung    | Task 2, 9                               |
-| 10 Suche mit Bereichsumschalter (Quelle / Output / alle Quellen), gruppierte Treffer, Sprung         | Task 4, 5, 9                            |
-| 10 Textextraktion im Worker, seitenweise, lazy, Cache in `pageText`                                  | Task 3, 4                               |
-| 10 Kein OCR: klare Meldung bei fehlender Textschicht                                                 | Task 3, 4, 5                            |
-| 11 Export: beide Writer konsumieren ausschliesslich den `ExportPlan`                                 | Task 6, 7                               |
-| 11 Direkt in einen Ordner (`showDirectoryPicker`), rekursives Schreiben                              | Task 6, 9                               |
-| 11 ZIP ueber `fflate`, vollstaendige Hierarchie, als Fallback und Alternative                        | Task 6, 9                               |
-| 11 Fehlt die Directory-API: ZIP primaer, Einzeiler erklaert den Grund                                | Task 8, 9                               |
-| 11 Export einzelner Outputs/Ordner/Workspace, Fortschritt und Abbruch, Plan als Baum vor dem Start   | Task 7, 8, 9                            |
-| 8 Assembler laedt jede Quelle beim Export einmal                                                     | Task 7 (nutzt den Assembler aus Plan 2) |
-| 12 Akzeptanzszenario bis zum ZIP als Playwright-Flow                                                 | Task 10                                 |
-| 14 pdf.js-Worker/Assets aus dem Bundle, kein externer Request                                        | Task 3 (Worker), aus Plan 2 uebernommen |
-| 15 Adapter/Assembler-Tests, Playwright-Flow, Domain per TDD                                          | Task 6-10 plus Plan 1-3                 |
+| Abschnitt der Spezifikation | In diesem Plan |
+| --- | --- |
+| 10 Ergebnis-Preview rendert Quellseiten in Reihenfolge, dieselbe Komponente fuer Quelle und Ergebnis | Task 1, 2, 9 |
+| 10 Viewer: Zoom, Einpassen, Seitennavigation mit Nummernfeld, Rotation, Herkunftszeile mit Sprung | Task 2, 9 |
+| 10 Suche mit Bereichsumschalter (Quelle / Output / alle Quellen), gruppierte Treffer, Sprung | Task 4, 5, 9 |
+| 10 Textextraktion im Worker, seitenweise, lazy, Cache in `pageText` | Task 3, 4 |
+| 10 Kein OCR: klare Meldung bei fehlender Textschicht | Task 3, 4, 5 |
+| 11 Export: beide Writer konsumieren ausschliesslich den `ExportPlan` | Task 6, 7 |
+| 11 Direkt in einen Ordner (`showDirectoryPicker`), rekursives Schreiben | Task 6, 9 |
+| 11 ZIP ueber `fflate`, vollstaendige Hierarchie, als Fallback und Alternative | Task 6, 9 |
+| 11 Fehlt die Directory-API: ZIP primaer, Einzeiler erklaert den Grund | Task 8, 9 |
+| 11 Export einzelner Outputs/Ordner/Workspace, Fortschritt und Abbruch, Plan als Baum vor dem Start | Task 7, 8, 9 |
+| 8 Assembler laedt jede Quelle beim Export einmal | Task 7 (nutzt den Assembler aus Plan 2) |
+| 12 Akzeptanzszenario bis zum ZIP als Playwright-Flow | Task 10 |
+| 14 pdf.js-Worker/Assets aus dem Bundle, kein externer Request | Task 3 (Worker), aus Plan 2 uebernommen |
+| 15 Adapter/Assembler-Tests, Playwright-Flow, Domain per TDD | Task 6-10 plus Plan 1-3 |
 
 Bewusst nicht in Phase 1 (aus Abschnitt 13 der Spezifikation), hier nur bestaetigt: Bookmark-Navigation im UI (die Outline wird schon gelesen), Export-Review mit Warnungsanalyse (der Plan wird gezeigt, nicht analysiert), Papierkorb, Command Palette, ZIP-Import, PWA/Offline, OCR, weitere Formate.
 
