@@ -4,4 +4,20 @@
   --color-shell: #0f1115;
   --color-panel: #171a21;
   --color-line: #262b36;
+  --color-accent: #38bdf8;
+}
+
+/* Waehrend eines Seiten-Drags: kein natives Textmarkieren, klarer Cursor. */
+body.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Das aktuelle Drop-Ziel (Ordner, Baum-Dokument oder Ausgaberaster) hervorheben. */
+[data-drop-active] {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+  border-radius: 0.5rem;
+  background-color: color-mix(in srgb, var(--color-accent) 12%, transparent);
 }
