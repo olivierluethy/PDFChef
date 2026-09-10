@@ -10,6 +10,9 @@ import { SplitPanel } from '../workspace/SplitPanel';
 import { DragPreview } from '../workspace/DragPreview';
 import { usePointerDrag } from '../workspace/usePointerDrag';
 import { useExternalDrop } from '../workspace/useExternalDrop';
+import { PreviewPane } from '../preview/PreviewPane';
+import { useSearch } from '../preview/useSearch';
+import { useExport } from '../export/useExport';
 import { ContextBar } from './ContextBar';
 import { Header } from './Header';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
@@ -70,9 +73,18 @@ function Workspace() {
 
   const drag = usePointerDrag();
   const external = useExternalDrop();
-  useKeyboardShortcuts();
+  const exportUi = useExport();
+  const search = useSearch({ sourceId: activeSourceId, outputId: activeOutputId });
+  useKeyboardShortcuts({ onSearch: search.open });
 
   useEffect(() => services.autosave.subscribe(setStatus), [services]);
+
+  useEffect(() => {
+    if (search.jumpTarget) {
+      setActiveSourceId(search.jumpTarget.sourceId);
+      search.clearJump();
+    }
+  }, [search.jumpTarget]);
 
   const activeSource = activeSourceId ? workspace.sources[activeSourceId] : undefined;
 
@@ -87,6 +99,7 @@ function Workspace() {
             }
           })
         }
+        onExport={exportUi.open}
         saveStatus={status}
       />
 
@@ -124,8 +137,15 @@ function Workspace() {
           </section>
         </main>
 
-        <aside className="w-72 border-l border-line p-4 text-sm text-neutral-500">
-          Vorschau und Suche folgen in Plan 4.
+        <aside className="flex w-96 border-l border-line">
+          <div className="min-w-0 flex-1">
+            <PreviewPane
+              activeSourceId={activeSourceId}
+              activeOutputId={activeOutputId}
+              onJumpToSource={(ref) => setActiveSourceId(ref.sourceId)}
+            />
+          </div>
+          {search.panel && <div className="w-80 shrink-0">{search.panel}</div>}
         </aside>
       </div>
 
@@ -137,6 +157,7 @@ function Workspace() {
           {external.rejected.join(' · ')}
         </div>
       )}
+      {exportUi.dialog}
     </div>
   );
 }

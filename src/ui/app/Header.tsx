@@ -5,10 +5,11 @@ import { useDispatch, useWorkspace } from './StoreProvider';
 
 export interface HeaderProps {
   onImportFiles(files: FileList | File[]): void;
+  onExport(): void;
   saveStatus: SaveStatus;
 }
 
-export function Header({ onImportFiles, saveStatus }: HeaderProps) {
+export function Header({ onImportFiles, onExport, saveStatus }: HeaderProps) {
   const workspace = useWorkspace();
   const dispatch = useDispatch();
   const fileInput = useRef<HTMLInputElement | null>(null);
@@ -46,9 +47,8 @@ export function Header({ onImportFiles, saveStatus }: HeaderProps) {
         </button>
         <button
           type="button"
-          disabled
-          title="Export folgt in Plan 4"
-          className="flex items-center gap-1 rounded bg-panel px-3 py-1 text-sm opacity-50"
+          onClick={onExport}
+          className="flex items-center gap-1 rounded bg-panel px-3 py-1 text-sm hover:bg-panel/80"
         >
           <Download className="size-4" aria-hidden /> Exportieren
         </button>
