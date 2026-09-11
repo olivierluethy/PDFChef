@@ -1,6 +1,7 @@
 import type { Command } from '../../domain/commands';
-import type { CompositionItem, Workspace } from '../../domain/types';
-import { isFolder } from '../../domain/types';
+import type { CompositionItem, NodeId, Workspace } from '../../domain/types';
+import { isFolder, parentKey } from '../../domain/types';
+import { canMoveNode } from '../../domain/composition';
 import { resolveDropAction, type DragOrigin, type DropTarget } from './dragLogic';
 
 export interface BuildDropParams {
@@ -21,7 +22,18 @@ function itemsFromSource(sourceId: string, blockIndices: number[], newId: () => 
 }
 
 function itemCount(origin: DragOrigin): number {
-  return origin.kind === 'source' ? origin.blockIndices.length : origin.itemIds.length;
+  if (origin.kind === 'source') return origin.blockIndices.length;
+  if (origin.kind === 'output') return origin.itemIds.length;
+  return 1; // Ein Knoten-Drag bewegt genau ein Element.
+}
+
+/** Ziel-Elternteil beim Umhaengen eines Knotens: Ordner selbst, der Ordner des
+ *  getroffenen Baum-Dokuments, oder die Wurzel (null). */
+function moveParentId(ws: Workspace, target: DropTarget): NodeId | null | undefined {
+  if (target.kind === 'folder') return target.nodeId;
+  if (target.kind === 'tree-root') return null;
+  if (target.kind === 'tree-output') return ws.nodes[target.outputId]?.parentId ?? null;
+  return undefined;
 }
 
 /**
@@ -80,6 +92,16 @@ export function buildDropCommand({ origin, target, modifier, ws, newId }: BuildD
         label: `${pagesLabel(origin.itemIds.length)} in ein neues Dokument`,
         commands: [create, { type: 'moveItems', itemIds: origin.itemIds, outputId, index: 0 }],
       };
+    }
+    case 'moveNode': {
+      if (origin.kind !== 'node') return null;
+      const newParentId = moveParentId(ws, target);
+      if (newParentId === undefined) return null;
+      // Zyklen (Ordner in sich selbst) und ungueltige Ziele hier abfangen, damit
+      // der Command nie eine Invariante des Datenmodells verletzt.
+      if (!canMoveNode(ws, origin.nodeId, newParentId)) return null;
+      const index = (ws.childOrder[parentKey(newParentId)] ?? []).length;
+      return { type: 'moveNode', nodeId: origin.nodeId, parentId: newParentId, index };
     }
     case 'none':
       return null;
