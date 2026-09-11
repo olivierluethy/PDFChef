@@ -51,6 +51,21 @@ export function buildExportPlan(
   return plan;
 }
 
+/**
+ * Liefert einen Plan ohne die Eintraege, deren `outputId` in `exported` steht --
+ * fuer den Sammel-Export, nachdem einzelne Dokumente bereits an ein eigenes Ziel
+ * geschrieben wurden. `totalBlocks` wird neu berechnet; `skipped` bleibt gleich.
+ */
+export function omitExportedEntries(plan: ExportPlan, exported: ReadonlySet<NodeId>): ExportPlan {
+  if (exported.size === 0) return plan;
+  const entries = plan.entries.filter((entry) => !exported.has(entry.outputId));
+  return {
+    entries,
+    skipped: plan.skipped,
+    totalBlocks: entries.reduce((sum, entry) => sum + entry.items.length, 0),
+  };
+}
+
 function walk(ws: Workspace, nodeIds: NodeId[], path: string[], plan: ExportPlan): void {
   // Ordner- und Dateinamen kollidieren nicht miteinander ("Bank" vs. "Bank.pdf"),
   // deshalb zwei getrennte Namensraeume pro Verzeichnis.
