@@ -1,7 +1,8 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { GripVertical, RotateCcw, RotateCw, Scissors, Trash2 } from 'lucide-react';
+import { LayoutGroup, motion } from 'motion/react';
+import { GripVertical, RotateCcw, RotateCw, Scissors, Trash2, type LucideIcon } from 'lucide-react';
 import { newId } from '../../domain/ids';
-import { isOutput, type NodeId } from '../../domain/types';
+import { isOutput, type NodeId, type SourceId } from '../../domain/types';
 import type { SelectionScope } from '../../services/store/selection';
 import type { DragOrigin } from './dragLogic';
 import { buildSplitOutputCommand } from './buildSplitOutputCommand';
@@ -9,20 +10,26 @@ import { useMarquee } from './useMarquee';
 import { MarqueeBox } from './MarqueeBox';
 import { Thumbnail } from '../common/Thumbnail';
 import { VirtualGrid } from '../common/VirtualGrid';
+import { Tooltip } from '../common/Tooltip';
+import { cx } from '../common/cx';
+import { spring, useMotionPrefs } from '../common/motion';
 import { useDispatch, useSelection, useSelectionStore, useWorkspace } from '../app/StoreProvider';
 
 export interface OutputGridProps {
   outputId: NodeId;
   onCellPointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
-  /** Luecke (0..Seitenzahl), an der beim Ziehen die Einfuege-Linie steht; null = keine. */
   dropIndex?: number | null;
 }
+
+/** Oberhalb dieser Anzahl bleibt das Raster virtualisiert und ohne Layout-Animation. */
+const LAYOUT_LIMIT = 150;
 
 export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: OutputGridProps) {
   const workspace = useWorkspace();
   const selection = useSelection();
   const selectionStore = useSelectionStore();
   const dispatch = useDispatch();
+  const prefs = useMotionPrefs();
   const node = workspace.nodes[outputId];
   const scope: SelectionScope = { kind: 'output', outputId };
   const itemIds = isOutput(node) ? node.items : [];
@@ -43,178 +50,263 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
     onClear: clearSelection,
   });
 
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent, id: string) => {
+      if (event.shiftKey) selectionStore.getState().extend(scope, id, order);
+      else if (event.metaKey || event.ctrlKey) selectionStore.getState().toggle(scope, id);
+      else selectionStore.getState().select(scope, id, order);
+
+      const inScope = selection.scope?.kind === 'output' && selection.scope.outputId === outputId;
+      const ids = inScope ? (selection.ids.includes(id) ? selection.ids : [...selection.ids, id]) : [id];
+      onCellPointerDown?.(event, { kind: 'output', outputId, itemIds: ids });
+    },
+    [selectionStore, scope, order, selection, outputId, onCellPointerDown],
+  );
+
   if (!isOutput(node)) {
-    return <p className="px-3 py-4 text-sm text-muted">Kein Dokument gewaehlt.</p>;
+    return <p className="t-meta p-4">Kein Dokument gewählt.</p>;
   }
-  if (itemIds.length === 0) {
-    // Wichtig: auch der Leerzustand traegt data-output-id, sonst gibt es genau
-    // dort, wo der Text zum Ziehen auffordert, kein Drop-Ziel.
+
+  const count = itemIds.length;
+
+  if (count === 0) {
+    // Der Leerzustand traegt die Drop-Attribute, damit genau hier abgelegt werden kann.
     return (
-      <div className="h-full p-3" data-output-id={outputId} data-item-count={0} data-drop-index={0}>
-        <div className="grid h-full place-items-center rounded-lg border-2 border-dashed border-line text-center text-sm text-muted">
-          <span>
-            Dieses Dokument ist noch leer.
-            <br />
-            Ziehen Sie Seiten aus einer Quelle hierher.
-          </span>
+      <div className="h-full py-2" data-output-id={outputId} data-item-count={0} data-drop-index={0} data-drop-zone>
+        <div className="grid h-full min-h-[140px] place-items-center rounded-[10px] border-2 border-dashed border-line-structural text-center">
+          <p className="t-meta">Seiten hierher ziehen</p>
         </div>
       </div>
     );
   }
 
-  function handlePointerDown(event: React.PointerEvent, id: string) {
-    if (event.shiftKey) selectionStore.getState().extend(scope, id, order);
-    else if (event.metaKey || event.ctrlKey) selectionStore.getState().toggle(scope, id);
-    else selectionStore.getState().select(scope, id, order);
+  const renderCard = (itemId: string, position: number) => {
+    const item = workspace.items[itemId];
+    if (!item) return null;
+    const source = workspace.sources[item.sourceId];
+    const selected =
+      selection.scope?.kind === 'output' && selection.scope.outputId === outputId && selection.ids.includes(itemId);
+    return (
+      <OutputCard
+        key={itemId}
+        itemId={itemId}
+        sourceName={source?.name ?? 'Quelle'}
+        pageNumber={item.blockIndex + 1}
+        sourceId={item.sourceId}
+        blockIndex={item.blockIndex}
+        rotation={item.rotation}
+        selected={selected}
+        position={position}
+        total={count}
+        dropIndex={dropIndex}
+        onPointerDown={(e) => handlePointerDown(e, itemId)}
+        onRotate={(delta) => dispatch({ type: 'rotateItems', itemIds: [itemId], delta })}
+        onRemove={() => dispatch({ type: 'removeItems', itemIds: [itemId] })}
+        onSplit={() => {
+          const command = buildSplitOutputCommand({
+            output: node,
+            atIndex: position,
+            parentId: node.parentId,
+            newOutputId: newId(),
+          });
+          if (command) dispatch(command);
+        }}
+      />
+    );
+  };
 
-    const inScope = selection.scope?.kind === 'output' && selection.scope.outputId === outputId;
-    const ids = inScope ? (selection.ids.includes(id) ? selection.ids : [...selection.ids, id]) : [id];
-    onCellPointerDown?.(event, { kind: 'output', outputId, itemIds: ids });
-  }
-
-  const count = itemIds.length;
+  // Kleine Dokumente: echtes Raster mit Layout-Animation. Grosse: virtualisiert.
+  const enableLayout = count < LAYOUT_LIMIT && !prefs.reduced;
+  const virtualize = count >= LAYOUT_LIMIT;
 
   return (
     <div
       className="relative h-full"
       data-output-id={outputId}
       data-item-count={count}
+      data-drop-zone
       ref={gridRef}
       onPointerDown={marquee.onPointerDown}
     >
-      <VirtualGrid
-        count={count}
-        minCellWidth={180}
-        cellAspect={1.45}
-        gap={12}
-        renderCell={(position) => {
-          const itemId = itemIds[position];
-          const item = workspace.items[itemId];
-          if (!item) return null;
-          const source = workspace.sources[item.sourceId];
-          const provenance = `${source?.name ?? 'Quelle'} . Seite ${item.blockIndex + 1}`;
-          const selected = selection.scope?.kind === 'output' &&
-            selection.scope.outputId === outputId && selection.ids.includes(itemId);
-          // Einfuege-Linie: vor dieser Zelle, oder hinter der letzten Zelle.
-          const lineBefore = dropIndex === position;
-          const lineAfter = dropIndex === count && position === count - 1;
-          return (
+      {virtualize ? (
+        <VirtualGrid
+          count={count}
+          minCellWidth={180}
+          cellAspect={1.7}
+          gap={20}
+          renderCell={(position) => renderCard(itemIds[position], position)}
+        />
+      ) : (
+        <div className="scroll-fade-y h-full overflow-auto pb-8">
+          <LayoutGroup>
             <div
-              role="button"
-              tabIndex={0}
-              onPointerDown={(e) => handlePointerDown(e, itemId)}
-              aria-pressed={selected}
-              data-item-id={itemId}
-              data-drop-index={position}
-              className={`group relative flex w-full cursor-grab flex-col gap-1 rounded ring-2 transition-shadow ${selected ? 'ring-accent' : 'ring-transparent hover:ring-line'}`}
+              className="grid gap-5"
+              style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}
             >
-              {lineBefore && <InsertionLine side="left" atEdge={position === 0} />}
-              {lineAfter && <InsertionLine side="right" atEdge />}
-              <span className="block w-full" style={{ aspectRatio: '1 / 1.35', transform: `rotate(${item.rotation}deg)` }}>
-                <Thumbnail blockRef={{ sourceId: item.sourceId, blockIndex: item.blockIndex }} alt={provenance} />
-              </span>
-              <span className="truncate px-1 text-[11px] text-muted">{provenance}</span>
-
-              {/* Greif-Hinweis: macht beim Hover sichtbar, dass sich die Kachel ziehen
-                  laesst. pointer-events-none, damit der PointerDown zur Kachel durchgeht
-                  und der Drag ganz normal startet. */}
-              <span
-                aria-hidden
-                className="pointer-events-none absolute left-1 top-1 grid size-6 place-items-center rounded bg-shell/80 text-muted opacity-0 ring-1 ring-line backdrop-blur transition-opacity group-hover:opacity-100"
-              >
-                <GripVertical className="size-3.5" />
-              </span>
-
-              <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                <CardButton
-                  label="Nach links drehen"
-                  onClick={() => dispatch({ type: 'rotateItems', itemIds: [itemId], delta: 270 })}
-                >
-                  <RotateCcw className="size-3.5" aria-hidden />
-                </CardButton>
-                <CardButton
-                  label="Nach rechts drehen"
-                  onClick={() => dispatch({ type: 'rotateItems', itemIds: [itemId], delta: 90 })}
-                >
-                  <RotateCw className="size-3.5" aria-hidden />
-                </CardButton>
-                <CardButton
-                  label="Dokument hier trennen"
-                  disabled={position === 0}
-                  onClick={() => {
-                    const command = buildSplitOutputCommand({
-                      output: node,
-                      atIndex: position,
-                      parentId: node.parentId,
-                      newOutputId: newId(),
-                    });
-                    if (command) dispatch(command);
-                  }}
-                >
-                  <Scissors className="size-3.5" aria-hidden />
-                </CardButton>
-                <CardButton
-                  label="Seite entfernen"
-                  danger
-                  onClick={() => dispatch({ type: 'removeItems', itemIds: [itemId] })}
-                >
-                  <Trash2 className="size-3.5" aria-hidden />
-                </CardButton>
-              </div>
+              {itemIds.map((itemId, position) =>
+                enableLayout ? (
+                  <motion.div key={itemId} layout transition={prefs.t(spring.layout)} className="min-w-0">
+                    {renderCard(itemId, position)}
+                  </motion.div>
+                ) : (
+                  renderCard(itemId, position)
+                ),
+              )}
             </div>
-          );
-        }}
-      />
+          </LayoutGroup>
+        </div>
+      )}
       {marquee.marquee && <MarqueeBox rect={marquee.marquee} />}
     </div>
   );
 }
 
-/**
- * Die amberfarbene Einfuege-Marke in der Luecke neben einer Kachel. Am aeusseren
- * Rasterrand (`atEdge`) laege die Linie sonst ausserhalb des Scrollcontainers und
- * wuerde abgeschnitten -- z. B. beim Ziehen vor das erste Dokument. Dort setzen
- * wir sie leicht nach innen, damit die Positions-Vorschau auch ganz vorne (und
- * ganz hinten) sichtbar bleibt.
- */
-function InsertionLine({ side, atEdge = false }: { side: 'left' | 'right'; atEdge?: boolean }) {
-  const position =
-    side === 'left' ? (atEdge ? 'left-[2px]' : '-left-[7px]') : atEdge ? 'right-[2px]' : '-right-[7px]';
+interface OutputCardProps {
+  itemId: string;
+  sourceName: string;
+  pageNumber: number;
+  sourceId: SourceId;
+  blockIndex: number;
+  rotation: number;
+  selected: boolean;
+  position: number;
+  total: number;
+  dropIndex: number | null;
+  onPointerDown(event: React.PointerEvent): void;
+  onRotate(delta: 90 | 180 | 270): void;
+  onRemove(): void;
+  onSplit(): void;
+}
+
+function OutputCard({
+  itemId,
+  sourceName,
+  pageNumber,
+  sourceId,
+  blockIndex,
+  rotation,
+  selected,
+  position,
+  total,
+  dropIndex,
+  onPointerDown,
+  onRotate,
+  onRemove,
+  onSplit,
+}: OutputCardProps) {
+  const lineBefore = dropIndex === position;
+  const lineAfter = dropIndex === total && position === total - 1;
+  const provenance = `${sourceName}, Seite ${pageNumber}`;
+
   return (
-    <span
-      aria-hidden
-      className={`pointer-events-none absolute top-0 ${position} z-10 h-[calc(100%-1.25rem)] w-[3px] rounded-full bg-accent`}
-    />
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      data-item-id={itemId}
+      data-drop-index={position}
+      onPointerDown={onPointerDown}
+      className="group relative flex w-full cursor-grab flex-col px-1 pb-1 pt-7"
+    >
+      {lineBefore && <InsertionLine side="left" atEdge={position === 0} />}
+      {lineAfter && <InsertionLine side="right" atEdge />}
+
+      {/* Werkzeugstreifen: sitzt oberhalb der Karte, nie ueber dem Blatt. */}
+      <div className="pointer-events-none absolute inset-x-1 top-0 z-20 flex h-7 items-center">
+        <span
+          aria-hidden
+          className="grid size-7 place-items-center text-text-secondary opacity-40 transition-opacity group-hover:opacity-0"
+        >
+          <GripVertical className="size-4" />
+        </span>
+        <div className="pointer-events-auto absolute inset-0 flex items-center gap-0.5 rounded-md bg-surface-raised px-1 opacity-0 shadow-[var(--float-shadow)] ring-1 ring-line-structural transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+          <span aria-hidden className="grid size-6 cursor-grab place-items-center text-text-secondary">
+            <GripVertical className="size-4" />
+          </span>
+          <CardTool icon={RotateCcw} label="Nach links drehen" onClick={() => onRotate(270)} />
+          <CardTool icon={RotateCw} label="Nach rechts drehen" onClick={() => onRotate(90)} />
+          <CardTool
+            icon={Scissors}
+            label="Hier trennen"
+            disabled={position === 0}
+            disabledReason="Trennen ist ab der zweiten Seite möglich."
+            onClick={onSplit}
+          />
+          <CardTool icon={Trash2} label="Seite entfernen" danger onClick={onRemove} />
+        </div>
+      </div>
+
+      <span
+        className={cx(
+          'paper-sheet relative block w-full',
+          selected && 'outline outline-2 outline-offset-2 outline-accent',
+        )}
+        style={{ aspectRatio: '1 / 1.35' }}
+      >
+        <span className="absolute inset-0 grid place-items-center" style={{ transform: `rotate(${rotation}deg)` }}>
+          <Thumbnail blockRef={{ sourceId, blockIndex }} alt={provenance} />
+        </span>
+        {selected && <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[2px] bg-accent-soft" />}
+      </span>
+
+      {/* Zwei Zeilen, feste Hoehe, damit Reihen bei Umsortierung nicht springen. */}
+      <div className="mt-2 h-[34px] px-0.5 text-center leading-tight">
+        <span className="block truncate text-[11.5px] text-text-primary" title={sourceName}>
+          {sourceName}
+        </span>
+        <span className="mt-0.5 block font-mono text-[11px] tabular-nums text-info">Seite {pageNumber}</span>
+      </div>
+    </div>
   );
 }
 
-interface CardButtonProps {
+interface CardToolProps {
+  icon: LucideIcon;
   label: string;
   onClick(): void;
-  children: React.ReactNode;
   disabled?: boolean;
+  disabledReason?: string;
   danger?: boolean;
 }
 
-/**
- * Ein Kachel-Aktionsknopf. Er stoppt den PointerDown, damit weder ein Drag
- * beginnt noch die Auswahl wechselt, wenn man ihn drueckt.
- */
-function CardButton({ label, onClick, children, disabled, danger }: CardButtonProps) {
-  return (
+function CardTool({ icon: Icon, label, onClick, disabled, disabledReason, danger }: CardToolProps) {
+  const button = (
     <button
       type="button"
-      title={label}
       aria-label={label}
+      title={disabled ? disabledReason : label}
       disabled={disabled}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => {
         e.stopPropagation();
         onClick();
       }}
-      className={`grid size-6 place-items-center rounded bg-shell/80 text-muted ring-1 ring-line backdrop-blur transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-30 ${danger ? 'hover:bg-danger/20 hover:text-danger hover:ring-danger/50' : 'hover:ring-accent/60'}`}
+      className={cx(
+        'grid size-6 place-items-center rounded text-text-secondary transition-colors hover:text-text-primary disabled:opacity-[0.38]',
+        danger ? 'hover:bg-danger/15 hover:text-danger' : 'hover:bg-surface-hover',
+      )}
     >
-      {children}
+      <Icon className="size-4" aria-hidden />
     </button>
+  );
+  // Ein deaktivierter Button erklaert im Tooltip, warum -- der title tut das schon,
+  // der Tooltip macht es fuer die Maus sichtbar.
+  return disabled && disabledReason ? <Tooltip label={disabledReason}>{button}</Tooltip> : button;
+}
+
+/**
+ * Die Einfuege-Marke in der Luecke neben einer Kachel. Am aeusseren Rasterrand
+ * (`atEdge`) laege die Linie ausserhalb des Scrollcontainers und wuerde
+ * abgeschnitten -- dort setzen wir sie leicht nach innen.
+ */
+function InsertionLine({ side, atEdge = false }: { side: 'left' | 'right'; atEdge?: boolean }) {
+  const position =
+    side === 'left' ? (atEdge ? 'left-[3px]' : '-left-[10px]') : atEdge ? 'right-[3px]' : '-right-[10px]';
+  return (
+    <span
+      aria-hidden
+      className={cx('pointer-events-none absolute top-7 z-30 w-[3px] rounded-full bg-accent', position)}
+      style={{ height: 'calc(100% - 2.75rem)' }}
+    />
   );
 }
