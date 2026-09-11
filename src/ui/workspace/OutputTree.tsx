@@ -1,5 +1,15 @@
 import { useMemo, useState } from 'react';
-import { ChevronRight, Download, FileText, Folder, MoreVertical, Pencil, Printer, Trash2 } from 'lucide-react';
+import {
+  ChevronRight,
+  Download,
+  Eye,
+  FileText,
+  Folder,
+  MoreVertical,
+  Pencil,
+  Printer,
+  Trash2,
+} from 'lucide-react';
 import { ROOT, isFolder, isOutput, type NodeId, type Workspace } from '../../domain/types';
 import { Menu, type MenuItem } from '../common/Menu';
 import { cx } from '../common/cx';
@@ -13,6 +23,8 @@ export interface OutputTreeProps {
   onDeleteNode?(nodeId: NodeId): void;
   onExportNode?(nodeId: NodeId): void;
   onPrintNode?(nodeId: NodeId): void;
+  /** Oeffnet ein Dokument in der Detailvorschau (Auge-Icon oder Doppelklick). */
+  onOpenPreview?(nodeId: NodeId): void;
   /** Startet einen Drag, der den ganzen Knoten in einen Ordner / die Wurzel umhaengt. */
   onCellPointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
 }
@@ -46,6 +58,7 @@ export function OutputTree({
   onDeleteNode,
   onExportNode,
   onPrintNode,
+  onOpenPreview,
   onCellPointerDown,
 }: OutputTreeProps) {
   const workspace = useWorkspace();
@@ -88,15 +101,34 @@ export function OutputTree({
         const count = pageCount(workspace, node.id);
         // Nur Ordner mit mindestens einem Kind sind auf-/zuklappbar. Ein voellig
         // leerer Ordner bekommt keinen Chevron -- es gibt nichts aufzuklappen.
-        const hasChildren = node.type === 'folder' && (workspace.childOrder[node.id]?.length ?? 0) > 0;
+        const hasChildren =
+          node.type === 'folder' && (workspace.childOrder[node.id]?.length ?? 0) > 0;
 
         const menuItems: MenuItem[] = [
           { id: 'rename', label: 'Umbenennen', icon: Pencil, onSelect: () => setRenaming(node.id) },
           ...(isOut
-            ? [{ id: 'print', label: 'Drucken', icon: Printer, onSelect: () => onPrintNode?.(node.id) }]
+            ? [
+                {
+                  id: 'print',
+                  label: 'Drucken',
+                  icon: Printer,
+                  onSelect: () => onPrintNode?.(node.id),
+                },
+              ]
             : []),
-          { id: 'export', label: 'Exportieren', icon: Download, onSelect: () => onExportNode?.(node.id) },
-          { id: 'delete', label: 'Löschen', icon: Trash2, danger: true, onSelect: () => onDeleteNode?.(node.id) },
+          {
+            id: 'export',
+            label: 'Exportieren',
+            icon: Download,
+            onSelect: () => onExportNode?.(node.id),
+          },
+          {
+            id: 'delete',
+            label: 'Löschen',
+            icon: Trash2,
+            danger: true,
+            onSelect: () => onDeleteNode?.(node.id),
+          },
         ];
 
         return (
@@ -120,7 +152,12 @@ export function OutputTree({
                 active ? 'bg-surface-raised' : 'hover:bg-surface-hover',
               )}
             >
-              {active && <span aria-hidden className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-accent" />}
+              {active && (
+                <span
+                  aria-hidden
+                  className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-accent"
+                />
+              )}
 
               {hasChildren ? (
                 <button
@@ -130,7 +167,10 @@ export function OutputTree({
                   className="grid size-5 shrink-0 place-items-center text-text-tertiary hover:text-text-secondary"
                 >
                   <ChevronRight
-                    className={cx('size-3.5 transition-transform duration-[140ms]', expanded && 'rotate-90')}
+                    className={cx(
+                      'size-3.5 transition-transform duration-[140ms]',
+                      expanded && 'rotate-90',
+                    )}
                     aria-hidden
                   />
                 </button>
@@ -155,7 +195,7 @@ export function OutputTree({
                   <button
                     type="button"
                     onClick={() => isOut && onSelectOutput(node.id)}
-                    onDoubleClick={() => setRenaming(node.id)}
+                    onDoubleClick={() => (isOut ? onOpenPreview?.(node.id) : setRenaming(node.id))}
                     className="flex min-w-0 flex-1 items-center gap-2 text-left"
                   >
                     {node.type === 'folder' ? (
@@ -169,7 +209,20 @@ export function OutputTree({
                   </button>
 
                   {count > 0 && (
-                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-text-tertiary">{count}</span>
+                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-text-tertiary">
+                      {count}
+                    </span>
+                  )}
+
+                  {isOut && (
+                    <button
+                      type="button"
+                      onClick={() => onOpenPreview?.(node.id)}
+                      aria-label={`Vorschau für ${record.name}`}
+                      className="inline-grid size-6 shrink-0 place-items-center rounded text-text-secondary opacity-0 transition-opacity hover:bg-surface-raised hover:text-text-primary focus-visible:opacity-100 group-hover/row:opacity-100"
+                    >
+                      <Eye className="size-4" aria-hidden />
+                    </button>
                   )}
 
                   <Menu

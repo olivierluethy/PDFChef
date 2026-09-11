@@ -11,6 +11,7 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import type { BlockRef, Rotation } from '../../domain/types';
+import type { DragOrigin } from '../workspace/dragLogic';
 import { IconButton } from '../common/IconButton';
 import { Menu } from '../common/Menu';
 import { cx } from '../common/cx';
@@ -22,11 +23,15 @@ export interface ViewerPage {
   rotation: Rotation;
   sourceName: string;
   pageNumber: number;
+  /** Wenn gesetzt, laesst sich diese Seite direkt aus dem Betrachter herausziehen. */
+  dragOrigin?: DragOrigin;
 }
 
 export interface ViewerProps {
   pages: ViewerPage[];
   onJumpToSource?(ref: BlockRef): void;
+  /** Startet einen Seiten-Drag aus dem Betrachter an das gewuenschte Ziel. */
+  onPagePointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
   emptyLabel?: string;
 }
 
@@ -34,7 +39,7 @@ const VIEW_WIDTH = 800;
 const COMPACT_WIDTH = 440;
 const clampZoom = (z: number) => Math.min(4, Math.max(0.25, z));
 
-export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
+export function Viewer({ pages, onJumpToSource, onPagePointerDown, emptyLabel }: ViewerProps) {
   const [index, setIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [extraRotation, setExtraRotation] = useState<Rotation>(0);
@@ -91,20 +96,26 @@ export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
   }, [pages]);
 
   if (pages.length === 0) {
-    return <p className="grid h-full place-items-center px-8 text-center text-[13px] text-text-tertiary">{emptyLabel ?? 'Nichts zum Anzeigen.'}</p>;
+    return (
+      <p className="grid h-full place-items-center px-8 text-center text-[13px] text-text-tertiary">
+        {emptyLabel ?? 'Nichts zum Anzeigen.'}
+      </p>
+    );
   }
 
   const scrollToPage = (target: number) => {
     const i = clampPageIndex(target, pages.length);
     const el = pageRefs.current[i];
-    if (el && scrollRef.current) scrollRef.current.scrollTo({ top: el.offsetTop - 24, behavior: 'smooth' });
+    if (el && scrollRef.current)
+      scrollRef.current.scrollTo({ top: el.offsetTop - 24, behavior: 'smooth' });
   };
 
   const fitWidth = () => setZoom(1);
   const fitPage = () => {
     const area = scrollRef.current;
     const pageEl = pageRefs.current[index]?.querySelector('img');
-    if (area && pageEl) setZoom((z) => clampZoom((z * (area.clientHeight - 64)) / pageEl.clientHeight));
+    if (area && pageEl)
+      setZoom((z) => clampZoom((z * (area.clientHeight - 64)) / pageEl.clientHeight));
   };
   const actualSize = () => {
     const area = scrollRef.current;
@@ -121,7 +132,13 @@ export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
   return (
     <div ref={rootRef} className="flex h-full flex-col bg-surface-panel">
       <div className="flex h-10 shrink-0 items-center gap-1 overflow-hidden whitespace-nowrap border-b border-line-structural px-2">
-        <IconButton size="sm" icon={ChevronLeft} label="Vorige Seite" disabled={index === 0} onClick={() => scrollToPage(index - 1)} />
+        <IconButton
+          size="sm"
+          icon={ChevronLeft}
+          label="Vorige Seite"
+          disabled={index === 0}
+          onClick={() => scrollToPage(index - 1)}
+        />
         <div className="flex items-center gap-1">
           <input
             type="number"
@@ -132,16 +149,36 @@ export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
             aria-label="Seite"
             className="h-7 w-12 rounded-md bg-surface-raised px-1.5 text-center font-mono text-[12.5px] tabular-nums text-text-primary ring-1 ring-line-structural [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
           />
-          <span className="font-mono text-[12.5px] tabular-nums text-text-secondary">/{pages.length}</span>
+          <span className="font-mono text-[12.5px] tabular-nums text-text-secondary">
+            /{pages.length}
+          </span>
         </div>
-        <IconButton size="sm" icon={ChevronRight} label="Nächste Seite" disabled={index >= pages.length - 1} onClick={() => scrollToPage(index + 1)} />
+        <IconButton
+          size="sm"
+          icon={ChevronRight}
+          label="Nächste Seite"
+          disabled={index >= pages.length - 1}
+          onClick={() => scrollToPage(index + 1)}
+        />
 
         <span aria-hidden className="mx-1 h-5 w-px bg-line-structural" />
 
         <div className="flex items-center rounded-md bg-surface-canvas ring-1 ring-line-hairline">
-          <IconButton size="sm" icon={ZoomOut} label="Verkleinern" onClick={() => setZoom((z) => clampZoom(nextZoom(z, -1)))} />
-          <span className="w-14 text-center font-mono text-[12px] tabular-nums text-text-secondary">{Math.round(zoom * 100)} %</span>
-          <IconButton size="sm" icon={ZoomIn} label="Vergrössern" onClick={() => setZoom((z) => clampZoom(nextZoom(z, 1)))} />
+          <IconButton
+            size="sm"
+            icon={ZoomOut}
+            label="Verkleinern"
+            onClick={() => setZoom((z) => clampZoom(nextZoom(z, -1)))}
+          />
+          <span className="w-14 text-center font-mono text-[12px] tabular-nums text-text-secondary">
+            {Math.round(zoom * 100)} %
+          </span>
+          <IconButton
+            size="sm"
+            icon={ZoomIn}
+            label="Vergrössern"
+            onClick={() => setZoom((z) => clampZoom(nextZoom(z, 1)))}
+          />
         </div>
 
         <Menu
@@ -196,7 +233,10 @@ export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
         )}
       </div>
 
-      <div ref={scrollRef} className="scroll-fade-y relative min-h-0 flex-1 overflow-auto bg-surface-canvas px-6 pb-10 pt-6">
+      <div
+        ref={scrollRef}
+        className="scroll-fade-y relative min-h-0 flex-1 overflow-auto bg-surface-canvas px-6 pb-10 pt-6"
+      >
         <div className="mx-auto flex max-w-full flex-col gap-5">
           {pages.map((page, i) => (
             <PageBlock
@@ -206,6 +246,7 @@ export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
               extraRotation={extraRotation}
               scrollRef={scrollRef}
               onJumpToSource={onJumpToSource}
+              onPagePointerDown={onPagePointerDown}
               blockRef={(el) => (pageRefs.current[i] = el)}
             />
           ))}
@@ -232,10 +273,19 @@ interface PageBlockProps {
   extraRotation: Rotation;
   scrollRef: RefObject<HTMLDivElement | null>;
   onJumpToSource?(ref: BlockRef): void;
+  onPagePointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
   blockRef(el: HTMLDivElement | null): void;
 }
 
-function PageBlock({ page, zoom, extraRotation, scrollRef, onJumpToSource, blockRef }: PageBlockProps) {
+function PageBlock({
+  page,
+  zoom,
+  extraRotation,
+  scrollRef,
+  onJumpToSource,
+  onPagePointerDown,
+  blockRef,
+}: PageBlockProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -282,32 +332,63 @@ function PageBlock({ page, zoom, extraRotation, scrollRef, onJumpToSource, block
         )}
       </div>
       {visible ? (
-        <PageImage
-          ref={page.ref}
-          zoom={zoom}
-          rotation={rotation}
-          alt={`${page.sourceName}, Seite ${page.pageNumber}`}
-        />
+        <div
+          className={page.dragOrigin ? 'cursor-grab' : undefined}
+          onPointerDown={(event) => {
+            // Nur die Bildflaeche startet den Drag -- der Kopf mit "Zur Quelle" bleibt klickbar.
+            if (page.dragOrigin) onPagePointerDown?.(event, page.dragOrigin);
+          }}
+        >
+          <PageImage
+            ref={page.ref}
+            zoom={zoom}
+            rotation={rotation}
+            alt={`${page.sourceName}, Seite ${page.pageNumber}`}
+          />
+        </div>
       ) : (
-        <div className="mx-auto h-[60vh] w-2/3 animate-pulse rounded-[2px] bg-surface-raised" aria-label={`${page.sourceName} wird geladen`} />
+        <div
+          className="mx-auto h-[60vh] w-2/3 animate-pulse rounded-[2px] bg-surface-raised"
+          aria-label={`${page.sourceName} wird geladen`}
+        />
       )}
     </div>
   );
 }
 
-function PageImage({ ref, zoom, rotation, alt }: { ref: BlockRef; zoom: number; rotation: Rotation; alt: string }) {
+function PageImage({
+  ref,
+  zoom,
+  rotation,
+  alt,
+}: {
+  ref: BlockRef;
+  zoom: number;
+  rotation: Rotation;
+  alt: string;
+}) {
   const { url, status } = usePageImage(ref, VIEW_WIDTH);
   if (status === 'error') {
-    return <p className="grid h-40 place-items-center text-[13px] text-danger">Diese Seite konnte nicht gerendert werden.</p>;
+    return (
+      <p className="grid h-40 place-items-center text-[13px] text-danger">
+        Diese Seite konnte nicht gerendert werden.
+      </p>
+    );
   }
   if (!url) {
-    return <div className="mx-auto h-[60vh] w-2/3 animate-pulse rounded-[2px] bg-surface-raised" aria-label={`${alt} wird geladen`} />;
+    return (
+      <div
+        className="mx-auto h-[60vh] w-2/3 animate-pulse rounded-[2px] bg-surface-raised"
+        aria-label={`${alt} wird geladen`}
+      />
+    );
   }
   return (
     <div className="flex justify-center">
       <img
         src={url}
         alt={alt}
+        draggable={false}
         className="paper-sheet max-w-full"
         style={{ width: `${zoom * 100}%`, transform: `rotate(${rotation}deg)` }}
       />
