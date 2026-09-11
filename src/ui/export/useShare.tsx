@@ -76,6 +76,7 @@ export function useShare(): ShareController {
         sourceKind: (id) => workspace.sources[id]?.kind ?? 'pdf',
         imageData: services.imageEmbeddable,
         textData: services.textPages,
+        fontBytes: services.fontBytes,
       }),
     [services, workspace],
   );
