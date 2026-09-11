@@ -43,6 +43,8 @@ export interface ViewerProps {
   onAddOverlay?(itemId: ItemId, overlay: Overlay): void;
   onUpdateOverlay?(itemId: ItemId, overlayId: string, patch: Partial<Overlay>): void;
   onRemoveOverlay?(itemId: ItemId, overlayId: string): void;
+  /** Erkennt AcroForm-Felder der Seite und legt sie als Overlays an. */
+  onDetectFields?(itemId: ItemId): void;
   emptyLabel?: string;
 }
 
@@ -57,6 +59,7 @@ export function Viewer({
   onAddOverlay,
   onUpdateOverlay,
   onRemoveOverlay,
+  onDetectFields,
   emptyLabel,
 }: ViewerProps) {
   const [index, setIndex] = useState(0);
@@ -289,6 +292,7 @@ export function Viewer({
               onAddOverlay={onAddOverlay}
               onUpdateOverlay={onUpdateOverlay}
               onRemoveOverlay={onRemoveOverlay}
+              onDetectFields={onDetectFields}
               blockRef={(el) => (pageRefs.current[i] = el)}
             />
           ))}
@@ -320,6 +324,7 @@ interface PageBlockProps {
   onAddOverlay?(itemId: ItemId, overlay: Overlay): void;
   onUpdateOverlay?(itemId: ItemId, overlayId: string, patch: Partial<Overlay>): void;
   onRemoveOverlay?(itemId: ItemId, overlayId: string): void;
+  onDetectFields?(itemId: ItemId): void;
   blockRef(el: HTMLDivElement | null): void;
 }
 
@@ -334,6 +339,7 @@ function PageBlock({
   onAddOverlay,
   onUpdateOverlay,
   onRemoveOverlay,
+  onDetectFields,
   blockRef,
 }: PageBlockProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -402,6 +408,7 @@ function PageBlock({
                 onAdd={(overlay) => onAddOverlay?.(page.itemId!, overlay)}
                 onUpdate={(overlayId, patch) => onUpdateOverlay?.(page.itemId!, overlayId, patch)}
                 onRemove={(overlayId) => onRemoveOverlay?.(page.itemId!, overlayId)}
+                onDetect={() => onDetectFields?.(page.itemId!)}
               />
             )}
           </PageImage>

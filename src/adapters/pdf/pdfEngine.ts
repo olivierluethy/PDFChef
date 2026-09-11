@@ -1,5 +1,5 @@
 import type { OutlineNode } from '../../domain/types';
-import type { TextSpan } from '../types';
+import type { DetectedField, TextSpan } from '../types';
 
 /** Zielflaeche eines Renders. In Produktion ein OffscreenCanvas. */
 export interface RenderSurface {
@@ -17,6 +17,8 @@ export interface PdfPageHandle {
   size(scale: number): { width: number; height: number };
   render(surface: RenderSurface, scale: number, signal?: AbortSignal): Promise<void>;
   text(): Promise<TextSpan[]>;
+  /** Erkannte AcroForm-Felder als Bruchteile der Anzeige-Seite (oben links). */
+  fields(): Promise<DetectedField[]>;
   /** Gibt Seiten-interne Caches frei; das Dokument bleibt offen. */
   release(): void;
 }

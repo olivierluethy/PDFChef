@@ -9,7 +9,13 @@ import { createRegistry } from '../../adapters/registry';
 import { extractTextContent } from '../../adapters/text/extractText';
 import { createTextAdapter } from '../../adapters/text/textAdapter';
 import { paginateText } from '../../adapters/text/textLayout';
-import type { AdapterRegistry, BlockAssembler, DocumentAdapter, ImageEmbeddable } from '../../adapters/types';
+import type {
+  AdapterRegistry,
+  BlockAssembler,
+  DetectedField,
+  DocumentAdapter,
+  ImageEmbeddable,
+} from '../../adapters/types';
 import type { SourceId, SourceKind } from '../../domain/types';
 import { newId } from '../../domain/ids';
 import { createAutosave, type Autosave } from '../persistence/autosave';
@@ -56,6 +62,8 @@ export interface AppServices {
   readBytesForSource(sourceId: SourceId): Promise<Uint8Array>;
   imageEmbeddable(sourceId: SourceId): Promise<ImageEmbeddable>;
   textPages(sourceId: SourceId): Promise<string[][]>;
+  /** Erkennt AcroForm-Felder auf einer Quellseite (leer bei Nicht-PDF). */
+  detectFields(sourceId: SourceId, blockIndex: number): Promise<DetectedField[]>;
   importForDrop(items: DataTransferItem[]): Promise<ImportReport>;
   importForFiles(files: FileList | File[]): Promise<ImportReport>;
   dispose(): Promise<void>;
@@ -140,6 +148,9 @@ export async function createAppServices({
     },
     async textPages(sourceId) {
       return paginateText(await extractTextContent(await readBytesForSource(sourceId)));
+    },
+    detectFields(sourceId, blockIndex) {
+      return dispatcher.detectFields?.({ sourceId, blockIndex }) ?? Promise.resolve([]);
     },
     async importForDrop(items) {
       return importCandidates(

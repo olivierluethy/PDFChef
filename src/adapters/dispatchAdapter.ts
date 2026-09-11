@@ -1,5 +1,5 @@
 import type { BlockRef, SourceId, SourceKind } from '../domain/types';
-import type { DocumentAdapter, PageText, RenderOpts, RenderedBitmap } from './types';
+import type { DetectedField, DocumentAdapter, PageText, RenderOpts, RenderedBitmap } from './types';
 
 export interface DispatchDeps {
   sourceKindOf(sourceId: SourceId): SourceKind | undefined;
@@ -46,6 +46,12 @@ export function createDispatchingAdapter(deps: DispatchDeps): DocumentAdapter {
         throw new Error(`Der Adapter fuer ${adapter.kind} unterstuetzt keine Textextraktion.`);
       }
       return adapter.extractText(ref);
+    },
+
+    async detectFields(ref: BlockRef): Promise<DetectedField[]> {
+      const adapter = adapterFor(deps, ref.sourceId);
+      // Nur PDF-Quellen tragen Formularfelder; alles andere liefert leer.
+      return adapter.detectFields ? adapter.detectFields(ref) : [];
     },
   };
 }
