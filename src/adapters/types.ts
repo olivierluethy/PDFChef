@@ -106,6 +106,8 @@ export interface AssembleCtx {
   imageData(sourceId: SourceId): Promise<ImageEmbeddable>;
   /** Nur fuer Textquellen: die paginierten Zeilen. Der Assembler ruft das je Quelle hoechstens einmal. */
   textData(sourceId: SourceId): Promise<string[][]>;
+  /** TTF-Bytes einer eingebetteten Overlay-Schrift (Dateiname aus OVERLAY_FONTS). */
+  fontBytes(file: string): Promise<Uint8Array>;
   signal?: AbortSignal;
   onProgress?: (done: number, total: number) => void;
 }

@@ -61,6 +61,7 @@ export function useExport(): ExportController {
       sourceKind: (id: string) => workspace.sources[id]?.kind ?? 'pdf',
       imageData: services.imageEmbeddable,
       textData: services.textPages,
+      fontBytes: services.fontBytes,
     }),
     [services, workspace],
   );
