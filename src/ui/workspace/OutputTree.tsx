@@ -8,6 +8,7 @@ import {
   MoreVertical,
   Pencil,
   Printer,
+  Share2,
   Trash2,
 } from 'lucide-react';
 import { ROOT, isFolder, isOutput, type NodeId, type Workspace } from '../../domain/types';
@@ -23,6 +24,7 @@ export interface OutputTreeProps {
   onDeleteNode?(nodeId: NodeId): void;
   onExportNode?(nodeId: NodeId): void;
   onPrintNode?(nodeId: NodeId): void;
+  onShareNode?(nodeId: NodeId): void;
   /** Oeffnet ein Dokument in der Detailvorschau (Auge-Icon oder Doppelklick). */
   onOpenPreview?(nodeId: NodeId): void;
   /** Startet einen Drag, der den ganzen Knoten in einen Ordner / die Wurzel umhaengt. */
@@ -58,6 +60,7 @@ export function OutputTree({
   onDeleteNode,
   onExportNode,
   onPrintNode,
+  onShareNode,
   onOpenPreview,
   onCellPointerDown,
 }: OutputTreeProps) {
@@ -122,6 +125,16 @@ export function OutputTree({
             icon: Download,
             onSelect: () => onExportNode?.(node.id),
           },
+          ...(isOut
+            ? [
+                {
+                  id: 'share',
+                  label: 'Teilen / E-Mail',
+                  icon: Share2,
+                  onSelect: () => onShareNode?.(node.id),
+                },
+              ]
+            : []),
           {
             id: 'delete',
             label: 'Löschen',

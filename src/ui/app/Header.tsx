@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Download, FileText, FolderUp, Pencil, Printer } from 'lucide-react';
+import { ChevronDown, Download, FileText, FolderUp, Pencil, Printer, Share2 } from 'lucide-react';
 import type { SaveStatus } from '../../services/persistence/autosave';
 import { isOutput } from '../../domain/types';
 import { Button } from '../common/Button';
@@ -13,13 +13,14 @@ export interface HeaderProps {
   onImportFiles(files: FileList | File[]): void;
   onExport(): void;
   onPrint(): void;
+  onShare(): void;
   saveStatus: SaveStatus;
 }
 
 // webkitdirectory ist kein Standard-Attribut in den React-Typen.
 const folderAttrs = { webkitdirectory: '', directory: '' } as Record<string, string>;
 
-export function Header({ onImportFiles, onExport, onPrint, saveStatus }: HeaderProps) {
+export function Header({ onImportFiles, onExport, onPrint, onShare, saveStatus }: HeaderProps) {
   const workspace = useWorkspace();
   const services = useServices();
   const fileInput = useRef<HTMLInputElement | null>(null);
@@ -93,9 +94,24 @@ export function Header({ onImportFiles, onExport, onPrint, saveStatus }: HeaderP
             align="end"
             minWidth={196}
             items={[
-              { id: 'files', label: 'Dateien wählen …', icon: FileText, onSelect: () => pick(fileInput.current) },
-              { id: 'folder', label: 'Ordner wählen …', icon: FolderUp, onSelect: () => pick(folderInput.current) },
-              { id: 'zip', label: 'ZIP-Archiv wählen …', icon: FileText, onSelect: () => pick(zipInput.current) },
+              {
+                id: 'files',
+                label: 'Dateien wählen …',
+                icon: FileText,
+                onSelect: () => pick(fileInput.current),
+              },
+              {
+                id: 'folder',
+                label: 'Ordner wählen …',
+                icon: FolderUp,
+                onSelect: () => pick(folderInput.current),
+              },
+              {
+                id: 'zip',
+                label: 'ZIP-Archiv wählen …',
+                icon: FileText,
+                onSelect: () => pick(zipInput.current),
+              },
             ]}
             renderTrigger={({ ref, toggle, ariaProps }) => (
               <button
@@ -112,12 +128,22 @@ export function Header({ onImportFiles, onExport, onPrint, saveStatus }: HeaderP
           />
         </div>
 
+        <Button variant="secondary" icon={Share2} onClick={onShare} disabled={!hasOutputs}>
+          Teilen
+        </Button>
+
         <Button variant="secondary" icon={Printer} onClick={onPrint}>
           Drucken
         </Button>
 
         <Tooltip label={hasOutputs ? '' : 'Lege zuerst ein Ausgabedokument mit Seiten an.'}>
-          <Button variant="primary" size="lg" icon={Download} onClick={onExport} disabled={!hasOutputs}>
+          <Button
+            variant="primary"
+            size="lg"
+            icon={Download}
+            onClick={onExport}
+            disabled={!hasOutputs}
+          >
             Exportieren
           </Button>
         </Tooltip>
