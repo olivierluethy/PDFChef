@@ -1,6 +1,6 @@
-import { PDFDocument, StandardFonts, degrees } from 'pdf-lib';
-import type { PDFFont, PDFImage, PDFPage } from 'pdf-lib';
-import type { SourceId } from '../../domain/types';
+import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib';
+import type { PDFDocument as PDFDoc, PDFFont, PDFImage, PDFPage } from 'pdf-lib';
+import type { Overlay, SourceId } from '../../domain/types';
 import type { AssembleCtx, BlockAssembler, ImageEmbeddable } from '../types';
 import { TEXT_PAGE } from '../text/textLayout';
 
@@ -24,6 +24,7 @@ export function createPdfAssembler(): BlockAssembler {
           slot: indices.length - 1,
           rotation: item.rotation,
           blockIndex: item.blockIndex,
+          overlays: item.overlays,
         };
       });
 
@@ -32,6 +33,9 @@ export function createPdfAssembler(): BlockAssembler {
       const embeddedBySource = new Map<SourceId, { image: PDFImage; data: ImageEmbeddable }>();
       const textPagesBySource = new Map<SourceId, string[][]>();
       let courierFont: PDFFont | undefined;
+      let overlayFont: PDFFont | undefined;
+      const getOverlayFont = async () =>
+        (overlayFont ??= await out.embedFont(StandardFonts.Helvetica));
 
       // Ein Ladevorgang/eine Einbettung pro Quelle: jeder weitere Aufruf
       // wuerde die Objektgraphen bzw. Bilddaten erneut einbetten.
@@ -39,7 +43,8 @@ export function createPdfAssembler(): BlockAssembler {
         ctx.signal?.throwIfAborted();
         if (ctx.sourceKind(sourceId) === 'image') {
           const data = await ctx.imageData(sourceId);
-          const image = data.format === 'png' ? await out.embedPng(data.bytes) : await out.embedJpg(data.bytes);
+          const image =
+            data.format === 'png' ? await out.embedPng(data.bytes) : await out.embedJpg(data.bytes);
           embeddedBySource.set(sourceId, { image, data });
           continue;
         }
@@ -71,6 +76,7 @@ export function createPdfAssembler(): BlockAssembler {
           if (entry.rotation !== 0) {
             page.setRotation(degrees(entry.rotation % 360));
           }
+          await drawOverlays(out, page, entry.overlays, getOverlayFont);
         } else if (textPages) {
           courierFont ??= await out.embedFont(StandardFonts.Courier);
           const lines = textPages[entry.blockIndex] ?? [];
@@ -86,6 +92,7 @@ export function createPdfAssembler(): BlockAssembler {
           if (entry.rotation !== 0) {
             page.setRotation(degrees(entry.rotation % 360));
           }
+          await drawOverlays(out, page, entry.overlays, getOverlayFont);
         } else {
           const page = copiedBySource.get(entry.sourceId)?.[entry.slot];
           if (!page) throw new Error(`Kopierte Seite fehlt: ${entry.sourceId}#${entry.slot}`);
@@ -94,6 +101,7 @@ export function createPdfAssembler(): BlockAssembler {
             page.setRotation(degrees((page.getRotation().angle + entry.rotation) % 360));
           }
           out.addPage(page);
+          await drawOverlays(out, page, entry.overlays, getOverlayFont);
         }
         ctx.onProgress?.(position + 1, plan.length);
       }
@@ -101,4 +109,54 @@ export function createPdfAssembler(): BlockAssembler {
       return out.save();
     },
   };
+}
+
+/**
+ * Zeichnet ausgefuellte Felder und Unterschriften auf eine Seite. Die Overlay-Masse
+ * sind Bruchteile der Seite (Ursprung oben links); PDF rechnet von unten links,
+ * daher die y-Spiegelung. Auf gedrehten Seiten koennen Positionen abweichen --
+ * das Ausfuellen ist bewusst auf ungedrehte Seiten beschraenkt.
+ */
+async function drawOverlays(
+  out: PDFDoc,
+  page: PDFPage,
+  overlays: Overlay[] | undefined,
+  getFont: () => Promise<PDFFont>,
+): Promise<void> {
+  if (!overlays || overlays.length === 0) return;
+  const { width: w, height: h } = page.getSize();
+  for (const overlay of overlays) {
+    if (overlay.kind === 'text') {
+      const text = overlay.text ?? '';
+      if (text.trim() === '') continue;
+      const font = await getFont();
+      const size = (overlay.fontSize ?? 0.02) * h;
+      page.drawText(text, {
+        x: overlay.x * w,
+        // y ist die Grundlinie der ersten Zeile: obere Kante minus eine Zeilenhoehe.
+        y: h - overlay.y * h - size,
+        size,
+        font,
+        color: rgb(0.09, 0.11, 0.13),
+        lineHeight: size * 1.25,
+      });
+    } else if (overlay.kind === 'image' && overlay.dataUrl) {
+      const image = await out.embedPng(dataUrlToBytes(overlay.dataUrl));
+      page.drawImage(image, {
+        x: overlay.x * w,
+        y: h - overlay.y * h - overlay.h * h,
+        width: overlay.w * w,
+        height: overlay.h * h,
+      });
+    }
+  }
+}
+
+/** Wandelt eine `data:image/png;base64,...`-URL in rohe Bytes fuer pdf-lib. */
+function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 }
