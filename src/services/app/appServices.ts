@@ -21,6 +21,7 @@ import type { SourceId, SourceKind } from '../../domain/types';
 import { newId } from '../../domain/ids';
 import { createAutosave, type Autosave } from '../persistence/autosave';
 import { openWorkspaceDb, type Database } from '../persistence/db';
+import { createLibraryStore, type LibraryStore } from '../persistence/libraryStore';
 import { createSourceBlobStore, type SourceBlobStore } from '../persistence/sourceBlobStore';
 import { createStorageGuard, type StorageGuard } from '../persistence/storage';
 import { createThumbStore } from '../persistence/thumbStore';
@@ -60,6 +61,8 @@ export interface AppServices {
   storage: StorageGuard;
   autosave: Autosave;
   thumbnails: ThumbnailService;
+  /** Dauerhafte Bausteinbibliothek (Unterschriften, Textbausteine, Formen, Gruppen). */
+  library: LibraryStore;
   readBytesForSource(sourceId: SourceId): Promise<Uint8Array>;
   imageEmbeddable(sourceId: SourceId): Promise<ImageEmbeddable>;
   textPages(sourceId: SourceId): Promise<string[][]>;
@@ -132,6 +135,7 @@ export async function createAppServices({
   });
 
   const autosave = createAutosave({ save: (ws) => repo.save(ws) });
+  const library = createLibraryStore(db);
 
   const importDeps = { registry, blobStore, storage, hash: sha256Hex, newId };
 
@@ -145,6 +149,7 @@ export async function createAppServices({
     storage,
     autosave,
     thumbnails,
+    library,
     readBytesForSource,
     async imageEmbeddable(sourceId) {
       return imageAdapter.toEmbeddable(await readBytesForSource(sourceId));
