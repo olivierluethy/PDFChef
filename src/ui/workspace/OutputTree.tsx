@@ -1,9 +1,10 @@
-import { useState } from 'react';
-import { ChevronRight, Download, FilePlus2, Folder, FolderPlus, FileText, Pencil, Printer, Trash2 } from 'lucide-react';
-import { newId } from '../../domain/ids';
-import type { NodeId } from '../../domain/types';
+import { useMemo, useState } from 'react';
+import { ChevronRight, Download, FileText, Folder, MoreVertical, Pencil, Printer, Trash2 } from 'lucide-react';
+import { ROOT, isFolder, isOutput, type NodeId, type Workspace } from '../../domain/types';
+import { Menu, type MenuItem } from '../common/Menu';
+import { cx } from '../common/cx';
 import { useDispatch, useWorkspace } from '../app/StoreProvider';
-import { flattenTree } from './treeModel';
+import type { FlatNode } from './treeModel';
 
 export interface OutputTreeProps {
   activeOutputId: NodeId | null;
@@ -11,6 +12,29 @@ export interface OutputTreeProps {
   onDeleteNode?(nodeId: NodeId): void;
   onExportNode?(nodeId: NodeId): void;
   onPrintNode?(nodeId: NodeId): void;
+}
+
+/** Sichtbare Zeilen unter Beachtung eingeklappter Ordner (Vorordnung). */
+function visibleNodes(ws: Workspace, collapsed: Set<string>): FlatNode[] {
+  const out: FlatNode[] = [];
+  const walk = (parentKey: string, depth: number) => {
+    for (const id of ws.childOrder[parentKey] ?? []) {
+      const node = ws.nodes[id];
+      if (!node) continue;
+      const type = isFolder(node) ? 'folder' : 'output';
+      out.push({ id, depth, type });
+      if (type === 'folder' && !collapsed.has(id)) walk(id, depth + 1);
+    }
+  };
+  walk(ROOT, 0);
+  return out;
+}
+
+function pageCount(ws: Workspace, id: NodeId): number {
+  const node = ws.nodes[id];
+  if (!node) return 0;
+  if (isOutput(node)) return node.items.length;
+  return (ws.childOrder[id] ?? []).reduce((sum, child) => sum + pageCount(ws, child), 0);
 }
 
 export function OutputTree({
@@ -23,38 +47,85 @@ export function OutputTree({
   const workspace = useWorkspace();
   const dispatch = useDispatch();
   const [renaming, setRenaming] = useState<NodeId | null>(null);
-  const flat = flattenTree(workspace);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const flat = useMemo(() => visibleNodes(workspace, collapsed), [workspace, collapsed]);
 
   function rename(id: NodeId, name: string) {
     setRenaming(null);
-    dispatch({ type: 'renameNode', nodeId: id, name });
+    const trimmed = name.trim();
+    if (trimmed) dispatch({ type: 'renameNode', nodeId: id, name: trimmed });
+  }
+
+  function toggle(id: NodeId) {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  if (flat.length === 0) {
+    return (
+      <p className="t-meta px-5 py-4">
+        Noch keine Ausgabestruktur. Lege oben einen Ordner oder ein Dokument an.
+      </p>
+    );
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-1 px-2 py-1">
-        <button
-          type="button"
-          onClick={() => dispatch({ type: 'createFolder', node: { id: newId(), name: 'Neuer Ordner', parentId: null } })}
-          className="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-panel"
-        >
-          <FolderPlus className="size-4" aria-hidden /> Ordner anlegen
-        </button>
-        <button
-          type="button"
-          onClick={() => dispatch({ type: 'createOutput', node: { id: newId(), name: 'Neues Dokument', parentId: null } })}
-          className="flex items-center gap-1 rounded px-2 py-1 text-xs hover:bg-panel"
-        >
-          <FilePlus2 className="size-4" aria-hidden /> Dokument anlegen
-        </button>
-      </div>
-      <ul className="min-h-0 flex-1 overflow-auto">
-        {flat.map((node) => {
-          const record = workspace.nodes[node.id];
-          if (!record) return null;
-          const active = node.type === 'output' && node.id === activeOutputId;
-          return (
-            <li key={node.id} style={{ paddingLeft: node.depth * 16 + 8 }}>
+    <ul role="tree" aria-label="Ausgabestruktur" className="flex flex-col px-2 py-1">
+      {flat.map((node) => {
+        const record = workspace.nodes[node.id];
+        if (!record) return null;
+        const isOut = node.type === 'output';
+        const active = isOut && node.id === activeOutputId;
+        const expanded = !collapsed.has(node.id);
+        const count = pageCount(workspace, node.id);
+
+        const menuItems: MenuItem[] = [
+          { id: 'rename', label: 'Umbenennen', icon: Pencil, onSelect: () => setRenaming(node.id) },
+          ...(isOut
+            ? [{ id: 'print', label: 'Drucken', icon: Printer, onSelect: () => onPrintNode?.(node.id) }]
+            : []),
+          { id: 'export', label: 'Exportieren', icon: Download, onSelect: () => onExportNode?.(node.id) },
+          { id: 'delete', label: 'Löschen', icon: Trash2, danger: true, onSelect: () => onDeleteNode?.(node.id) },
+        ];
+
+        return (
+          <li key={node.id} role="none">
+            <div
+              role="treeitem"
+              aria-level={node.depth + 1}
+              aria-selected={active || undefined}
+              aria-expanded={node.type === 'folder' ? expanded : undefined}
+              data-node-id={node.id}
+              data-node-type={node.type}
+              data-drop-zone
+              style={{ paddingLeft: node.depth * 16 }}
+              className={cx(
+                'group/row relative flex h-7 items-center gap-1 rounded-md pr-1',
+                active ? 'bg-surface-raised' : 'hover:bg-surface-hover',
+              )}
+            >
+              {active && <span aria-hidden className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-accent" />}
+
+              {node.type === 'folder' ? (
+                <button
+                  type="button"
+                  onClick={() => toggle(node.id)}
+                  aria-label={expanded ? 'Einklappen' : 'Ausklappen'}
+                  className="grid size-5 shrink-0 place-items-center text-text-tertiary hover:text-text-secondary"
+                >
+                  <ChevronRight
+                    className={cx('size-3.5 transition-transform duration-[140ms]', expanded && 'rotate-90')}
+                    aria-hidden
+                  />
+                </button>
+              ) : (
+                <span className="w-5 shrink-0" aria-hidden />
+              )}
+
               {renaming === node.id ? (
                 <input
                   autoFocus
@@ -64,93 +135,57 @@ export function OutputTree({
                     if (e.key === 'Enter') rename(node.id, (e.target as HTMLInputElement).value);
                     if (e.key === 'Escape') setRenaming(null);
                   }}
-                  className="w-40 rounded border border-line bg-panel px-1 text-sm"
+                  className="h-6 min-w-0 flex-1 rounded bg-surface-canvas px-1.5 text-[13px] text-text-primary ring-1 ring-line-structural"
                   aria-label="Name bearbeiten"
                 />
               ) : (
-                <div
-                  className={`group flex w-full items-center gap-1 rounded pr-1 text-sm ${
-                    active ? 'bg-raised text-ink ring-1 ring-accent/50' : 'hover:bg-raised/60'
-                  }`}
-                >
+                <>
                   <button
                     type="button"
-                    onClick={() => node.type === 'output' && onSelectOutput(node.id)}
+                    onClick={() => isOut && onSelectOutput(node.id)}
                     onDoubleClick={() => setRenaming(node.id)}
-                    aria-pressed={active}
-                    data-node-id={node.id}
-                    data-node-type={node.type}
-                    className="flex min-w-0 flex-1 items-center gap-2 px-2 py-1 text-left"
+                    className="flex min-w-0 flex-1 items-center gap-2 text-left"
                   >
                     {node.type === 'folder' ? (
-                      <>
-                        <ChevronRight className="size-3 text-neutral-600" aria-hidden />
-                        <Folder className="size-4 text-neutral-400" aria-hidden />
-                      </>
+                      <Folder className="size-4 shrink-0 text-text-tertiary" aria-hidden />
                     ) : (
-                      <FileText className="size-4 text-neutral-400" aria-hidden />
+                      <FileText className="size-4 shrink-0 text-text-tertiary" aria-hidden />
                     )}
-                    <span className="truncate">{record.name}</span>
+                    <span className="truncate text-[13px] text-text-primary" title={record.name}>
+                      {record.name}
+                    </span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setRenaming(node.id);
-                    }}
-                    aria-label={`"${record.name}" umbenennen`}
-                    title="Umbenennen"
-                    className="shrink-0 rounded p-1 text-muted opacity-0 hover:bg-shell hover:text-ink group-hover:opacity-100"
-                  >
-                    <Pencil className="size-3.5" aria-hidden />
-                  </button>
-                  {node.type === 'output' && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onPrintNode?.(node.id);
-                      }}
-                      aria-label={`"${record.name}" drucken`}
-                      title="Drucken"
-                      className="shrink-0 rounded p-1 text-muted opacity-0 hover:bg-shell hover:text-ink group-hover:opacity-100"
-                    >
-                      <Printer className="size-3.5" aria-hidden />
-                    </button>
+
+                  {count > 0 && (
+                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-text-tertiary">{count}</span>
                   )}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onExportNode?.(node.id);
-                    }}
-                    aria-label={`"${record.name}" exportieren`}
-                    className="shrink-0 rounded p-1 text-muted opacity-0 hover:bg-shell hover:text-ink group-hover:opacity-100"
-                  >
-                    <Download className="size-3.5" aria-hidden />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteNode?.(node.id);
-                    }}
-                    aria-label={`"${record.name}" loeschen`}
-                    className="shrink-0 rounded p-1 text-muted opacity-0 hover:bg-shell hover:text-danger group-hover:opacity-100"
-                  >
-                    <Trash2 className="size-3.5" aria-hidden />
-                  </button>
-                </div>
+
+                  <Menu
+                    align="end"
+                    minWidth={160}
+                    items={menuItems}
+                    renderTrigger={({ ref, toggle: openMenu, open, ariaProps }) => (
+                      <button
+                        ref={ref}
+                        type="button"
+                        onClick={openMenu}
+                        aria-label={`Aktionen für ${record.name}`}
+                        className={cx(
+                          'inline-grid size-6 shrink-0 place-items-center rounded text-text-secondary transition-opacity hover:bg-surface-raised hover:text-text-primary focus-visible:opacity-100 group-hover/row:opacity-100',
+                          open ? 'opacity-100' : 'opacity-0',
+                        )}
+                        {...ariaProps}
+                      >
+                        <MoreVertical className="size-4" aria-hidden />
+                      </button>
+                    )}
+                  />
+                </>
               )}
-            </li>
-          );
-        })}
-        {flat.length === 0 && (
-          <li className="px-3 py-4 text-sm text-neutral-500">
-            Noch keine Ausgabestruktur. Legen Sie einen Ordner oder ein Dokument an.
+            </div>
           </li>
-        )}
-      </ul>
-    </div>
+        );
+      })}
+    </ul>
   );
 }
