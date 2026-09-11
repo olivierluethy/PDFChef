@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { Overlay } from '../../domain/types';
 import { overlayCssFamily, overlayFontSpec } from '../../domain/overlayFonts';
 import { ensureOverlayFontFaces } from '../text/overlayFontFaces';
+import { OverlayShape } from './OverlayShape';
 
 /**
  * Nur-Anzeige-Overlay ueber einer Kachel: zeigt live, welche Felder/Unterschriften
@@ -38,6 +39,13 @@ export function OverlayThumb({ overlays }: { overlays: Overlay[] }) {
               draggable={false}
               style={{ ...common, height: `${overlay.h * 100}%`, objectFit: 'contain' }}
             />
+          );
+        }
+        if (overlay.kind === 'shape') {
+          return (
+            <div key={overlay.id} style={{ ...common, height: `${overlay.h * 100}%` }}>
+              <OverlayShape overlay={overlay} />
+            </div>
           );
         }
         const text = overlay.text ?? '';

@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import type { Command } from '../../domain/commands';
 import { createEmptyWorkspace, type Workspace } from '../../domain/types';
 import type { AppServices } from '../../services/app/appServices';
+import type { LibraryStore } from '../../services/persistence/libraryStore';
 import type { SelectionSnapshot, SelectionState } from '../../services/store/selection';
 import { createSelectionStore, type SelectionStore } from '../../services/store/selectionStore';
 import { createWorkspaceStore, type WorkspaceStore } from '../../services/store/workspaceStore';
@@ -34,6 +35,15 @@ export function useSelectionStore(): SelectionStore {
 }
 export function useServices(): AppServices {
   return useContextValue().services;
+}
+
+export function useLibraryStore(): LibraryStore {
+  return useContextValue().services.library;
+}
+
+/** Liste der gespeicherten Bausteine (neueste zuerst). */
+export function useLibraryItems() {
+  return useStore(useLibraryStore(), (state) => state.items);
 }
 
 export function useWorkspace(): Workspace {
