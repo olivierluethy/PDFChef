@@ -31,7 +31,79 @@ function hasEntryStartingWith(entries: Unzipped, prefix: string): boolean {
   return Object.keys(entries).some((name) => name.startsWith(prefix));
 }
 
-async function extractDocxText(bytes: Uint8Array): Promise<string> {
+/** Form-Feed (U+000C) als harte Seitengrenze -- von `paginateText` ausgewertet. */
+const PAGE_BREAK = '\f';
+
+/**
+ * Baut den sichtbaren Text eines einzelnen `<w:p>`-Absatzes aus seinen Runs
+ * zusammen und uebersetzt Umbruch-Elemente: manuelle Seitenumbrueche
+ * (`<w:br w:type="page"/>`) und gerenderte Umbrueche (`<w:lastRenderedPageBreak/>`)
+ * werden zu `\f`, gewoehnliche Zeilenumbrueche (`<w:br/>`, `<w:cr/>`) zu `\n`,
+ * Tabs zu `\t`.
+ */
+function paragraphText(paragraphXml: string): string {
+  const token =
+    /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|<w:tab\b[^>]*?\/?>|<w:cr\b[^>]*?\/?>|<w:lastRenderedPageBreak\b[^>]*?\/?>|<w:br\b[^>]*?\/?>/g;
+  let out = '';
+  let match: RegExpExecArray | null;
+  while ((match = token.exec(paragraphXml)) !== null) {
+    const raw = match[0];
+    if (match[1] !== undefined) {
+      out += decodeXmlEntities(match[1]);
+    } else if (raw.startsWith('<w:tab')) {
+      out += '\t';
+    } else if (raw.startsWith('<w:cr')) {
+      out += '\n';
+    } else if (raw.startsWith('<w:lastRenderedPageBreak')) {
+      out += PAGE_BREAK;
+    } else {
+      // <w:br ...>: nur mit w:type="page" ein Seitenumbruch, sonst Zeilenumbruch.
+      out += /w:type\s*=\s*"page"/.test(raw) ? PAGE_BREAK : '\n';
+    }
+  }
+  return out;
+}
+
+/**
+ * Rekonstruiert den Text aus `word/document.xml` absatzweise und fuegt an
+ * echten Word-Seitengrenzen ein `\f` ein: manuelle/gerenderte Umbrueche in den
+ * Runs sowie Abschnittswechsel (ein `<w:sectPr>` innerhalb eines Absatzes).
+ * Das abschliessende `<w:sectPr>` auf Body-Ebene liegt ausserhalb jedes
+ * `<w:p>` und wird daher korrekt ignoriert. Absaetze werden -- wie mammoth --
+ * mit einer Leerzeile getrennt. `hasBreaks` zeigt an, ob echte Seitengrenzen
+ * gefunden wurden; nur dann lohnt der Vorzug vor dem mammoth-Rohtext.
+ */
+export function docxXmlToText(documentXml: string): { text: string; hasBreaks: boolean } {
+  const paragraphPattern = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
+  const paragraphs: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = paragraphPattern.exec(documentXml)) !== null) {
+    const inner = match[1];
+    let text = paragraphText(inner);
+    if (/<w:sectPr[\s>]/.test(inner)) {
+      text += PAGE_BREAK;
+    }
+    paragraphs.push(text);
+  }
+
+  const text = paragraphs.length > 0 ? paragraphs.join('\n\n') + '\n\n' : '';
+  return { text, hasBreaks: text.includes(PAGE_BREAK) };
+}
+
+async function extractDocxText(bytes: Uint8Array, entries: Unzipped): Promise<string> {
+  // Bevorzugter Pfad: eigene, umbruch-bewusste Rekonstruktion aus document.xml.
+  // Nur wenn dort echte Seitengrenzen erkannt werden, hat sie Vorrang -- sonst
+  // bleibt der bewaehrte mammoth-Rohtext das Ergebnis.
+  const documentXml = entries['word/document.xml'];
+  if (documentXml) {
+    try {
+      const { text, hasBreaks } = docxXmlToText(new TextDecoder().decode(documentXml));
+      if (hasBreaks) return text;
+    } catch (error) {
+      console.warn('DOCX-Seitenumbrueche konnten nicht ausgewertet werden', error);
+    }
+  }
+
   try {
     const { value } = await mammoth.extractRawText({ arrayBuffer: bytes.slice().buffer });
     return value;
@@ -97,7 +169,7 @@ export async function extractTextContent(bytes: Uint8Array): Promise<string> {
   }
 
   if (hasEntryStartingWith(entries, 'word/')) {
-    return extractDocxText(bytes);
+    return extractDocxText(bytes, entries);
   }
   if (hasEntryStartingWith(entries, 'xl/')) {
     return extractXlsxText(bytes);

@@ -22,22 +22,29 @@ function wrapLine(line: string): string[] {
 }
 
 /**
- * Normalisiert Zeilenenden, bricht jede Quellzeile hart bei `CHARS_PER_LINE`
- * um und verteilt das Ergebnis auf Seiten zu `LINES_PER_PAGE` Zeilen. Liefert
- * immer mindestens eine (ggf. leere) Seite.
+ * Normalisiert Zeilenenden, behandelt Form-Feed (`\f`, U+000C) als harte
+ * Seitengrenze (z. B. aus einem Word-Seitenumbruch), bricht jede Quellzeile
+ * hart bei `CHARS_PER_LINE` um und verteilt das Ergebnis auf Seiten zu
+ * `LINES_PER_PAGE` Zeilen. Jeder `\f`-Abschnitt beginnt eine neue Seite und
+ * liefert mindestens eine (ggf. leere) Seite; insgesamt entsteht so bei N
+ * Form-Feeds mindestens N+1 Seiten. Ohne `\f` verhaelt sich die Funktion wie
+ * bisher (reine Zeilen-Pagination).
  */
 export function paginateText(text: string): string[][] {
   const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const sourceLines = normalized.split('\n');
-
-  const lines: string[] = [];
-  for (const line of sourceLines) {
-    lines.push(...wrapLine(line));
-  }
+  const segments = normalized.split('\f');
 
   const pages: string[][] = [];
-  for (let index = 0; index < lines.length; index += LINES_PER_PAGE) {
-    pages.push(lines.slice(index, index + LINES_PER_PAGE));
+  for (const segment of segments) {
+    const lines: string[] = [];
+    for (const line of segment.split('\n')) {
+      lines.push(...wrapLine(line));
+    }
+    // Jeder Abschnitt liefert mindestens eine Seite, damit ein Seitenumbruch
+    // (auch ein leerer Abschnitt zwischen zwei `\f`) sichtbar wird.
+    for (let index = 0; index < lines.length; index += LINES_PER_PAGE) {
+      pages.push(lines.slice(index, index + LINES_PER_PAGE));
+    }
   }
 
   return pages.length > 0 ? pages : [['']];
