@@ -4,6 +4,7 @@ import { ROOT, isFolder, isOutput, type NodeId, type Workspace } from '../../dom
 import { Menu, type MenuItem } from '../common/Menu';
 import { cx } from '../common/cx';
 import { useDispatch, useWorkspace } from '../app/StoreProvider';
+import type { DragOrigin } from './dragLogic';
 import type { FlatNode } from './treeModel';
 
 export interface OutputTreeProps {
@@ -12,6 +13,8 @@ export interface OutputTreeProps {
   onDeleteNode?(nodeId: NodeId): void;
   onExportNode?(nodeId: NodeId): void;
   onPrintNode?(nodeId: NodeId): void;
+  /** Startet einen Drag, der den ganzen Knoten in einen Ordner / die Wurzel umhaengt. */
+  onCellPointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
 }
 
 /** Sichtbare Zeilen unter Beachtung eingeklappter Ordner (Vorordnung). */
@@ -43,6 +46,7 @@ export function OutputTree({
   onDeleteNode,
   onExportNode,
   onPrintNode,
+  onCellPointerDown,
 }: OutputTreeProps) {
   const workspace = useWorkspace();
   const dispatch = useDispatch();
@@ -102,6 +106,11 @@ export function OutputTree({
               data-node-id={node.id}
               data-node-type={node.type}
               data-drop-zone
+              onPointerDown={(event) => {
+                // Waehrend des Umbenennens nicht ziehen -- der Cursor gehoert dem Textfeld.
+                if (renaming === node.id) return;
+                onCellPointerDown?.(event, { kind: 'node', nodeId: node.id });
+              }}
               style={{ paddingLeft: node.depth * 16 }}
               className={cx(
                 'group/row relative flex h-7 items-center gap-1 rounded-md pr-1',

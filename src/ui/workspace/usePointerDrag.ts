@@ -21,7 +21,7 @@ export interface DropIndicator {
  * linken Haelfte liegt, sonst danach -- so zeigt die Linie exakt die Luecke, in
  * die beim Loslassen eingefuegt wird.
  */
-function targetAt(x: number, y: number): DropTarget | null {
+function targetAt(x: number, y: number, nodeDrag: boolean): DropTarget | null {
   const element = document.elementFromPoint(x, y);
   const node = element?.closest('[data-node-id]') as HTMLElement | null;
   if (node) {
@@ -40,15 +40,23 @@ function targetAt(x: number, y: number): DropTarget | null {
     }
     return { kind: 'output', outputId: output.dataset.outputId!, index };
   }
+  // Leerer Bereich des Baums = Wurzel. Nur beim Umhaengen eines Knotens ein Ziel.
+  if (nodeDrag && element?.closest('[data-tree-root]')) return { kind: 'tree-root' };
   return null;
 }
 
 /** Hebt das Element hervor, das gerade Drop-Ziel ist. */
-function highlightTarget(x: number, y: number, current: HTMLElement | null): HTMLElement | null {
+function highlightTarget(
+  x: number,
+  y: number,
+  current: HTMLElement | null,
+  nodeDrag: boolean,
+): HTMLElement | null {
   const element = document.elementFromPoint(x, y);
   const node = element?.closest('[data-node-id]') as HTMLElement | null;
   const output = element?.closest('[data-output-id]') as HTMLElement | null;
-  const next = node ?? output ?? null;
+  const root = nodeDrag ? (element?.closest('[data-tree-root]') as HTMLElement | null) : null;
+  const next = node ?? output ?? root ?? null;
   if (next === current) return current;
   current?.removeAttribute('data-drop-active');
   next?.setAttribute('data-drop-active', 'true');
@@ -95,14 +103,17 @@ export function usePointerDrag() {
           document.body.classList.add('is-dragging');
         }
 
-        const action = origin.current.kind === 'source' ? 'add' : e.metaKey || e.ctrlKey ? 'copy' : 'move';
-        const count = origin.current.kind === 'source' ? origin.current.blockIndices.length : origin.current.itemIds.length;
+        const kind = origin.current.kind;
+        const nodeDrag = kind === 'node';
+        const action = kind === 'source' ? 'add' : nodeDrag || !(e.metaKey || e.ctrlKey) ? 'move' : 'copy';
+        const count =
+          kind === 'source' ? origin.current.blockIndices.length : kind === 'output' ? origin.current.itemIds.length : 1;
         setPreview({ count, action, x: e.clientX, y: e.clientY });
-        highlighted.current = highlightTarget(e.clientX, e.clientY, highlighted.current);
+        highlighted.current = highlightTarget(e.clientX, e.clientY, highlighted.current, nodeDrag);
 
         // Ziel jetzt bestimmen, damit die sichtbare Einfuege-Linie und der Drop
         // beim Loslassen dieselbe Position benutzen.
-        const currentTarget = targetAt(e.clientX, e.clientY);
+        const currentTarget = targetAt(e.clientX, e.clientY, nodeDrag);
         target.current = currentTarget;
         setDropIndicator(
           currentTarget?.kind === 'output'
@@ -135,7 +146,9 @@ export function usePointerDrag() {
         const command = buildDropCommand({
           origin: dragOriginNow,
           target:
-            dropTarget.kind === 'tree-output'
+            // Fuer Seiten-Drags bleibt ein Baum-Dokument ein Seiten-Ziel; ein
+            // Knoten-Drag braucht das Baum-Dokument, um dessen Ordner zu treffen.
+            dragOriginNow.kind !== 'node' && dropTarget.kind === 'tree-output'
               ? { kind: 'output', outputId: dropTarget.outputId, index: 0 }
               : dropTarget,
           modifier: e.metaKey || e.ctrlKey,
