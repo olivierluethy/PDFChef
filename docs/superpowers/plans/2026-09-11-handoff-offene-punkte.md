@@ -6,6 +6,29 @@ angefangen werden kann.
 
 ---
 
+## Fortschritt (Stand 2026-09-11)
+
+- ✅ **P1 erledigt** — `xlsx` auf gepatchte SheetJS-CDN-Version `0.20.3` gehoben; `npm audit`
+  meldet **0 Vulnerabilities**. Wichtig: der Fix ist **nicht** über die npm-Registry verfügbar,
+  nur über `https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz` (steht so in `package.json`).
+  API (`XLSX.read` / `sheet_to_csv`) unverändert; Smoke-Test bestätigt.
+- ✅ **P2 erledigt** — DOCX-Seitenumbrüche (`\f`) werden erkannt; `paginateText` + neue reine
+  Funktion `docxXmlToText`. Playwright: DOCX mit 1 Umbruch → 2 Quellseiten.
+- ✅ **P3 erledigt** — `htmlToLatex` (reiner HTML-Tokenizer im domain-Layer); DOCX-Export via
+  `mammoth.convertToHtml` → `\section`/`\subsection`/`itemize`/`\textbf`/`\emph`. Playwright:
+  `.tex` enthält `\section{…}` und korrektes Escaping.
+- ✅ **P4 erledigt** — konstante Griffzone (`data-marquee-handle`, 56px) am unteren Rand jedes
+  Rasters; Marquee lässt sich auch bei vollem Raster aufziehen. Playwright + Screenshot bestätigt.
+- 🟡 **P6 teilweise** — verifiziert: PDF-/DOCX-Import, Text-Pipeline, LaTeX-Export, Marquee,
+  **Kern-Export (Auswahl → Dokument → ZIP)** liefert gültiges PDF mit korrekter Seitenzahl.
+  **Noch nicht frisch verifiziert:** OCR, PWA/Offline, Ordner-Import (`webkitRelativePath`),
+  Suche (`Ctrl/Cmd+F`), Bild-/PPTX-/XLSX-Import.
+- ⏸️ **P5 offen** — bewusst **nicht** umgesetzt; braucht Nutzer-Entscheidung (siehe unten).
+
+Alle 47 Vitest-Tests grün, `typecheck` + `lint` sauber, 8/8 Playwright-Checks grün.
+
+---
+
 ## 0. Ausgangslage (was schon fertig ist)
 
 Alles Folgende ist auf `main` gemergt, getestet (21 Vitest-Tests grün), typecheck + lint sauber:
