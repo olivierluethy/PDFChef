@@ -86,6 +86,9 @@ export function OutputTree({
         const active = isOut && node.id === activeOutputId;
         const expanded = !collapsed.has(node.id);
         const count = pageCount(workspace, node.id);
+        // Nur Ordner mit mindestens einem Kind sind auf-/zuklappbar. Ein voellig
+        // leerer Ordner bekommt keinen Chevron -- es gibt nichts aufzuklappen.
+        const hasChildren = node.type === 'folder' && (workspace.childOrder[node.id]?.length ?? 0) > 0;
 
         const menuItems: MenuItem[] = [
           { id: 'rename', label: 'Umbenennen', icon: Pencil, onSelect: () => setRenaming(node.id) },
@@ -102,7 +105,7 @@ export function OutputTree({
               role="treeitem"
               aria-level={node.depth + 1}
               aria-selected={active || undefined}
-              aria-expanded={node.type === 'folder' ? expanded : undefined}
+              aria-expanded={hasChildren ? expanded : undefined}
               data-node-id={node.id}
               data-node-type={node.type}
               data-drop-zone
@@ -119,7 +122,7 @@ export function OutputTree({
             >
               {active && <span aria-hidden className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-accent" />}
 
-              {node.type === 'folder' ? (
+              {hasChildren ? (
                 <button
                   type="button"
                   onClick={() => toggle(node.id)}

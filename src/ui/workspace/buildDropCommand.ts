@@ -87,6 +87,8 @@ export function buildDropCommand({ origin, target, modifier, ws, newId }: BuildD
           commands: [create, { type: 'addItems', outputId, index: 0, items }],
         };
       }
+      // Ein ganzer Knoten landet nie hier (resolveDropAction -> moveNode); nur Seiten.
+      if (origin.kind !== 'output') return null;
       return {
         type: 'batch',
         label: `${pagesLabel(origin.itemIds.length)} in ein neues Dokument`,
