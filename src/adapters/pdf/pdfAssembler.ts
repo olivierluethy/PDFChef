@@ -33,9 +33,16 @@ export function createPdfAssembler(): BlockAssembler {
       const embeddedBySource = new Map<SourceId, { image: PDFImage; data: ImageEmbeddable }>();
       const textPagesBySource = new Map<SourceId, string[][]>();
       let courierFont: PDFFont | undefined;
-      let overlayFont: PDFFont | undefined;
-      const getOverlayFont = async () =>
-        (overlayFont ??= await out.embedFont(StandardFonts.Helvetica));
+      // Overlay-Schriften werden je gewaehlter Standardschrift genau einmal eingebettet.
+      const overlayFonts = new Map<StandardFonts, PDFFont>();
+      const getOverlayFont = async (key: string | undefined) => {
+        const name = standardFontFor(key);
+        const existing = overlayFonts.get(name);
+        if (existing) return existing;
+        const font = await out.embedFont(name);
+        overlayFonts.set(name, font);
+        return font;
+      };
 
       // Ein Ladevorgang/eine Einbettung pro Quelle: jeder weitere Aufruf
       // wuerde die Objektgraphen bzw. Bilddaten erneut einbetten.
@@ -117,11 +124,27 @@ export function createPdfAssembler(): BlockAssembler {
  * daher die y-Spiegelung. Auf gedrehten Seiten koennen Positionen abweichen --
  * das Ausfuellen ist bewusst auf ungedrehte Seiten beschraenkt.
  */
+/** Bildet einen Overlay-Schriftschluessel auf eine pdf-lib-Standardschrift ab. */
+function standardFontFor(key: string | undefined): StandardFonts {
+  switch (key) {
+    case 'helvetica-bold':
+      return StandardFonts.HelveticaBold;
+    case 'times':
+      return StandardFonts.TimesRoman;
+    case 'times-bold':
+      return StandardFonts.TimesRomanBold;
+    case 'courier':
+      return StandardFonts.Courier;
+    default:
+      return StandardFonts.Helvetica;
+  }
+}
+
 async function drawOverlays(
   out: PDFDoc,
   page: PDFPage,
   overlays: Overlay[] | undefined,
-  getFont: () => Promise<PDFFont>,
+  getFont: (key: string | undefined) => Promise<PDFFont>,
 ): Promise<void> {
   if (!overlays || overlays.length === 0) return;
   const { width: w, height: h } = page.getSize();
@@ -129,7 +152,7 @@ async function drawOverlays(
     if (overlay.kind === 'text') {
       const text = overlay.text ?? '';
       if (text.trim() === '') continue;
-      const font = await getFont();
+      const font = await getFont(overlay.font);
       const size = (overlay.fontSize ?? 0.02) * h;
       page.drawText(text, {
         x: overlay.x * w,
