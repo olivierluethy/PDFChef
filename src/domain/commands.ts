@@ -208,7 +208,11 @@ export function describeCommand(command: Command, before: Workspace): string {
     case 'rotateItems':
       return `${pages(command.itemIds.length)} gedreht`;
     case 'addOverlay':
-      return command.overlay.kind === 'image' ? 'Unterschrift hinzugefuegt' : 'Feld hinzugefuegt';
+      return command.overlay.kind === 'image'
+        ? 'Unterschrift hinzugefuegt'
+        : command.overlay.kind === 'shape'
+          ? 'Form hinzugefuegt'
+          : 'Feld hinzugefuegt';
     case 'updateOverlay':
       return 'Feld bearbeitet';
     case 'removeOverlay':
