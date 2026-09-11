@@ -1,6 +1,15 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { LayoutGroup, motion } from 'motion/react';
-import { GripVertical, RotateCcw, RotateCw, Scissors, Trash2, type LucideIcon } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  GripVertical,
+  RotateCcw,
+  RotateCw,
+  Scissors,
+  Trash2,
+  type LucideIcon,
+} from 'lucide-react';
 import { newId } from '../../domain/ids';
 import { isOutput, type NodeId, type SourceId } from '../../domain/types';
 import type { SelectionScope } from '../../services/store/selection';
@@ -24,6 +33,9 @@ export interface OutputGridProps {
 /** Oberhalb dieser Anzahl bleibt das Raster virtualisiert und ohne Layout-Animation. */
 const LAYOUT_LIMIT = 150;
 
+/** Seitenverhaeltnis (Breite/Hoehe) vor dem Laden des Thumbnails -- ~A4 hochkant. */
+const DEFAULT_ASPECT = 1 / 1.35;
+
 export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: OutputGridProps) {
   const workspace = useWorkspace();
   const selection = useSelection();
@@ -38,7 +50,9 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
   const gridRef = useRef<HTMLDivElement | null>(null);
   const marqueeSelect = useCallback(
     (ids: string[], additive: boolean) =>
-      selectionStore.getState().replace({ kind: 'output', outputId }, ids, ids[0] ?? null, additive),
+      selectionStore
+        .getState()
+        .replace({ kind: 'output', outputId }, ids, ids[0] ?? null, additive),
     [selectionStore, outputId],
   );
   const clearSelection = useCallback(() => selectionStore.getState().clear(), [selectionStore]);
@@ -57,7 +71,11 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
       else selectionStore.getState().select(scope, id, order);
 
       const inScope = selection.scope?.kind === 'output' && selection.scope.outputId === outputId;
-      const ids = inScope ? (selection.ids.includes(id) ? selection.ids : [...selection.ids, id]) : [id];
+      const ids = inScope
+        ? selection.ids.includes(id)
+          ? selection.ids
+          : [...selection.ids, id]
+        : [id];
       onCellPointerDown?.(event, { kind: 'output', outputId, itemIds: ids });
     },
     [selectionStore, scope, order, selection, outputId, onCellPointerDown],
@@ -72,7 +90,13 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
   if (count === 0) {
     // Der Leerzustand traegt die Drop-Attribute, damit genau hier abgelegt werden kann.
     return (
-      <div className="h-full py-2" data-output-id={outputId} data-item-count={0} data-drop-index={0} data-drop-zone>
+      <div
+        className="h-full py-2"
+        data-output-id={outputId}
+        data-item-count={0}
+        data-drop-index={0}
+        data-drop-zone
+      >
         <div className="grid h-full min-h-[140px] place-items-center rounded-[10px] border-2 border-dashed border-line-structural text-center">
           <p className="t-meta">Seiten hierher ziehen</p>
         </div>
@@ -85,7 +109,9 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
     if (!item) return null;
     const source = workspace.sources[item.sourceId];
     const selected =
-      selection.scope?.kind === 'output' && selection.scope.outputId === outputId && selection.ids.includes(itemId);
+      selection.scope?.kind === 'output' &&
+      selection.scope.outputId === outputId &&
+      selection.ids.includes(itemId);
     return (
       <OutputCard
         key={itemId}
@@ -101,6 +127,12 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
         dropIndex={dropIndex}
         onPointerDown={(e) => handlePointerDown(e, itemId)}
         onRotate={(delta) => dispatch({ type: 'rotateItems', itemIds: [itemId], delta })}
+        onMoveLeft={() =>
+          dispatch({ type: 'reorderItems', outputId, itemIds: [itemId], index: position - 1 })
+        }
+        onMoveRight={() =>
+          dispatch({ type: 'reorderItems', outputId, itemIds: [itemId], index: position + 2 })
+        }
         onRemove={() => dispatch({ type: 'removeItems', itemIds: [itemId] })}
         onSplit={() => {
           const command = buildSplitOutputCommand({
@@ -145,7 +177,12 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
             >
               {itemIds.map((itemId, position) =>
                 enableLayout ? (
-                  <motion.div key={itemId} layout transition={prefs.t(spring.layout)} className="min-w-0">
+                  <motion.div
+                    key={itemId}
+                    layout
+                    transition={prefs.t(spring.layout)}
+                    className="min-w-0"
+                  >
                     {renderCard(itemId, position)}
                   </motion.div>
                 ) : (
@@ -174,6 +211,8 @@ interface OutputCardProps {
   dropIndex: number | null;
   onPointerDown(event: React.PointerEvent): void;
   onRotate(delta: 90 | 180 | 270): void;
+  onMoveLeft(): void;
+  onMoveRight(): void;
   onRemove(): void;
   onSplit(): void;
 }
@@ -191,12 +230,21 @@ function OutputCard({
   dropIndex,
   onPointerDown,
   onRotate,
+  onMoveLeft,
+  onMoveRight,
   onRemove,
   onSplit,
 }: OutputCardProps) {
   const lineBefore = dropIndex === position;
   const lineAfter = dropIndex === total && position === total - 1;
   const provenance = `${sourceName}, Seite ${pageNumber}`;
+
+  // Das Blatt uebernimmt das echte Seitenverhaeltnis der Seite, sobald es geladen ist --
+  // so umschliesst der Auswahl-Rahmen exakt die Seitenkante statt eines festen Kastens.
+  const [aspect, setAspect] = useState<number | null>(null);
+  const naturalAspect = aspect ?? DEFAULT_ASPECT;
+  const rotated = (((rotation % 360) + 360) % 360) % 180 !== 0;
+  const sheetAspect = rotated ? 1 / naturalAspect : naturalAspect;
 
   return (
     <div
@@ -220,7 +268,10 @@ function OutputCard({
           <GripVertical className="size-4" />
         </span>
         <div className="pointer-events-auto absolute inset-0 flex items-center gap-0.5 rounded-md bg-surface-raised px-1 opacity-0 shadow-[var(--float-shadow)] ring-1 ring-line-structural transition-opacity focus-within:opacity-100 group-hover:opacity-100">
-          <span aria-hidden className="grid size-6 cursor-grab place-items-center text-text-secondary">
+          <span
+            aria-hidden
+            className="grid size-6 cursor-grab place-items-center text-text-secondary"
+          >
             <GripVertical className="size-4" />
           </span>
           <CardTool icon={RotateCcw} label="Nach links drehen" onClick={() => onRotate(270)} />
@@ -241,22 +292,76 @@ function OutputCard({
           'paper-sheet relative block w-full',
           selected && 'outline outline-2 outline-offset-2 outline-accent',
         )}
-        style={{ aspectRatio: '1 / 1.35' }}
+        style={{ aspectRatio: String(sheetAspect) }}
       >
-        <span className="absolute inset-0 grid place-items-center" style={{ transform: `rotate(${rotation}deg)` }}>
-          <Thumbnail blockRef={{ sourceId, blockIndex }} alt={provenance} />
+        <span
+          className="absolute left-1/2 top-1/2 grid place-items-center"
+          style={{
+            width: rotated ? `${(1 / sheetAspect) * 100}%` : '100%',
+            height: rotated ? `${sheetAspect * 100}%` : '100%',
+            transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+          }}
+        >
+          <Thumbnail
+            blockRef={{ sourceId, blockIndex }}
+            alt={provenance}
+            onNaturalAspect={setAspect}
+          />
         </span>
-        {selected && <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[2px] bg-accent-soft" />}
+
+        {selected && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-[2px] bg-accent-soft"
+          />
+        )}
+
+        {/* Verschiebe-Pfeile: erscheinen beim Ueberfahren, aber nur dort, wo eine Bewegung
+            wirklich moeglich ist -- ganz aussen fehlt der jeweilige Pfeil. */}
+        {position > 0 && <MoveArrow side="left" onClick={onMoveLeft} />}
+        {position < total - 1 && <MoveArrow side="right" onClick={onMoveRight} />}
       </span>
 
       {/* Zwei Zeilen, feste Hoehe, damit Reihen bei Umsortierung nicht springen. */}
-      <div className="mt-2 h-[34px] px-0.5 text-center leading-tight">
-        <span className="block truncate text-[11.5px] text-text-primary" title={sourceName}>
+      <div className="mt-2 h-[38px] px-0.5 text-center leading-tight">
+        <span
+          className="block truncate text-[13px] font-medium text-text-primary"
+          title={sourceName}
+        >
           {sourceName}
         </span>
-        <span className="mt-0.5 block font-mono text-[11px] tabular-nums text-info">Seite {pageNumber}</span>
+        <span className="mt-0.5 block font-mono text-[11.5px] tabular-nums text-text-secondary">
+          Seite {pageNumber}
+        </span>
       </div>
     </div>
+  );
+}
+
+/**
+ * Runder Pfeil-Knopf an der Blattkante, der die Seite eine Position nach links oder
+ * rechts schiebt. Er unterbricht den Zeiger, damit ein Klick nicht als Drag zaehlt.
+ */
+function MoveArrow({ side, onClick }: { side: 'left' | 'right'; onClick(): void }) {
+  const Icon = side === 'left' ? ChevronLeft : ChevronRight;
+  return (
+    <button
+      type="button"
+      aria-label={
+        side === 'left' ? 'Seite nach links verschieben' : 'Seite nach rechts verschieben'
+      }
+      onPointerDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      className={cx(
+        'absolute top-1/2 z-20 grid size-7 -translate-y-1/2 cursor-pointer place-items-center rounded-full bg-surface-raised text-text-secondary opacity-0 shadow-[var(--float-shadow)] ring-1 ring-line-structural transition-opacity hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100',
+        side === 'left' ? 'left-1' : 'right-1',
+      )}
+    >
+      <Icon className="size-4" aria-hidden />
+    </button>
   );
 }
 
@@ -301,11 +406,20 @@ function CardTool({ icon: Icon, label, onClick, disabled, disabledReason, danger
  */
 function InsertionLine({ side, atEdge = false }: { side: 'left' | 'right'; atEdge?: boolean }) {
   const position =
-    side === 'left' ? (atEdge ? 'left-[3px]' : '-left-[10px]') : atEdge ? 'right-[3px]' : '-right-[10px]';
+    side === 'left'
+      ? atEdge
+        ? 'left-[3px]'
+        : '-left-[10px]'
+      : atEdge
+        ? 'right-[3px]'
+        : '-right-[10px]';
   return (
     <span
       aria-hidden
-      className={cx('pointer-events-none absolute top-7 z-30 w-[3px] rounded-full bg-accent', position)}
+      className={cx(
+        'pointer-events-none absolute top-7 z-30 w-[3px] rounded-full bg-accent',
+        position,
+      )}
       style={{ height: 'calc(100% - 2.75rem)' }}
     />
   );
