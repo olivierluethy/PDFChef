@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Minus, PenLine, Plus, ScanLine, Trash2, Type } from 'lucide-react';
 import { newId } from '../../domain/ids';
+import { DEFAULT_OVERLAY_FONT, OVERLAY_FONTS, overlayFontSpec } from '../../domain/overlayFonts';
 import type { Overlay } from '../../domain/types';
 import { cx } from '../common/cx';
 import { SignatureDialog } from './SignatureDialog';
@@ -48,6 +49,8 @@ export function FillLayer({
   const [drag, setDrag] = useState<DragState | null>(null);
   const [signing, setSigning] = useState(false);
   const [height, setHeight] = useState(0);
+  // Neue Felder uebernehmen die zuletzt gewaehlte Schrift.
+  const [lastFont, setLastFont] = useState<string>(DEFAULT_OVERLAY_FONT);
 
   // Die Schrifthoehe ist ein Bruchteil der Seitenhoehe; die Pixelhoehe folgt dem Zoom.
   useEffect(() => {
@@ -74,6 +77,7 @@ export function FillLayer({
       h: 0,
       text: '',
       fontSize: 0.024,
+      font: lastFont,
     });
   };
 
@@ -206,6 +210,8 @@ export function FillLayer({
         }
 
         const fontPx = (overlay.fontSize ?? 0.024) * height;
+        const font = overlayFontSpec(overlay.font);
+        const fontStyle = { fontFamily: font.cssFamily, fontWeight: font.cssWeight };
         return (
           <div
             key={overlay.id}
@@ -220,7 +226,22 @@ export function FillLayer({
                   style={{ cursor: 'grab' }}
                 >
                   <PenLine className="size-3" aria-hidden />
-                  <span className="mr-auto pl-0.5 pr-1 text-[10px]">Feld</span>
+                  <select
+                    value={overlay.font ?? DEFAULT_OVERLAY_FONT}
+                    aria-label="Schriftart"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onChange={(e) => {
+                      onUpdate(overlay.id, { font: e.currentTarget.value });
+                      setLastFont(e.currentTarget.value);
+                    }}
+                    className="mr-auto max-w-[96px] rounded bg-black/15 px-0.5 text-[10px] text-on-accent outline-none"
+                  >
+                    {OVERLAY_FONTS.map((option) => (
+                      <option key={option.key} value={option.key} className="text-text-primary">
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
                   <button
                     type="button"
                     aria-label="Schrift kleiner"
@@ -263,7 +284,7 @@ export function FillLayer({
                     onPointerDown={(e) => e.stopPropagation()}
                     onChange={(e) => onUpdate(overlay.id, { text: e.currentTarget.value })}
                     className="block w-full rounded-b bg-white/80 px-1 leading-tight text-[#15181c] outline-none ring-1 ring-accent/60 focus:bg-white focus:ring-accent"
-                    style={{ fontSize: `${fontPx}px` }}
+                    style={{ fontSize: `${fontPx}px`, ...fontStyle }}
                   >
                     {overlay.options.map((option, i) => (
                       <option key={i} value={option}>
@@ -283,7 +304,11 @@ export function FillLayer({
                     }}
                     onBlur={(e) => onUpdate(overlay.id, { text: e.currentTarget.value })}
                     className="block w-full resize-none rounded-b bg-white/70 px-1 leading-tight text-[#15181c] outline-none ring-1 ring-accent/60 focus:bg-white focus:ring-accent"
-                    style={{ fontSize: `${fontPx}px`, minHeight: `${fontPx * 1.4}px` }}
+                    style={{
+                      fontSize: `${fontPx}px`,
+                      minHeight: `${fontPx * 1.4}px`,
+                      ...fontStyle,
+                    }}
                     rows={1}
                   />
                 )}
@@ -292,7 +317,7 @@ export function FillLayer({
               overlay.text?.trim() && (
                 <div
                   className="whitespace-pre-wrap px-1 leading-tight text-[#15181c]"
-                  style={{ fontSize: `${fontPx}px` }}
+                  style={{ fontSize: `${fontPx}px`, ...fontStyle }}
                 >
                   {overlay.text}
                 </div>

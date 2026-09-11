@@ -61,6 +61,8 @@ export interface Overlay {
   text?: string;
   /** Text: Schriftgroesse als Bruchteil der Seitenhoehe. */
   fontSize?: number;
+  /** Text: Schriftart-Schluessel aus OVERLAY_FONTS (Standard: Helvetica). */
+  font?: string;
   /** Bild/Unterschrift: PNG als data-URL. */
   dataUrl?: string;
   /**
