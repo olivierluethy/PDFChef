@@ -1,5 +1,10 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+// Schriften lokal buendeln: die App ist local-first und muss offline identisch
+// rendern -- kein CDN. IBM Plex Sans (Oberflaeche), IBM Plex Mono (Zahlen/Daten).
+import '@fontsource-variable/ibm-plex-sans';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
 import { App } from './ui/app/App';
 import './ui/styles.css';
 
