@@ -30,6 +30,10 @@ export function DragPreview({ state }: { state: DragState }) {
   return createPortal(
     <motion.div
       className="pointer-events-none fixed left-0 top-0 z-50 select-none"
+      // Ohne initial=false floege die Karte beim Aufnehmen aus der Ecke (0,0)
+      // herein. So erscheint sie direkt am Greifpunkt und folgt dann dem Zeiger --
+      // die Bewegung kommt von dort, wo man mit der Maus gegriffen hat.
+      initial={false}
       animate={{ x: state.x + 14, y: state.y + 14 }}
       transition={prefs.t(spring.dragPreview)}
     >
