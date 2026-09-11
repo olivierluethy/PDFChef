@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FilePlus2, FolderPlus, FolderUp, PanelRightClose, PanelRightOpen, Plus } from 'lucide-react';
+import {
+  FilePlus2,
+  FolderPlus,
+  FolderUp,
+  PanelRightClose,
+  PanelRightOpen,
+  Plus,
+} from 'lucide-react';
 import { newId } from '../../domain/ids';
 import { buildNodeSnapshot } from '../../domain/trash';
 import { isOutput, type NodeId, type SourceId } from '../../domain/types';
@@ -127,12 +134,20 @@ function Workspace() {
       {
         id: 'createFolder',
         label: 'Ordner anlegen',
-        run: () => dispatch({ type: 'createFolder', node: { id: newId(), name: 'Neuer Ordner', parentId: null } }),
+        run: () =>
+          dispatch({
+            type: 'createFolder',
+            node: { id: newId(), name: 'Neuer Ordner', parentId: null },
+          }),
       },
       {
         id: 'createOutput',
         label: 'Dokument anlegen',
-        run: () => dispatch({ type: 'createOutput', node: { id: newId(), name: 'Neues Dokument', parentId: null } }),
+        run: () =>
+          dispatch({
+            type: 'createOutput',
+            node: { id: newId(), name: 'Neues Dokument', parentId: null },
+          }),
       },
       { id: 'export', label: 'Exportieren', run: () => exportUi.open() },
       { id: 'print', label: 'Drucken', run: () => printUi.open() },
@@ -154,7 +169,18 @@ function Workspace() {
         },
       },
     ],
-    [workspaceStore, dispatch, exportUi, printUi, search, ocr, latex, activeSourceId, workspace, setTrashOpen],
+    [
+      workspaceStore,
+      dispatch,
+      exportUi,
+      printUi,
+      search,
+      ocr,
+      latex,
+      activeSourceId,
+      workspace,
+      setTrashOpen,
+    ],
   );
 
   useEffect(() => services.autosave.subscribe(setStatus), [services]);
@@ -214,7 +240,9 @@ function Workspace() {
           <OutputGrid
             outputId={activeOutputId}
             onCellPointerDown={drag.onCellPointerDown}
-            dropIndex={drag.dropIndicator?.outputId === activeOutputId ? drag.dropIndicator.index : null}
+            dropIndex={
+              drag.dropIndicator?.outputId === activeOutputId ? drag.dropIndicator.index : null
+            }
           />
         ) : (
           <EmptyState
@@ -232,7 +260,10 @@ function Workspace() {
   );
 
   return (
-    <div className="flex h-screen flex-col bg-surface-canvas text-text-primary" {...external.dropHandlers}>
+    <div
+      className="flex h-screen flex-col bg-surface-canvas text-text-primary"
+      {...external.dropHandlers}
+    >
       <Header
         onImportFiles={importFiles}
         onExport={() => exportUi.open()}
@@ -245,87 +276,98 @@ function Workspace() {
           style={{ width: sidebarWidth }}
           className="flex shrink-0 flex-col border-r border-line-structural bg-surface-panel"
         >
-          {/* Quellen -- keine Ablageziele, also treten sie beim Drag zurueck. */}
-          <section data-dim-on-drag className="flex min-h-0 flex-1 flex-col">
-            <div className="flex items-center gap-2 px-5 pb-2 pt-4">
-              <h2 className="t-panel-title text-text-primary">Quellen</h2>
-              <Pill>{workspace.sourceOrder.length}</Pill>
-            </div>
-            <DuplicatesNotice />
-            <div className="scroll-fade-y min-h-0 flex-1 overflow-auto pb-4">
-              <SourceList
-                activeSourceId={activeSourceId}
-                onSelect={setActiveSourceId}
-                onRemove={(id) => activeSourceId === id && setActiveSourceId(null)}
-              />
-            </div>
-          </section>
-
-          <div aria-hidden className="h-px shrink-0 bg-line-structural" />
-
-          {/* Ausgabestruktur -- Ordner und Dokumente sind Ablageziele. */}
-          <section className="flex min-h-0 flex-1 flex-col">
-            <div className="flex items-center gap-2 px-5 pb-2 pt-4">
-              <h2 className="t-panel-title text-text-primary">Ausgabestruktur</h2>
-              <Pill>{Object.keys(workspace.nodes).length}</Pill>
-              <div className="ml-auto">
-                <Menu
-                  align="end"
-                  minWidth={176}
-                  items={[
-                    {
-                      id: 'folder',
-                      label: 'Ordner',
-                      icon: FolderPlus,
-                      onSelect: () =>
-                        dispatch({ type: 'createFolder', node: { id: newId(), name: 'Neuer Ordner', parentId: null } }),
-                    },
-                    {
-                      id: 'output',
-                      label: 'Dokument',
-                      icon: FilePlus2,
-                      onSelect: () =>
-                        dispatch({ type: 'createOutput', node: { id: newId(), name: 'Neues Dokument', parentId: null } }),
-                    },
-                  ]}
-                  renderTrigger={({ ref, toggle, ariaProps }) => (
-                    <button
-                      ref={ref}
-                      type="button"
-                      onClick={toggle}
-                      className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary"
-                      {...ariaProps}
-                    >
-                      <Plus className="size-4" aria-hidden /> Neu
-                    </button>
-                  )}
-                />
-              </div>
-            </div>
-            <div className="scroll-fade-y min-h-0 flex-1 overflow-auto pb-4" data-tree-root>
-              <OutputTree
-                activeOutputId={activeOutputId}
-                onSelectOutput={setActiveOutputId}
-                onCellPointerDown={drag.onCellPointerDown}
-                onExportNode={(nodeId) => exportUi.open({ kind: 'node', nodeId })}
-                onPrintNode={(nodeId) => printUi.open({ kind: 'node', nodeId })}
-                onDeleteNode={(nodeId) => {
-                  const snapshot = buildNodeSnapshot(workspace, nodeId);
-                  const node = workspace.nodes[nodeId];
-                  void trash
-                    .add({
-                      id: newId(),
-                      kind: 'node',
-                      name: node?.name ?? 'Element',
-                      deletedAt: Date.now(),
-                      snapshot,
-                    })
-                    .then(() => dispatch({ type: 'deleteNode', nodeId }));
-                  if (activeOutputId === nodeId) setActiveOutputId(null);
-                }}
-              />
-            </div>
-          </section>
+          <SplitPane
+            label="Höhe von Quellen und Ausgabestruktur anpassen"
+            initial={0.5}
+            top={
+              /* Quellen -- keine Ablageziele, also treten sie beim Drag zurueck. */
+              <section data-dim-on-drag className="flex h-full min-h-0 flex-col">
+                <div className="flex items-center gap-2 px-5 pb-2 pt-4">
+                  <h2 className="t-panel-title text-text-primary">Quellen</h2>
+                  <Pill>{workspace.sourceOrder.length}</Pill>
+                </div>
+                <DuplicatesNotice />
+                <div className="scroll-fade-y min-h-0 flex-1 overflow-auto pb-4">
+                  <SourceList
+                    activeSourceId={activeSourceId}
+                    onSelect={setActiveSourceId}
+                    onRemove={(id) => activeSourceId === id && setActiveSourceId(null)}
+                  />
+                </div>
+              </section>
+            }
+            bottom={
+              /* Ausgabestruktur -- Ordner und Dokumente sind Ablageziele. */
+              <section className="flex h-full min-h-0 flex-col">
+                <div className="flex items-center gap-2 px-5 pb-2 pt-4">
+                  <h2 className="t-panel-title text-text-primary">Ausgabestruktur</h2>
+                  <Pill>{Object.keys(workspace.nodes).length}</Pill>
+                  <div className="ml-auto">
+                    <Menu
+                      align="end"
+                      minWidth={176}
+                      items={[
+                        {
+                          id: 'folder',
+                          label: 'Ordner',
+                          icon: FolderPlus,
+                          onSelect: () =>
+                            dispatch({
+                              type: 'createFolder',
+                              node: { id: newId(), name: 'Neuer Ordner', parentId: null },
+                            }),
+                        },
+                        {
+                          id: 'output',
+                          label: 'Dokument',
+                          icon: FilePlus2,
+                          onSelect: () =>
+                            dispatch({
+                              type: 'createOutput',
+                              node: { id: newId(), name: 'Neues Dokument', parentId: null },
+                            }),
+                        },
+                      ]}
+                      renderTrigger={({ ref, toggle, ariaProps }) => (
+                        <button
+                          ref={ref}
+                          type="button"
+                          onClick={toggle}
+                          className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                          {...ariaProps}
+                        >
+                          <Plus className="size-4" aria-hidden /> Neu
+                        </button>
+                      )}
+                    />
+                  </div>
+                </div>
+                <div className="scroll-fade-y min-h-0 flex-1 overflow-auto pb-4" data-tree-root>
+                  <OutputTree
+                    activeOutputId={activeOutputId}
+                    onSelectOutput={setActiveOutputId}
+                    onCellPointerDown={drag.onCellPointerDown}
+                    onExportNode={(nodeId) => exportUi.open({ kind: 'node', nodeId })}
+                    onPrintNode={(nodeId) => printUi.open({ kind: 'node', nodeId })}
+                    onDeleteNode={(nodeId) => {
+                      const snapshot = buildNodeSnapshot(workspace, nodeId);
+                      const node = workspace.nodes[nodeId];
+                      void trash
+                        .add({
+                          id: newId(),
+                          kind: 'node',
+                          name: node?.name ?? 'Element',
+                          deletedAt: Date.now(),
+                          snapshot,
+                        })
+                        .then(() => dispatch({ type: 'deleteNode', nodeId }));
+                      if (activeOutputId === nodeId) setActiveOutputId(null);
+                    }}
+                  />
+                </div>
+              </section>
+            }
+          />
         </aside>
 
         <ResizeHandle
@@ -383,7 +425,9 @@ function Workspace() {
                   />
                 </div>
               </div>
-              {search.panel && <div className="w-80 shrink-0 border-l border-line-structural">{search.panel}</div>}
+              {search.panel && (
+                <div className="w-80 shrink-0 border-l border-line-structural">{search.panel}</div>
+              )}
             </aside>
           </>
         ) : (
@@ -400,7 +444,9 @@ function Workspace() {
       </div>
 
       <ContextBar onRequestSplit={() => activeSourceId && setSplitting(activeSourceId)} />
-      {splitting && <SplitPanel sourceId={splitting} parentId={null} onClose={() => setSplitting(null)} />}
+      {splitting && (
+        <SplitPanel sourceId={splitting} parentId={null} onClose={() => setSplitting(null)} />
+      )}
       {drag.preview && <DragPreview state={drag.preview} />}
       {external.rejected.length > 0 && (
         <div
@@ -412,14 +458,17 @@ function Workspace() {
       )}
       {exportUi.dialog}
       {printUi.dialog}
-      {paletteOpen && <CommandPalette actions={paletteActions} onClose={() => setPaletteOpen(false)} />}
+      {paletteOpen && (
+        <CommandPalette actions={paletteActions} onClose={() => setPaletteOpen(false)} />
+      )}
       {trashOpen && <TrashPanel onClose={() => setTrashOpen(false)} />}
       {ocr.progress && (
         <div
           role="status"
           className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-full bg-surface-raised px-3.5 py-1.5 text-[12.5px] text-text-secondary shadow-[var(--float-shadow)] ring-1 ring-line-structural"
         >
-          Seite <span className="font-mono tabular-nums text-text-primary">{ocr.progress.done}</span> von{' '}
+          Seite{' '}
+          <span className="font-mono tabular-nums text-text-primary">{ocr.progress.done}</span> von{' '}
           <span className="font-mono tabular-nums">{ocr.progress.total}</span> erkannt
         </div>
       )}
