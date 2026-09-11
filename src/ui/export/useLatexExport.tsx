@@ -1,5 +1,6 @@
+import * as mammoth from 'mammoth';
 import { useCallback, useState } from 'react';
-import { buildLatexDocument } from '../../domain/latex';
+import { buildLatexDocument, htmlToLatex } from '../../domain/latex';
 import type { SourceId } from '../../domain/types';
 import { createPageTextStore } from '../../services/search/pageTextStore';
 import { useServices, useWorkspace } from '../app/StoreProvider';
@@ -19,6 +20,23 @@ function texFileName(sourceName: string): string {
   return `${sourceName.replace(/\.[^.]+$/, '')}.tex`;
 }
 
+/**
+ * Baut fuer eine DOCX-Quelle ein strukturiertes LaTeX (Ueberschriften, Listen,
+ * Fett/Kursiv) ueber mammoth-HTML. Liefert `null`, wenn die Struktur leer bleibt
+ * oder die Konvertierung scheitert -- dann greift der Fliesstext-Weg.
+ */
+async function buildStructuredDocxLatex(bytes: Uint8Array, title: string): Promise<string | null> {
+  try {
+    const { value: html } = await mammoth.convertToHtml({ arrayBuffer: bytes.slice().buffer });
+    const body = htmlToLatex(html);
+    if (!body.trim()) return null;
+    return buildLatexDocument(title, [], body);
+  } catch (error) {
+    console.debug('Strukturierte DOCX-LaTeX-Konvertierung fehlgeschlagen', error);
+    return null;
+  }
+}
+
 export function useLatexExport(): { runForSource(sourceId: SourceId): Promise<void>; busy: boolean } {
   const services = useServices();
   const workspace = useWorkspace();
@@ -31,6 +49,18 @@ export function useLatexExport(): { runForSource(sourceId: SourceId): Promise<vo
 
       setBusy(true);
       try {
+        // DOCX bevorzugt strukturiert rekonstruieren (Ueberschriften/Listen),
+        // sonst wie bisher Fliesstext (PDF/Plaintext/uebrige Text-Quellen).
+        if (source.kind === 'text' && /\.docx$/i.test(source.name)) {
+          const bytes = await services.readBytesForSource(sourceId);
+          const structured = await buildStructuredDocxLatex(bytes, source.name);
+          if (structured) {
+            const blob = new Blob([structured], { type: 'application/x-tex' });
+            download(blob, texFileName(source.name));
+            return;
+          }
+        }
+
         let pages: string[];
         if (source.kind === 'text') {
           const pageLines = await services.textPages(sourceId);
