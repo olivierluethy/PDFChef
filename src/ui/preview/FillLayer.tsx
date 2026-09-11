@@ -4,6 +4,7 @@ import { newId } from '../../domain/ids';
 import { DEFAULT_OVERLAY_FONT, OVERLAY_FONTS, overlayFontSpec } from '../../domain/overlayFonts';
 import type { Overlay } from '../../domain/types';
 import { cx } from '../common/cx';
+import { ensureOverlayFontFaces } from '../text/overlayFontFaces';
 import { SignatureDialog } from './SignatureDialog';
 
 export interface FillLayerProps {
@@ -51,6 +52,11 @@ export function FillLayer({
   const [height, setHeight] = useState(0);
   // Neue Felder uebernehmen die zuletzt gewaehlte Schrift.
   const [lastFont, setLastFont] = useState<string>(DEFAULT_OVERLAY_FONT);
+
+  // @font-face der eingebetteten Schriften bereitstellen (einmalig).
+  useEffect(() => {
+    ensureOverlayFontFaces();
+  }, []);
 
   // Die Schrifthoehe ist ein Bruchteil der Seitenhoehe; die Pixelhoehe folgt dem Zoom.
   useEffect(() => {

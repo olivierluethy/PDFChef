@@ -1,6 +1,8 @@
 import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import type { PDFDocument as PDFDoc, PDFFont, PDFImage, PDFPage } from 'pdf-lib';
 import type { Overlay, SourceId } from '../../domain/types';
+import { overlayFontSpec } from '../../domain/overlayFonts';
 import type { AssembleCtx, BlockAssembler, ImageEmbeddable } from '../types';
 import { TEXT_PAGE } from '../text/textLayout';
 
@@ -29,18 +31,35 @@ export function createPdfAssembler(): BlockAssembler {
       });
 
       const out = await PDFDocument.create();
+      // Fuer eingebettete (Nicht-Standard-)Overlay-Schriften noetig.
+      out.registerFontkit(fontkit);
       const copiedBySource = new Map<SourceId, PDFPage[]>();
       const embeddedBySource = new Map<SourceId, { image: PDFImage; data: ImageEmbeddable }>();
       const textPagesBySource = new Map<SourceId, string[][]>();
       let courierFont: PDFFont | undefined;
-      // Overlay-Schriften werden je gewaehlter Standardschrift genau einmal eingebettet.
-      const overlayFonts = new Map<StandardFonts, PDFFont>();
+      // Overlay-Schriften werden je Schluessel genau einmal eingebettet.
+      const overlayFonts = new Map<string, PDFFont>();
+      let overlayFallback: PDFFont | undefined;
       const getOverlayFont = async (key: string | undefined) => {
-        const name = standardFontFor(key);
-        const existing = overlayFonts.get(name);
-        if (existing) return existing;
-        const font = await out.embedFont(name);
-        overlayFonts.set(name, font);
+        const spec = overlayFontSpec(key);
+        const cached = overlayFonts.get(spec.key);
+        if (cached) return cached;
+        // Eingebettete Familie: TTF holen und einbetten; sonst Standardschrift.
+        if (spec.file) {
+          try {
+            const bytes = await ctx.fontBytes(spec.file);
+            const font = await out.embedFont(bytes, { subset: true });
+            overlayFonts.set(spec.key, font);
+            return font;
+          } catch (error) {
+            console.warn(`Overlay-Font ${spec.key} nicht einbettbar, nutze Helvetica`, error);
+            overlayFallback ??= await out.embedFont(StandardFonts.Helvetica);
+            overlayFonts.set(spec.key, overlayFallback);
+            return overlayFallback;
+          }
+        }
+        const font = await out.embedFont(standardFontFor(key));
+        overlayFonts.set(spec.key, font);
         return font;
       };
 

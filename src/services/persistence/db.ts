@@ -3,7 +3,7 @@ import type { Workspace } from '../../domain/types';
 import type { NodeSnapshot } from '../../domain/trash';
 
 export const DB_NAME = 'pdf-master';
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 export interface SourceBlobRecord {
   contentHash: string;
@@ -64,9 +64,18 @@ export function openWorkspaceDb(name: string = DB_NAME): Promise<Database> {
       if (oldVersion < 2) {
         db.createObjectStore('trash', { keyPath: 'id' });
       }
+      // v3 fuegt hier keine Stores hinzu. Die Version wird dennoch mitgezaehlt,
+      // damit eine bereits auf v3 angehobene DB (z.B. aus einem Feature-Branch)
+      // geoeffnet werden kann, statt mit einem VersionError abzustuerzen.
     },
     blocked() {
       console.warn('Eine andere Registerkarte blockiert die Aktualisierung der Datenbank.');
+    },
+    blocking(_currentVersion, _blockedVersion, event) {
+      // Eine neuere Version will oeffnen; diese aeltere Verbindung schliessen,
+      // sonst haengt das Upgrade, bis der alte Tab manuell geschlossen wird.
+      console.warn('Datenbank wird fuer ein Upgrade geschlossen (neuere Version geoeffnet).');
+      (event.target as IDBDatabase | null)?.close();
     },
   });
 }
