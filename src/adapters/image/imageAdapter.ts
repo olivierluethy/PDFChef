@@ -117,6 +117,10 @@ export function createImageAdapter({
           blob: await surface.toBlob(imageType, imageQuality),
           width: surface.width,
           height: surface.height,
+          // Bildquellen werden beim Export mit ihren Pixelmassen als Punkte
+          // eingebettet (siehe pdfAssembler), daher gilt hier px == pt.
+          pageWidth: bitmap.width,
+          pageHeight: bitmap.height,
         };
       } finally {
         bitmap.close();

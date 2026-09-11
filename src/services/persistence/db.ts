@@ -3,13 +3,21 @@ import type { Workspace } from '../../domain/types';
 import type { NodeSnapshot } from '../../domain/trash';
 
 export const DB_NAME = 'pdf-master';
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 
 export interface SourceBlobRecord {
   contentHash: string;
   blob: Blob;
   byteSize: number;
   importedAt: number;
+}
+
+/** Gezeichnete/hochgeladene Unterschrift-Bilder (PNG mit Transparenz). */
+export interface AnnotationBlobRecord {
+  key: string;
+  blob: Blob;
+  byteSize: number;
+  createdAt: number;
 }
 
 export interface ThumbRecord {
@@ -47,6 +55,8 @@ export interface PdfMasterDb extends DBSchema {
   pageText: { key: string; value: PageTextRecord };
   /** Geloeschte Ordner/Output-Dokumente, bis sie wiederhergestellt oder endgueltig geloescht werden. */
   trash: { key: string; value: TrashRecord };
+  /** Unterschrift-Bilder, referenziert ueber blobKey einer Annotation. */
+  annotationBlobs: { key: string; value: AnnotationBlobRecord };
 }
 
 export type Database = IDBPDatabase<PdfMasterDb>;
@@ -64,9 +74,18 @@ export function openWorkspaceDb(name: string = DB_NAME): Promise<Database> {
       if (oldVersion < 2) {
         db.createObjectStore('trash', { keyPath: 'id' });
       }
+      if (oldVersion < 3) {
+        db.createObjectStore('annotationBlobs', { keyPath: 'key' });
+      }
     },
     blocked() {
       console.warn('Eine andere Registerkarte blockiert die Aktualisierung der Datenbank.');
+    },
+    blocking(_currentVersion, _blockedVersion, event) {
+      // Eine neuere Version will die DB oeffnen; diese (aeltere) Verbindung
+      // schliessen, sonst haengt das Upgrade, bis der alte Tab manuell zugeht.
+      console.warn('Datenbank wird fuer ein Upgrade geschlossen (neuere Version geoeffnet).');
+      (event.target as IDBDatabase | null)?.close();
     },
   });
 }

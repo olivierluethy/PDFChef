@@ -40,6 +40,61 @@ export interface SourceDocument {
   statusDetail?: string;
 }
 
+export type AnnotationId = string;
+
+/** Farbe in 0..255 pro Kanal -- so wie ein <input type=color> sie liefert. */
+export interface RgbColor {
+  r: number;
+  g: number;
+  b: number;
+}
+
+/**
+ * Gemeinsame Lage aller Annotationen. Position und Groesse sind BRUCHTEILE
+ * (0..1) der gerenderten Seitenflaeche in ihrer Anzeigeorientierung (also nach
+ * dem in das Seitenbild eingebrannten /Rotate der Quelle). Bruchteile sind
+ * unabhaengig von Zoom und Thumbnail-Groesse: dieselbe Zahl gilt in der grossen
+ * Vorschau, in der Kachel und beim Export.
+ */
+export interface AnnotationBase {
+  id: AnnotationId;
+  /** Linke obere Ecke, Bruchteil von Seitenbreite/-hoehe. */
+  x: number;
+  y: number;
+  /** Breite als Bruchteil der Seitenbreite. */
+  width: number;
+}
+
+export interface TextAnnotation extends AnnotationBase {
+  kind: 'text';
+  text: string;
+  /** fontId aus dem Font-Katalog (public/fonts/manifest.json). */
+  fontId: string;
+  bold: boolean;
+  /**
+   * Schriftgroesse als BRUCHTEIL der Seitenhoehe (Anzeigeorientierung). So ist
+   * die Groesse -- wie Position und Breite -- unabhaengig von Zoom und
+   * Thumbnail-Groesse. In Punkte umgerechnet: sizeFrac * Seitenhoehe(pt).
+   */
+  sizeFrac: number;
+  color: RgbColor;
+  align: 'left' | 'center' | 'right';
+  /** Zeilenhoehe als Faktor der Schriftgroesse, z.B. 1.3. */
+  lineHeight: number;
+}
+
+export interface SignatureAnnotation extends AnnotationBase {
+  kind: 'signature';
+  /** Hoehe als Bruchteil der Seitenhoehe. */
+  height: number;
+  /** Schluessel im annotationBlobStore -> PNG mit Transparenz. */
+  blobKey: string;
+  /** Natuerliches Seitenverhaeltnis (Breite/Hoehe) des Bildes. */
+  aspect: number;
+}
+
+export type Annotation = TextAnnotation | SignatureAnnotation;
+
 /** Eine Instanz einer Quellseite in genau einem Output. Eine Kopie ist ein zweites Item. */
 export interface CompositionItem {
   id: ItemId;
@@ -47,6 +102,8 @@ export interface CompositionItem {
   blockIndex: number;
   /** Additiv zur Rotation der Quellseite. */
   rotation: Rotation;
+  /** Text-/Unterschrift-Ebene dieser Seiten-Instanz; fehlt = keine. */
+  annotations?: Annotation[];
 }
 
 export interface FolderNode {

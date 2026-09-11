@@ -1,4 +1,5 @@
 import {
+  addAnnotation,
   copyItems,
   createFolder,
   createOutput,
@@ -7,16 +8,27 @@ import {
   itemsOfSource,
   moveItems,
   moveNode,
+  removeAnnotation,
   removeItems,
   removeSourceAndItems,
   renameNode,
   reorderItems,
   rotateItems,
   siblingNames,
+  updateAnnotation,
   type CreateNodeInput,
 } from './composition';
 import { resolveCollision, sanitizeName } from './naming';
-import type { CompositionItem, ItemId, NodeId, SourceDocument, SourceId, Workspace } from './types';
+import type {
+  Annotation,
+  AnnotationId,
+  CompositionItem,
+  ItemId,
+  NodeId,
+  SourceDocument,
+  SourceId,
+  Workspace,
+} from './types';
 
 /** Ein Teil eines Splits: das neue Output und seine fertigen Items. */
 export interface SplitOutputSpec {
@@ -39,6 +51,9 @@ export type Command =
   | { type: 'removeItems'; itemIds: ItemId[] }
   | { type: 'reorderItems'; outputId: NodeId; itemIds: ItemId[]; index: number }
   | { type: 'rotateItems'; itemIds: ItemId[]; delta: 90 | 180 | 270 }
+  | { type: 'addAnnotation'; itemId: ItemId; annotation: Annotation }
+  | { type: 'updateAnnotation'; itemId: ItemId; annotationId: AnnotationId; patch: Partial<Annotation> }
+  | { type: 'removeAnnotation'; itemId: ItemId; annotationId: AnnotationId }
   | { type: 'splitSource'; sourceId: SourceId; parentId: NodeId | null; parts: SplitOutputSpec[] }
   | { type: 'renameWorkspace'; name: string }
   | { type: 'batch'; label: string; commands: Command[] };
@@ -108,6 +123,15 @@ export function applyCommand(ws: Workspace, command: Command, ctx: CommandCtx): 
       break;
     case 'rotateItems':
       rotateItems(ws, command.itemIds, command.delta);
+      break;
+    case 'addAnnotation':
+      addAnnotation(ws, command.itemId, command.annotation);
+      break;
+    case 'updateAnnotation':
+      updateAnnotation(ws, command.itemId, command.annotationId, command.patch);
+      break;
+    case 'removeAnnotation':
+      removeAnnotation(ws, command.itemId, command.annotationId);
       break;
     case 'splitSource':
       for (const part of command.parts) {
@@ -184,6 +208,12 @@ export function describeCommand(command: Command, before: Workspace): string {
       return `${pages(command.itemIds.length)} umsortiert`;
     case 'rotateItems':
       return `${pages(command.itemIds.length)} gedreht`;
+    case 'addAnnotation':
+      return command.annotation.kind === 'signature' ? 'Unterschrift hinzugefuegt' : 'Text hinzugefuegt';
+    case 'updateAnnotation':
+      return 'Annotation geaendert';
+    case 'removeAnnotation':
+      return 'Annotation entfernt';
     case 'splitSource': {
       const source = before.sources[command.sourceId];
       const name = source ? source.name : 'Quelle';

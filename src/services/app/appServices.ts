@@ -13,8 +13,13 @@ import type { AdapterRegistry, BlockAssembler, DocumentAdapter, ImageEmbeddable 
 import type { SourceId, SourceKind } from '../../domain/types';
 import { newId } from '../../domain/ids';
 import { createAutosave, type Autosave } from '../persistence/autosave';
+import {
+  createAnnotationBlobStore,
+  type AnnotationBlobStore,
+} from '../persistence/annotationBlobStore';
 import { openWorkspaceDb, type Database } from '../persistence/db';
 import { createSourceBlobStore, type SourceBlobStore } from '../persistence/sourceBlobStore';
+import { resolveFontBytes } from '../fonts/fontManifest';
 import { createStorageGuard, type StorageGuard } from '../persistence/storage';
 import { createThumbStore } from '../persistence/thumbStore';
 import { createWorkspaceRepo, type WorkspaceRepo } from '../persistence/workspaceRepo';
@@ -49,6 +54,7 @@ export interface AppServices {
   adapter: DocumentAdapter;
   assembler: BlockAssembler;
   blobStore: SourceBlobStore;
+  annotationBlobStore: AnnotationBlobStore;
   repo: WorkspaceRepo;
   storage: StorageGuard;
   autosave: Autosave;
@@ -56,6 +62,10 @@ export interface AppServices {
   readBytesForSource(sourceId: SourceId): Promise<Uint8Array>;
   imageEmbeddable(sourceId: SourceId): Promise<ImageEmbeddable>;
   textPages(sourceId: SourceId): Promise<string[][]>;
+  /** PNG-Bytes einer gespeicherten Unterschrift (fuer den Export). */
+  annotationImageBytes(blobKey: string): Promise<Uint8Array>;
+  /** TTF-Bytes eines Katalog-Fonts (fuer den Export). */
+  fontBytes(fontId: string, bold: boolean): Promise<Uint8Array>;
   importForDrop(items: DataTransferItem[]): Promise<ImportReport>;
   importForFiles(files: FileList | File[]): Promise<ImportReport>;
   dispose(): Promise<void>;
@@ -68,6 +78,7 @@ export async function createAppServices({
 }: AppServicesDeps): Promise<AppServices> {
   const db = await openWorkspaceDb(dbName);
   const blobStore = createSourceBlobStore(db);
+  const annotationBlobStore = createAnnotationBlobStore(db);
   const repo = createWorkspaceRepo(db);
   const storage = createStorageGuard(globalThis.navigator?.storage);
 
@@ -130,6 +141,7 @@ export async function createAppServices({
     adapter: dispatcher,
     assembler,
     blobStore,
+    annotationBlobStore,
     repo,
     storage,
     autosave,
@@ -140,6 +152,12 @@ export async function createAppServices({
     },
     async textPages(sourceId) {
       return paginateText(await extractTextContent(await readBytesForSource(sourceId)));
+    },
+    annotationImageBytes(blobKey) {
+      return annotationBlobStore.readBytes(blobKey);
+    },
+    fontBytes(fontId, bold) {
+      return resolveFontBytes(fontId, bold);
     },
     async importForDrop(items) {
       return importCandidates(

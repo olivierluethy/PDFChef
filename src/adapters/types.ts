@@ -38,6 +38,13 @@ export interface RenderedBitmap {
   blob: Blob;
   width: number;
   height: number;
+  /**
+   * Punktmasse der Seite in ihrer Anzeigeorientierung (Quellen-/Rotate schon
+   * beruecksichtigt). Die Annotationsebene braucht sie, um Schriftgroessen in
+   * Punkten in Pixel umzurechnen -- unabhaengig von Zoom/Thumbnail-Groesse.
+   */
+  pageWidth: number;
+  pageHeight: number;
 }
 
 export interface TextSpan {
@@ -89,6 +96,10 @@ export interface AssembleCtx {
   imageData(sourceId: SourceId): Promise<ImageEmbeddable>;
   /** Nur fuer Textquellen: die paginierten Zeilen. Der Assembler ruft das je Quelle hoechstens einmal. */
   textData(sourceId: SourceId): Promise<string[][]>;
+  /** PNG-Bytes einer gezeichneten/hochgeladenen Unterschrift, ueber ihren blobKey. */
+  annotationImageBytes(blobKey: string): Promise<Uint8Array>;
+  /** TTF-Bytes eines Katalog-Fonts (fontId + bold) fuer die Einbettung. */
+  fontBytes(fontId: string, bold: boolean): Promise<Uint8Array>;
   signal?: AbortSignal;
   onProgress?: (done: number, total: number) => void;
 }
