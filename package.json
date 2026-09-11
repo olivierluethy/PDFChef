@@ -14,13 +14,15 @@
     "format": "prettier --write .",
     "sync:pdf-assets": "node scripts/sync-pdf-assets.mjs",
     "sync:tesseract-assets": "node scripts/sync-tesseract-assets.mjs",
-    "predev": "npm run sync:pdf-assets && npm run sync:tesseract-assets",
-    "prebuild": "npm run sync:pdf-assets && npm run sync:tesseract-assets",
-    "pretest": "npm run sync:pdf-assets && npm run sync:tesseract-assets"
+    "sync:fonts": "node scripts/sync-fonts.mjs",
+    "predev": "npm run sync:pdf-assets && npm run sync:tesseract-assets && npm run sync:fonts",
+    "prebuild": "npm run sync:pdf-assets && npm run sync:tesseract-assets && npm run sync:fonts",
+    "pretest": "npm run sync:pdf-assets && npm run sync:tesseract-assets && npm run sync:fonts"
   },
   "dependencies": {
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@pdf-lib/fontkit": "^1.1.1",
     "@tanstack/react-virtual": "^3.14.11",
     "fflate": "^0.8.3",
     "idb": "^8.0.3",

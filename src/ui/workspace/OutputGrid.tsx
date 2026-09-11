@@ -11,13 +11,14 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { newId } from '../../domain/ids';
-import { isOutput, type NodeId, type SourceId } from '../../domain/types';
+import { isOutput, type NodeId, type Overlay, type SourceId } from '../../domain/types';
 import type { SelectionScope } from '../../services/store/selection';
 import type { DragOrigin } from './dragLogic';
 import { buildSplitOutputCommand } from './buildSplitOutputCommand';
 import { useMarquee } from './useMarquee';
 import { MarqueeBox } from './MarqueeBox';
 import { Thumbnail } from '../common/Thumbnail';
+import { OverlayThumb } from '../preview/OverlayThumb';
 import { VirtualGrid } from '../common/VirtualGrid';
 import { Tooltip } from '../common/Tooltip';
 import { cx } from '../common/cx';
@@ -121,6 +122,7 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
         sourceId={item.sourceId}
         blockIndex={item.blockIndex}
         rotation={item.rotation}
+        overlays={item.overlays ?? []}
         selected={selected}
         position={position}
         total={count}
@@ -205,6 +207,7 @@ interface OutputCardProps {
   sourceId: SourceId;
   blockIndex: number;
   rotation: number;
+  overlays: Overlay[];
   selected: boolean;
   position: number;
   total: number;
@@ -224,6 +227,7 @@ function OutputCard({
   sourceId,
   blockIndex,
   rotation,
+  overlays,
   selected,
   position,
   total,
@@ -307,6 +311,7 @@ function OutputCard({
             alt={provenance}
             onNaturalAspect={setAspect}
           />
+          <OverlayThumb overlays={overlays} />
         </span>
 
         {selected && (

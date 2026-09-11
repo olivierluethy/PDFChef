@@ -9,6 +9,7 @@ import { createRegistry } from '../../adapters/registry';
 import { extractTextContent } from '../../adapters/text/extractText';
 import { createTextAdapter } from '../../adapters/text/textAdapter';
 import { paginateText } from '../../adapters/text/textLayout';
+import { loadFontBytes } from '../fonts/fontFiles';
 import type {
   AdapterRegistry,
   BlockAssembler,
@@ -62,6 +63,8 @@ export interface AppServices {
   readBytesForSource(sourceId: SourceId): Promise<Uint8Array>;
   imageEmbeddable(sourceId: SourceId): Promise<ImageEmbeddable>;
   textPages(sourceId: SourceId): Promise<string[][]>;
+  /** TTF-Bytes einer eingebetteten Overlay-Schrift (fuer den Export). */
+  fontBytes(file: string): Promise<Uint8Array>;
   /** Erkennt AcroForm-Felder auf einer Quellseite (leer bei Nicht-PDF). */
   detectFields(sourceId: SourceId, blockIndex: number): Promise<DetectedField[]>;
   importForDrop(items: DataTransferItem[]): Promise<ImportReport>;
@@ -148,6 +151,9 @@ export async function createAppServices({
     },
     async textPages(sourceId) {
       return paginateText(await extractTextContent(await readBytesForSource(sourceId)));
+    },
+    fontBytes(file) {
+      return loadFontBytes(file);
     },
     detectFields(sourceId, blockIndex) {
       return dispatcher.detectFields?.({ sourceId, blockIndex }) ?? Promise.resolve([]);
