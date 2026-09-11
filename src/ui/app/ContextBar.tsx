@@ -1,30 +1,33 @@
-import { FilePlus2, RotateCw, Scissors, Trash2 } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { FilePlus2, RotateCw, Scissors, Trash2, X } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import type { CompositionItem } from '../../domain/types';
-import { useDispatch, useSelection } from './StoreProvider';
+import { Button } from '../common/Button';
+import { IconButton } from '../common/IconButton';
+import { overlayVariants, tween, useMotionPrefs } from '../common/motion';
+import { useDispatch, useSelection, useSelectionStore } from './StoreProvider';
 
 export interface ContextBarProps {
   onRequestSplit(): void;
 }
 
+/**
+ * Schwebende Kontextleiste. Sie erscheint nur, wenn etwas ausgewaehlt ist -- ohne
+ * Auswahl ist sie schlicht abwesend, kein grauer Platzhalter. Ein Live-Bereich
+ * meldet die Auswahlgroesse an Screenreader.
+ */
 export function ContextBar({ onRequestSplit }: ContextBarProps) {
   const selection = useSelection();
+  const selectionStore = useSelectionStore();
   const dispatch = useDispatch();
+  const prefs = useMotionPrefs();
   const count = selection.ids.length;
   const scope = selection.scope;
   const inOutput = scope?.kind === 'output';
   const inSource = scope?.kind === 'source';
 
-  if (count === 0) {
-    return (
-      <div className="flex h-11 items-center gap-4 border-t border-line bg-panel px-4 text-sm text-muted">
-        Nichts ausgewaehlt &middot; Seiten anklicken oder mit der Maus aufziehen
-      </div>
-    );
-  }
-
   function newDocumentFromSelection() {
-    if (!inSource || scope?.kind !== 'source') return;
+    if (scope?.kind !== 'source') return;
     const outputId = newId();
     const items: CompositionItem[] = selection.ids.map((id) => ({
       id: newId(),
@@ -42,41 +45,61 @@ export function ContextBar({ onRequestSplit }: ContextBarProps) {
     });
   }
 
-  const secondary = 'flex items-center gap-1.5 rounded px-2.5 py-1 hover:bg-raised disabled:opacity-40';
-
   return (
-    <div className="flex h-11 items-center gap-2 border-t border-line bg-panel px-4 text-sm">
-      <span className="tabular mr-2 font-medium text-ink">{count} ausgewaehlt</span>
+    <>
+      <span className="sr-only" role="status" aria-live="polite">
+        {count > 0 ? `${count} ${count === 1 ? 'Seite' : 'Seiten'} ausgewählt` : ''}
+      </span>
+      <AnimatePresence>
+        {count > 0 && (
+          <motion.div
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+            variants={overlayVariants}
+            transition={prefs.t(tween.overlayIn)}
+            style={{ transformOrigin: 'bottom center' }}
+            className="fixed bottom-4 left-1/2 z-40 flex h-12 -translate-x-1/2 items-center gap-1 rounded-[10px] bg-surface-raised px-2 shadow-[var(--float-shadow)] ring-1 ring-line-structural"
+          >
+            <span className="px-2 font-mono text-[12.5px] tabular-nums text-text-primary">
+              {count} <span className="font-sans text-text-secondary">{count === 1 ? 'Seite' : 'Seiten'} ausgewählt</span>
+            </span>
+            <span aria-hidden className="mx-1 h-5 w-px bg-line-structural" />
 
-      {inSource && (
-        <button
-          type="button"
-          onClick={newDocumentFromSelection}
-          className="flex items-center gap-1.5 rounded bg-accent px-2.5 py-1 font-medium text-shell hover:brightness-110"
-        >
-          <FilePlus2 className="size-4" aria-hidden /> Neues Dokument aus Auswahl
-        </button>
-      )}
+            {inSource && (
+              <Button variant="quiet" size="sm" icon={FilePlus2} onClick={newDocumentFromSelection}>
+                Neues Dokument aus Auswahl
+              </Button>
+            )}
+            {inOutput && (
+              <Button
+                variant="quiet"
+                size="sm"
+                icon={RotateCw}
+                onClick={() => dispatch({ type: 'rotateItems', itemIds: selection.ids, delta: 90 })}
+              >
+                Drehen
+              </Button>
+            )}
+            <Button variant="quiet" size="sm" icon={Scissors} onClick={onRequestSplit}>
+              Aufteilen
+            </Button>
+            {inOutput && (
+              <Button
+                variant="quietDanger"
+                size="sm"
+                icon={Trash2}
+                onClick={() => dispatch({ type: 'removeItems', itemIds: selection.ids })}
+              >
+                Entfernen
+              </Button>
+            )}
 
-      <button
-        type="button"
-        disabled={!inOutput}
-        onClick={() => inOutput && dispatch({ type: 'rotateItems', itemIds: selection.ids, delta: 90 })}
-        className={secondary}
-      >
-        <RotateCw className="size-4" aria-hidden /> Drehen
-      </button>
-      <button
-        type="button"
-        disabled={!inOutput}
-        onClick={() => inOutput && dispatch({ type: 'removeItems', itemIds: selection.ids })}
-        className={secondary}
-      >
-        <Trash2 className="size-4" aria-hidden /> Entfernen
-      </button>
-      <button type="button" onClick={onRequestSplit} className={secondary}>
-        <Scissors className="size-4" aria-hidden /> Aufteilen
-      </button>
-    </div>
+            <span aria-hidden className="mx-1 h-5 w-px bg-line-structural" />
+            <IconButton icon={X} label="Auswahl aufheben" onClick={() => selectionStore.getState().clear()} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

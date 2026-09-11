@@ -1,4 +1,6 @@
 import { createPortal } from 'react-dom';
+import { motion } from 'motion/react';
+import { spring, useMotionPrefs } from '../common/motion';
 
 export interface DragState {
   count: number;
@@ -8,32 +10,45 @@ export interface DragState {
 }
 
 const LABEL: Record<DragState['action'], string> = {
-  move: 'verschieben',
-  copy: 'kopieren',
-  add: 'hinzufuegen',
-  new: 'neues Dokument',
+  move: 'Verschieben',
+  copy: 'Kopieren',
+  add: 'Hinzufügen',
+  new: 'Neues Dokument',
 };
 
+const OFFSETS = [0, -2, 3]; // Rotationsversatz der bis zu drei Blaetter im Stapel.
+
 /**
- * Gestapelte Kartenvorschau mit Zaehler, dem Zeiger folgend. 46 gezogene
- * Seiten zeigen einen Stapel mit der Zahl, nicht 46 einzelne Bilder.
+ * Gestapelte Kartenvorschau mit Zaehler, dem Zeiger per Feder folgend. 46 Seiten
+ * zeigen einen Stapel mit der Zahl, nicht 46 Bilder. Der Modus (Verschieben /
+ * Kopieren) steht sichtbar dabei und aktualisiert live beim Halten von Ctrl/Cmd.
  */
 export function DragPreview({ state }: { state: DragState }) {
+  const prefs = useMotionPrefs();
+  const layers = Math.min(state.count, 3);
+
   return createPortal(
-    <div
-      className="pointer-events-none fixed z-50 select-none"
-      style={{ left: state.x + 12, top: state.y + 12 }}
+    <motion.div
+      className="pointer-events-none fixed left-0 top-0 z-50 select-none"
+      animate={{ x: state.x + 14, y: state.y + 14 }}
+      transition={prefs.t(spring.dragPreview)}
     >
-      <div className="relative">
-        <span className="absolute left-1 top-1 block h-16 w-12 rounded bg-panel ring-1 ring-line" />
-        <span className="absolute left-0.5 top-0.5 block h-16 w-12 rounded bg-panel ring-1 ring-line" />
-        <span className="relative block h-16 w-12 rounded bg-panel ring-1 ring-sky-400" />
-        <span className="absolute -right-2 -top-2 rounded-full bg-sky-500 px-1.5 text-xs font-medium">
+      <div className="relative h-16 w-12">
+        {Array.from({ length: layers }).map((_, i) => (
+          <span
+            key={i}
+            className="paper-sheet absolute inset-0"
+            style={{ transform: `rotate(${OFFSETS[i] ?? 0}deg)`, zIndex: i }}
+          />
+        ))}
+        <span className="absolute -right-2 -top-2 z-10 rounded-full bg-info px-1.5 py-px font-mono text-[11px] font-medium tabular-nums text-surface-canvas">
           {state.count}
         </span>
       </div>
-      <span className="mt-1 block rounded bg-black/70 px-1 text-center text-[11px]">{LABEL[state.action]}</span>
-    </div>,
+      <span className="mt-1.5 block w-max rounded bg-surface-raised px-1.5 py-0.5 text-[11px] font-medium text-text-primary shadow-[var(--float-shadow)]">
+        {LABEL[state.action]}
+      </span>
+    </motion.div>,
     document.body,
   );
 }
