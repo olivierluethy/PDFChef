@@ -111,12 +111,41 @@ export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: Previ
       onJumpToSource={onJumpToSource}
       onPagePointerDown={onPagePointerDown}
       onAddOverlay={(itemId, overlay) => dispatch({ type: 'addOverlay', itemId, overlay })}
+      onAddOverlays={(itemId, list) => {
+        if (list.length === 0) return;
+        dispatch({
+          type: 'batch',
+          label: list.length === 1 ? 'Element hinzugefügt' : `${list.length} Elemente hinzugefügt`,
+          commands: list.map((overlay) => ({ type: 'addOverlay', itemId, overlay })),
+        });
+      }}
       onUpdateOverlay={(itemId, overlayId, patch) =>
         dispatch({ type: 'updateOverlay', itemId, overlayId, patch })
       }
+      onUpdateOverlays={(itemId, updates) => {
+        if (updates.length === 0) return;
+        dispatch({
+          type: 'batch',
+          label: 'Elemente bearbeitet',
+          commands: updates.map(({ id, patch }) => ({
+            type: 'updateOverlay',
+            itemId,
+            overlayId: id,
+            patch,
+          })),
+        });
+      }}
       onRemoveOverlay={(itemId, overlayId) =>
         dispatch({ type: 'removeOverlay', itemId, overlayId })
       }
+      onRemoveOverlays={(itemId, ids) => {
+        if (ids.length === 0) return;
+        dispatch({
+          type: 'batch',
+          label: ids.length === 1 ? 'Element entfernt' : `${ids.length} Elemente entfernt`,
+          commands: ids.map((overlayId) => ({ type: 'removeOverlay', itemId, overlayId })),
+        });
+      }}
       onDetectFields={(itemId) => void detectFields(itemId)}
       emptyLabel="Wähle eine Quelle oder ein Dokument für die Vorschau."
     />

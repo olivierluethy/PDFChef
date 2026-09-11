@@ -41,8 +41,11 @@ export interface ViewerProps {
   /** Startet einen Seiten-Drag aus dem Betrachter an das gewuenschte Ziel. */
   onPagePointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
   onAddOverlay?(itemId: ItemId, overlay: Overlay): void;
+  onAddOverlays?(itemId: ItemId, overlays: Overlay[]): void;
   onUpdateOverlay?(itemId: ItemId, overlayId: string, patch: Partial<Overlay>): void;
+  onUpdateOverlays?(itemId: ItemId, updates: { id: string; patch: Partial<Overlay> }[]): void;
   onRemoveOverlay?(itemId: ItemId, overlayId: string): void;
+  onRemoveOverlays?(itemId: ItemId, overlayIds: string[]): void;
   /** Erkennt AcroForm-Felder der Seite und legt sie als Overlays an. */
   onDetectFields?(itemId: ItemId): void;
   emptyLabel?: string;
@@ -57,8 +60,11 @@ export function Viewer({
   onJumpToSource,
   onPagePointerDown,
   onAddOverlay,
+  onAddOverlays,
   onUpdateOverlay,
+  onUpdateOverlays,
   onRemoveOverlay,
+  onRemoveOverlays,
   onDetectFields,
   emptyLabel,
 }: ViewerProps) {
@@ -294,8 +300,11 @@ export function Viewer({
               onJumpToSource={onJumpToSource}
               onPagePointerDown={onPagePointerDown}
               onAddOverlay={onAddOverlay}
+              onAddOverlays={onAddOverlays}
               onUpdateOverlay={onUpdateOverlay}
+              onUpdateOverlays={onUpdateOverlays}
               onRemoveOverlay={onRemoveOverlay}
+              onRemoveOverlays={onRemoveOverlays}
               onDetectFields={onDetectFields}
               blockRef={(el) => (pageRefs.current[i] = el)}
             />
@@ -326,8 +335,11 @@ interface PageBlockProps {
   onJumpToSource?(ref: BlockRef): void;
   onPagePointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
   onAddOverlay?(itemId: ItemId, overlay: Overlay): void;
+  onAddOverlays?(itemId: ItemId, overlays: Overlay[]): void;
   onUpdateOverlay?(itemId: ItemId, overlayId: string, patch: Partial<Overlay>): void;
+  onUpdateOverlays?(itemId: ItemId, updates: { id: string; patch: Partial<Overlay> }[]): void;
   onRemoveOverlay?(itemId: ItemId, overlayId: string): void;
+  onRemoveOverlays?(itemId: ItemId, overlayIds: string[]): void;
   onDetectFields?(itemId: ItemId): void;
   blockRef(el: HTMLDivElement | null): void;
 }
@@ -341,8 +353,11 @@ function PageBlock({
   onJumpToSource,
   onPagePointerDown,
   onAddOverlay,
+  onAddOverlays,
   onUpdateOverlay,
+  onUpdateOverlays,
   onRemoveOverlay,
+  onRemoveOverlays,
   onDetectFields,
   blockRef,
 }: PageBlockProps) {
@@ -410,8 +425,11 @@ function PageBlock({
                 overlays={page.overlays ?? []}
                 active={filling}
                 onAdd={(overlay) => onAddOverlay?.(page.itemId!, overlay)}
+                onAddMany={(list) => onAddOverlays?.(page.itemId!, list)}
                 onUpdate={(overlayId, patch) => onUpdateOverlay?.(page.itemId!, overlayId, patch)}
+                onUpdateMany={(updates) => onUpdateOverlays?.(page.itemId!, updates)}
                 onRemove={(overlayId) => onRemoveOverlay?.(page.itemId!, overlayId)}
+                onRemoveMany={(ids) => onRemoveOverlays?.(page.itemId!, ids)}
                 onDetect={() => onDetectFields?.(page.itemId!)}
               />
             )}

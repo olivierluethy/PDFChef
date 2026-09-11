@@ -40,11 +40,29 @@ export interface SourceDocument {
   statusDetail?: string;
 }
 
-export type OverlayKind = 'text' | 'image';
+export type OverlayKind = 'text' | 'image' | 'shape';
+
+/**
+ * Die zeichenbaren Formen. `box`-Formen (Rechteck/Ellipse/Highlight) werden ueber
+ * ein aufgezogenes Rechteck definiert; `line`-Formen (Linie/Pfeil/Polygon/Freihand)
+ * ueber `points` relativ zur Box; `mark`-Formen (Haken/Kreuz) sind feste Pfade in
+ * der Box. Siehe `domain/overlayShapes.ts` fuer Katalog, Standardwerte und Geometrie.
+ */
+export type ShapeKind =
+  | 'rect'
+  | 'roundRect'
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
+  | 'polygon'
+  | 'freehand'
+  | 'highlight'
+  | 'check'
+  | 'cross';
 
 /**
  * Ein frei platzierter Zusatz auf einer Seiteninstanz -- ein ausgefuelltes
- * Textfeld oder eine Unterschrift. Alle Masse sind Bruchteile 0..1 der
+ * Textfeld, eine Unterschrift oder eine Form. Alle Masse sind Bruchteile 0..1 der
  * ungedrehten Seite (Ursprung oben links), damit sie unabhaengig von Zoom und
  * Renderaufloesung sind und in der Vorschau wie im Export gleich landen.
  */
@@ -53,11 +71,11 @@ export interface Overlay {
   kind: OverlayKind;
   x: number;
   y: number;
-  /** Breite des Kastens (Text) bzw. sichtbare Breite (Bild). */
+  /** Breite des Kastens (Text/Form) bzw. sichtbare Breite (Bild). */
   w: number;
-  /** Hoehe -- nur fuer Bilder relevant. */
+  /** Hoehe -- fuer Bilder und Formen relevant (Text waechst selbst). */
   h: number;
-  /** Text: der eingegebene Wert (bei Auswahl der gewaehlte Eintrag). */
+  /** Text: der eingegebene Wert (bei Auswahl der gewaehlte Eintrag; auch Text in einer Form). */
   text?: string;
   /** Text: Schriftgroesse als Bruchteil der Seitenhoehe. */
   fontSize?: number;
@@ -67,6 +85,8 @@ export interface Overlay {
   bold?: boolean;
   /** Text: kursiv (synthetische Neigung in Vorschau und Export). */
   italic?: boolean;
+  /** Text/Text-in-Form: Textfarbe als #RRGGBB (Standard: dunkles Grau). */
+  color?: string;
   /** Bild/Unterschrift: PNG als data-URL. */
   dataUrl?: string;
   /**
@@ -74,6 +94,30 @@ export interface Overlay {
    * Ankreuzfeld): der Editor zeigt statt eines Textfelds diese Optionen.
    */
   options?: string[];
+  /** Form: welche Form (nur bei kind === 'shape'). */
+  shape?: ShapeKind;
+  /** Form: Fuellfarbe als #RRGGBB; 'none' oder undefined = keine Fuellung. */
+  fill?: string;
+  /** Form: Randfarbe als #RRGGBB; undefined = kein Rand. */
+  stroke?: string;
+  /** Form: Randstaerke als Bruchteil der Seitenhoehe. */
+  strokeWidth?: number;
+  /** Form: Gesamtdeckkraft 0..1 (Standard 1). */
+  opacity?: number;
+  /**
+   * Form (Linie/Pfeil/Polygon/Freihand): Stuetzpunkte relativ zur Box als
+   * [x0,y0,x1,y1,...], je 0..1. Bei Linie/Pfeil genau zwei Punkte.
+   */
+  points?: number[];
+  /** Gruppierung: Overlays mit gleicher `groupId` verschieben/kopieren sich gemeinsam. */
+  groupId?: string;
+  /**
+   * Export: als echtes, im Reader ausfuellbares AcroForm-Feld exportieren statt
+   * eingebrannt. Nur fuer Text-, Auswahl- und Ankreuzfelder sinnvoll.
+   */
+  interactive?: boolean;
+  /** Export: Feldname des interaktiven Feldes (wird bei Bedarf eindeutig gemacht). */
+  fieldName?: string;
 }
 
 /** Eine Instanz einer Quellseite in genau einem Output. Eine Kopie ist ein zweites Item. */
