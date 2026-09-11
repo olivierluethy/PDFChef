@@ -57,12 +57,17 @@ export interface Overlay {
   w: number;
   /** Hoehe -- nur fuer Bilder relevant. */
   h: number;
-  /** Text: der eingegebene Wert. */
+  /** Text: der eingegebene Wert (bei Auswahl der gewaehlte Eintrag). */
   text?: string;
   /** Text: Schriftgroesse als Bruchteil der Seitenhoehe. */
   fontSize?: number;
   /** Bild/Unterschrift: PNG als data-URL. */
   dataUrl?: string;
+  /**
+   * Wenn gesetzt, ist das Feld eine Auswahl (erkanntes Select/Dropdown oder
+   * Ankreuzfeld): der Editor zeigt statt eines Textfelds diese Optionen.
+   */
+  options?: string[];
 }
 
 /** Eine Instanz einer Quellseite in genau einem Output. Eine Kopie ist ein zweites Item. */
