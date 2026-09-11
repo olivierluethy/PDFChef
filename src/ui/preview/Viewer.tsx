@@ -1,13 +1,27 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { ChevronLeft, ChevronRight, ExternalLink, RotateCw, ZoomIn, ZoomOut } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Maximize,
+  MoreVertical,
+  RotateCw,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 import type { BlockRef, Rotation } from '../../domain/types';
+import { IconButton } from '../common/IconButton';
+import { Menu } from '../common/Menu';
+import { cx } from '../common/cx';
 import { usePageImage } from './usePageImage';
 import { clampPageIndex, nextZoom } from './viewerModel';
 
 export interface ViewerPage {
   ref: BlockRef;
   rotation: Rotation;
-  provenance: string;
+  sourceName: string;
+  pageNumber: number;
 }
 
 export interface ViewerProps {
@@ -17,27 +31,45 @@ export interface ViewerProps {
 }
 
 const VIEW_WIDTH = 800;
+const COMPACT_WIDTH = 440;
+const clampZoom = (z: number) => Math.min(4, Math.max(0.25, z));
 
 export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
   const [index, setIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [extraRotation, setExtraRotation] = useState<Rotation>(0);
+  const [scrolling, setScrolling] = useState(false);
+  const [compact, setCompact] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const scrollStop = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // Beim Wechsel von Quelle/Dokument oben beginnen.
   useLayoutEffect(() => {
     setIndex(0);
     scrollRef.current?.scrollTo({ top: 0 });
   }, [pages]);
 
-  // Die angezeigte Seitenzahl folgt dem Scrollen: sichtbar ist die Seite, deren
-  // Bereich die vertikale Mitte des Scrollfensters enthaelt.
+  // Panelbreite bestimmt, ob Drehen/Vollbild ins Ueberlaufmenue wandern.
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const update = () => setCompact(el.clientWidth < COMPACT_WIDTH);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Sichtbare Seitenzahl folgt dem Scrollen; die Sticky-Pille blendet 1s nach Stopp aus.
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
     let frame = 0;
     const onScroll = () => {
+      setScrolling(true);
+      clearTimeout(scrollStop.current);
+      scrollStop.current = setTimeout(() => setScrolling(false), 1000);
       if (frame) return;
       frame = requestAnimationFrame(() => {
         frame = 0;
@@ -59,51 +91,113 @@ export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
   }, [pages]);
 
   if (pages.length === 0) {
-    return <p className="grid h-full place-items-center text-sm text-neutral-500">{emptyLabel ?? 'Nichts zum Anzeigen.'}</p>;
+    return <p className="grid h-full place-items-center px-8 text-center text-[13px] text-text-tertiary">{emptyLabel ?? 'Nichts zum Anzeigen.'}</p>;
   }
 
   const scrollToPage = (target: number) => {
     const i = clampPageIndex(target, pages.length);
     const el = pageRefs.current[i];
-    if (el && scrollRef.current) scrollRef.current.scrollTo({ top: el.offsetTop, behavior: 'smooth' });
+    if (el && scrollRef.current) scrollRef.current.scrollTo({ top: el.offsetTop - 24, behavior: 'smooth' });
   };
 
+  const fitWidth = () => setZoom(1);
+  const fitPage = () => {
+    const area = scrollRef.current;
+    const pageEl = pageRefs.current[index]?.querySelector('img');
+    if (area && pageEl) setZoom((z) => clampZoom((z * (area.clientHeight - 64)) / pageEl.clientHeight));
+  };
+  const actualSize = () => {
+    const area = scrollRef.current;
+    if (area) setZoom(clampZoom(VIEW_WIDTH / (area.clientWidth - 48)));
+  };
+  const toggleFullscreen = () => {
+    const el = rootRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void el.requestFullscreen?.();
+  };
+  const rotate = () => setExtraRotation((r) => ((r + 90) % 360) as Rotation);
+
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-line px-3 py-1 text-sm">
-        <button type="button" aria-label="Vorige Seite" disabled={index === 0} onClick={() => scrollToPage(index - 1)} className="rounded p-1 hover:bg-panel disabled:opacity-40">
-          <ChevronLeft className="size-4" />
-        </button>
-        <label className="flex items-center gap-1">
-          Seite
+    <div ref={rootRef} className="flex h-full flex-col bg-surface-panel">
+      <div className="flex h-10 shrink-0 items-center gap-1 overflow-hidden whitespace-nowrap border-b border-line-structural px-2">
+        <IconButton size="sm" icon={ChevronLeft} label="Vorige Seite" disabled={index === 0} onClick={() => scrollToPage(index - 1)} />
+        <div className="flex items-center gap-1">
           <input
             type="number"
             min={1}
             max={pages.length}
             value={index + 1}
             onChange={(e) => scrollToPage(Number(e.target.value) - 1)}
-            className="w-14 rounded border border-line bg-panel px-1 py-0.5"
+            aria-label="Seite"
+            className="h-7 w-12 rounded-md bg-surface-raised px-1.5 text-center font-mono text-[12.5px] tabular-nums text-text-primary ring-1 ring-line-structural [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
           />
-          von {pages.length}
-        </label>
-        <button type="button" aria-label="Naechste Seite" disabled={index >= pages.length - 1} onClick={() => scrollToPage(index + 1)} className="rounded p-1 hover:bg-panel disabled:opacity-40">
-          <ChevronRight className="size-4" />
-        </button>
-        <span className="mx-2 h-4 w-px bg-line" />
-        <button type="button" aria-label="Verkleinern" onClick={() => setZoom((z) => nextZoom(z, -1))} className="rounded p-1 hover:bg-panel">
-          <ZoomOut className="size-4" />
-        </button>
-        <span className="w-12 text-center">{Math.round(zoom * 100)}%</span>
-        <button type="button" aria-label="Vergroessern" onClick={() => setZoom((z) => nextZoom(z, 1))} className="rounded p-1 hover:bg-panel">
-          <ZoomIn className="size-4" />
-        </button>
-        <button type="button" aria-label="Drehen" onClick={() => setExtraRotation((r) => ((r + 90) % 360) as Rotation)} className="rounded p-1 hover:bg-panel">
-          <RotateCw className="size-4" />
-        </button>
+          <span className="font-mono text-[12.5px] tabular-nums text-text-secondary">/{pages.length}</span>
+        </div>
+        <IconButton size="sm" icon={ChevronRight} label="Nächste Seite" disabled={index >= pages.length - 1} onClick={() => scrollToPage(index + 1)} />
+
+        <span aria-hidden className="mx-1 h-5 w-px bg-line-structural" />
+
+        <div className="flex items-center rounded-md bg-surface-canvas ring-1 ring-line-hairline">
+          <IconButton size="sm" icon={ZoomOut} label="Verkleinern" onClick={() => setZoom((z) => clampZoom(nextZoom(z, -1)))} />
+          <span className="w-14 text-center font-mono text-[12px] tabular-nums text-text-secondary">{Math.round(zoom * 100)} %</span>
+          <IconButton size="sm" icon={ZoomIn} label="Vergrössern" onClick={() => setZoom((z) => clampZoom(nextZoom(z, 1)))} />
+        </div>
+
+        <Menu
+          align="start"
+          minWidth={180}
+          items={[
+            { id: 'page', label: 'Seite einpassen', onSelect: fitPage },
+            { id: 'width', label: 'Breite einpassen', onSelect: fitWidth },
+            { id: 'actual', label: 'Originalgrösse', onSelect: actualSize },
+          ]}
+          renderTrigger={({ ref, toggle, ariaProps }) => (
+            <button
+              ref={ref}
+              type="button"
+              onClick={toggle}
+              className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12.5px] text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+              {...ariaProps}
+            >
+              Einpassen <ChevronDown className="size-3.5" aria-hidden />
+            </button>
+          )}
+        />
+
+        <span aria-hidden className="mx-1 h-5 w-px bg-line-structural" />
+
+        {compact ? (
+          <Menu
+            align="end"
+            minWidth={160}
+            items={[
+              { id: 'rotate', label: 'Drehen', icon: RotateCw, onSelect: rotate },
+              { id: 'fullscreen', label: 'Vollbild', icon: Maximize, onSelect: toggleFullscreen },
+            ]}
+            renderTrigger={({ ref, toggle, ariaProps }) => (
+              <button
+                ref={ref}
+                type="button"
+                onClick={toggle}
+                aria-label="Weitere Ansichtsoptionen"
+                className="inline-grid size-7 place-items-center rounded-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                {...ariaProps}
+              >
+                <MoreVertical className="size-4" aria-hidden />
+              </button>
+            )}
+          />
+        ) : (
+          <>
+            <IconButton size="sm" icon={RotateCw} label="Drehen" onClick={rotate} />
+            <IconButton size="sm" icon={Maximize} label="Vollbild" onClick={toggleFullscreen} />
+          </>
+        )}
       </div>
 
-      <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-auto bg-black/30 p-4">
-        <div className="flex flex-col items-center gap-6">
+      <div ref={scrollRef} className="scroll-fade-y relative min-h-0 flex-1 overflow-auto bg-surface-canvas px-6 pb-10 pt-6">
+        <div className="mx-auto flex max-w-full flex-col gap-5">
           {pages.map((page, i) => (
             <PageBlock
               key={`${page.ref.sourceId}:${page.ref.blockIndex}:${i}`}
@@ -115,6 +209,17 @@ export function Viewer({ pages, onJumpToSource, emptyLabel }: ViewerProps) {
               blockRef={(el) => (pageRefs.current[i] = el)}
             />
           ))}
+        </div>
+
+        {/* Sticky-Seitenanzeige, mittig unten, verschwindet nach dem Scrollen. */}
+        <div
+          aria-hidden
+          className={cx(
+            'pointer-events-none sticky bottom-3 left-1/2 z-10 mx-auto w-max -translate-x-0 rounded-full bg-surface-raised px-2.5 py-1 font-mono text-[11.5px] tabular-nums text-text-secondary shadow-[var(--float-shadow)] ring-1 ring-line-structural transition-opacity duration-300',
+            scrolling ? 'opacity-100' : 'opacity-0',
+          )}
+        >
+          {index + 1} / {pages.length}
         </div>
       </div>
     </div>
@@ -130,20 +235,13 @@ interface PageBlockProps {
   blockRef(el: HTMLDivElement | null): void;
 }
 
-/**
- * Eine Seite im vertikalen Fluss. Ihr Bild wird erst gerendert, wenn sie in die
- * Naehe des Sichtfensters scrollt -- sonst wuerden hunderte Seiten auf einmal
- * rendern. Der Platzhalter haelt vorab die richtige Hoehe, damit die Scrollleiste
- * stimmt.
- */
 function PageBlock({ page, zoom, extraRotation, scrollRef, onJumpToSource, blockRef }: PageBlockProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const el = wrapRef.current;
-    if (!el) return;
-    if (visible) return; // einmal sichtbar, geladen bleiben.
+    if (!el || visible) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) setVisible(true);
@@ -162,39 +260,57 @@ function PageBlock({ page, zoom, extraRotation, scrollRef, onJumpToSource, block
         wrapRef.current = el;
         blockRef(el);
       }}
-      className="w-full"
+      className="group w-full"
     >
-      {visible ? (
-        <PageImage ref={page.ref} zoom={zoom} rotation={rotation} provenance={page.provenance} />
-      ) : (
-        <div className="mx-auto h-[60vh] w-2/3 animate-pulse rounded bg-panel" aria-label={`${page.provenance} wird geladen`} />
-      )}
-      <div className="mt-1 flex items-center justify-between px-1 text-xs text-neutral-400">
-        <span className="truncate">{page.provenance}</span>
+      {/* Herkunft ueber dem Blatt -- eindeutig zugeordnet, nicht zwischen zweien. */}
+      <div className="mb-1.5 flex items-baseline gap-2 px-0.5">
+        <span className="min-w-0 truncate text-[12px] text-text-secondary" title={page.sourceName}>
+          {page.sourceName}
+        </span>
+        <span className="ml-auto shrink-0 font-mono text-[11.5px] tabular-nums text-text-secondary">
+          Seite {page.pageNumber}
+        </span>
         {onJumpToSource && (
-          <button type="button" onClick={() => onJumpToSource(page.ref)} className="flex shrink-0 items-center gap-1 rounded px-2 py-0.5 hover:bg-panel" aria-label={`Zur Quelle: ${page.provenance}`}>
-            <ExternalLink className="size-3" /> Zur Quelle
+          <button
+            type="button"
+            onClick={() => onJumpToSource(page.ref)}
+            className="shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11.5px] text-text-secondary opacity-0 transition-opacity hover:bg-surface-hover hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 inline-flex"
+            aria-label={`Zur Quelle: ${page.sourceName}, Seite ${page.pageNumber}`}
+          >
+            <ExternalLink className="size-3.5" aria-hidden /> Zur Quelle
           </button>
         )}
       </div>
+      {visible ? (
+        <PageImage
+          ref={page.ref}
+          zoom={zoom}
+          rotation={rotation}
+          alt={`${page.sourceName}, Seite ${page.pageNumber}`}
+        />
+      ) : (
+        <div className="mx-auto h-[60vh] w-2/3 animate-pulse rounded-[2px] bg-surface-raised" aria-label={`${page.sourceName} wird geladen`} />
+      )}
     </div>
   );
 }
 
-function PageImage({ ref, zoom, rotation, provenance }: { ref: BlockRef; zoom: number; rotation: Rotation; provenance: string }) {
+function PageImage({ ref, zoom, rotation, alt }: { ref: BlockRef; zoom: number; rotation: Rotation; alt: string }) {
   const { url, status } = usePageImage(ref, VIEW_WIDTH);
   if (status === 'error') {
-    return <p className="grid h-40 place-items-center text-sm text-amber-400">Diese Seite konnte nicht gerendert werden.</p>;
+    return <p className="grid h-40 place-items-center text-[13px] text-danger">Diese Seite konnte nicht gerendert werden.</p>;
   }
   if (!url) {
-    return <div className="mx-auto h-[60vh] w-2/3 animate-pulse rounded bg-panel" aria-label={`${provenance} wird geladen`} />;
+    return <div className="mx-auto h-[60vh] w-2/3 animate-pulse rounded-[2px] bg-surface-raised" aria-label={`${alt} wird geladen`} />;
   }
   return (
-    <img
-      src={url}
-      alt={provenance}
-      className="mx-auto rounded shadow-lg"
-      style={{ width: `${zoom * 100}%`, transform: `rotate(${rotation}deg)` }}
-    />
+    <div className="flex justify-center">
+      <img
+        src={url}
+        alt={alt}
+        className="paper-sheet max-w-full"
+        style={{ width: `${zoom * 100}%`, transform: `rotate(${rotation}deg)` }}
+      />
+    </div>
   );
 }

@@ -22,7 +22,8 @@ export function PreviewPane({ activeSourceId, activeOutputId, onJumpToSource }: 
         .map((item) => ({
           ref: { sourceId: item.sourceId, blockIndex: item.blockIndex },
           rotation: item.rotation,
-          provenance: `${workspace.sources[item.sourceId]?.name ?? 'Quelle'} . Seite ${item.blockIndex + 1}`,
+          sourceName: workspace.sources[item.sourceId]?.name ?? 'Quelle',
+          pageNumber: item.blockIndex + 1,
         }));
     }
     const source = activeSourceId ? workspace.sources[activeSourceId] : undefined;
@@ -30,11 +31,12 @@ export function PreviewPane({ activeSourceId, activeOutputId, onJumpToSource }: 
       return Array.from({ length: source.blockCount }, (_, blockIndex) => ({
         ref: { sourceId: source.id, blockIndex },
         rotation: 0 as const,
-        provenance: `${source.name} . Seite ${blockIndex + 1}`,
+        sourceName: source.name,
+        pageNumber: blockIndex + 1,
       }));
     }
     return [];
   }, [workspace, activeSourceId, activeOutputId]);
 
-  return <Viewer pages={pages} onJumpToSource={onJumpToSource} emptyLabel="Waehlen Sie eine Quelle oder ein Dokument fuer die Vorschau." />;
+  return <Viewer pages={pages} onJumpToSource={onJumpToSource} emptyLabel="Wähle eine Quelle oder ein Dokument für die Vorschau." />;
 }

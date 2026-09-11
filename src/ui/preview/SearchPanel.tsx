@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Search, X } from 'lucide-react';
 import type { SearchScopeKind } from '../../services/search/searchScope';
 import type { DocumentResult } from '../../services/search/searchService';
+import { Button } from '../common/Button';
+import { IconButton } from '../common/IconButton';
+import { SegmentedControl } from '../common/SegmentedControl';
 
 export interface SearchPanelProps {
   runSearch(query: string, kind: SearchScopeKind): Promise<DocumentResult[]>;
@@ -9,10 +12,10 @@ export interface SearchPanelProps {
   onClose(): void;
 }
 
-const SCOPES: { key: SearchScopeKind; label: string }[] = [
-  { key: 'source', label: 'Aktuelle Quelle' },
-  { key: 'output', label: 'Aktuelles Dokument' },
-  { key: 'all', label: 'Alle Quellen' },
+const SCOPES: { value: SearchScopeKind; label: string }[] = [
+  { value: 'source', label: 'Quelle' },
+  { value: 'output', label: 'Dokument' },
+  { value: 'all', label: 'Alle' },
 ];
 
 export function SearchPanel({ runSearch, onJump, onClose }: SearchPanelProps) {
@@ -33,13 +36,11 @@ export function SearchPanel({ runSearch, onJump, onClose }: SearchPanelProps) {
   }
 
   return (
-    <div className="flex h-full flex-col border-l border-line">
-      <form onSubmit={submit} className="flex flex-col gap-2 border-b border-line p-3">
+    <div className="flex h-full flex-col">
+      <form onSubmit={submit} className="flex flex-col gap-2.5 border-b border-line-structural p-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium">Suchen</h2>
-          <button type="button" onClick={onClose} aria-label="Suche schliessen" className="rounded p-1 hover:bg-panel">
-            <X className="size-4" />
-          </button>
+          <h2 className="t-panel-title text-text-primary">Suchen</h2>
+          <IconButton icon={X} label="Suche schliessen" onClick={onClose} />
         </div>
         <div className="flex gap-2">
           <input
@@ -47,49 +48,37 @@ export function SearchPanel({ runSearch, onJump, onClose }: SearchPanelProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Text im Dokument suchen"
-            className="min-w-0 flex-1 rounded border border-line bg-panel px-2 py-1 text-sm"
+            className="min-w-0 flex-1 rounded-md bg-surface-raised px-2.5 py-1.5 text-[13px] text-text-primary ring-1 ring-line-structural focus:ring-accent"
           />
-          <button type="submit" className="flex items-center gap-1 rounded bg-sky-600 px-3 py-1 text-sm">
-            <Search className="size-4" /> Suchen
-          </button>
+          <Button type="submit" variant="secondary" icon={Search}>
+            Suchen
+          </Button>
         </div>
-        <div className="flex gap-1 text-xs">
-          {SCOPES.map((entry) => (
-            <button
-              key={entry.key}
-              type="button"
-              onClick={() => setScope(entry.key)}
-              aria-pressed={scope === entry.key}
-              className={`rounded px-2 py-1 ${scope === entry.key ? 'bg-panel text-neutral-100' : 'text-neutral-400 hover:bg-panel/60'}`}
-            >
-              {entry.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl<SearchScopeKind> ariaLabel="Suchbereich" value={scope} onChange={setScope} options={SCOPES} />
       </form>
 
-      <div className="min-h-0 flex-1 overflow-auto p-3 text-sm">
-        {busy && <p className="text-neutral-500">Wird durchsucht...</p>}
+      <div className="scroll-fade-y min-h-0 flex-1 overflow-auto p-3 text-[13px]">
+        {busy && <p className="text-text-tertiary">Wird durchsucht …</p>}
         {!busy && results && results.every((r) => r.matches.length === 0) && (
-          <p className="text-neutral-500">Keine Treffer.</p>
+          <p className="text-text-tertiary">Keine Treffer.</p>
         )}
         {!busy &&
           results?.map((result) => (
-            <section key={result.sourceId} className="mb-3">
-              <h3 className="mb-1 font-medium">{result.name}</h3>
+            <section key={result.sourceId} className="mb-4">
+              <h3 className="mb-1.5 text-[13px] font-medium text-text-primary">{result.name}</h3>
               {!result.searchable ? (
-                <p className="text-neutral-500">Dieses Dokument enthaelt keinen durchsuchbaren Text.</p>
+                <p className="text-text-tertiary">Dieses Dokument enthält keinen durchsuchbaren Text.</p>
               ) : (
-                <ul className="flex flex-col gap-1">
+                <ul className="flex flex-col gap-0.5">
                   {result.matches.map((match) => (
                     <li key={match.blockIndex}>
                       <button
                         type="button"
                         onClick={() => onJump(result.sourceId, match.blockIndex)}
-                        className="w-full rounded px-2 py-1 text-left hover:bg-panel"
+                        className="w-full rounded-md px-2 py-1.5 text-left hover:bg-surface-hover"
                       >
-                        <span className="text-neutral-400">Seite {match.blockIndex + 1}</span>{' '}
-                        <span className="text-neutral-300">{match.snippet}</span>
+                        <span className="font-mono text-[11.5px] tabular-nums text-info">Seite {match.blockIndex + 1}</span>{' '}
+                        <span className="text-text-secondary">{match.snippet}</span>
                       </button>
                     </li>
                   ))}
