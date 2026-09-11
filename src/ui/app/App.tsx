@@ -22,6 +22,7 @@ import { PreviewPane } from '../preview/PreviewPane';
 import { useOcr } from '../preview/useOcr';
 import { useSearch } from '../preview/useSearch';
 import { useExport } from '../export/useExport';
+import { usePrint } from '../export/usePrint';
 import { useLatexExport } from '../export/useLatexExport';
 import { CommandPalette } from './CommandPalette';
 import type { PaletteAction } from './commandFilter';
@@ -101,6 +102,7 @@ function Workspace() {
   const drag = usePointerDrag();
   const external = useExternalDrop();
   const exportUi = useExport();
+  const printUi = usePrint();
   const latex = useLatexExport();
   const search = useSearch({ sourceId: activeSourceId, outputId: activeOutputId });
   const ocr = useOcr();
@@ -121,6 +123,7 @@ function Workspace() {
         run: () => dispatch({ type: 'createOutput', node: { id: newId(), name: 'Neues Dokument', parentId: null } }),
       },
       { id: 'export', label: 'Exportieren', run: () => exportUi.open() },
+      { id: 'print', label: 'Drucken', run: () => printUi.open() },
       { id: 'search', label: 'Suchen', run: () => search.open() },
       { id: 'trash', label: 'Papierkorb oeffnen', run: () => setTrashOpen(true) },
       {
@@ -139,7 +142,7 @@ function Workspace() {
         },
       },
     ],
-    [workspaceStore, dispatch, exportUi, search, ocr, latex, activeSourceId, workspace, setTrashOpen],
+    [workspaceStore, dispatch, exportUi, printUi, search, ocr, latex, activeSourceId, workspace, setTrashOpen],
   );
 
   useEffect(() => services.autosave.subscribe(setStatus), [services]);
@@ -239,7 +242,12 @@ function Workspace() {
 
   return (
     <div className="flex h-screen flex-col bg-shell text-ink" {...external.dropHandlers}>
-      <Header onImportFiles={importFiles} onExport={() => exportUi.open()} saveStatus={status} />
+      <Header
+        onImportFiles={importFiles}
+        onExport={() => exportUi.open()}
+        onPrint={() => printUi.open()}
+        saveStatus={status}
+      />
 
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-64 flex-col border-r border-line bg-panel">
@@ -257,6 +265,7 @@ function Workspace() {
                 activeOutputId={activeOutputId}
                 onSelectOutput={setActiveOutputId}
                 onExportNode={(nodeId) => exportUi.open({ kind: 'node', nodeId })}
+                onPrintNode={(nodeId) => printUi.open({ kind: 'node', nodeId })}
                 onDeleteNode={(nodeId) => {
                   const snapshot = buildNodeSnapshot(workspace, nodeId);
                   const node = workspace.nodes[nodeId];
@@ -330,6 +339,7 @@ function Workspace() {
         </div>
       )}
       {exportUi.dialog}
+      {printUi.dialog}
       {paletteOpen && <CommandPalette actions={paletteActions} onClose={() => setPaletteOpen(false)} />}
       {trashOpen && <TrashPanel onClose={() => setTrashOpen(false)} />}
       {ocr.progress && (

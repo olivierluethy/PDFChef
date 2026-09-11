@@ -1,18 +1,19 @@
 import { useRef } from 'react';
-import { Download, FolderUp, Upload } from 'lucide-react';
+import { Download, FolderUp, Printer, Upload } from 'lucide-react';
 import { describeSaveStatus, type SaveStatus } from '../../services/persistence/autosave';
 import { useDispatch, useServices, useWorkspace } from './StoreProvider';
 
 export interface HeaderProps {
   onImportFiles(files: FileList | File[]): void;
   onExport(): void;
+  onPrint(): void;
   saveStatus: SaveStatus;
 }
 
 // webkitdirectory ist kein Standard-Attribut in den React-Typen.
 const folderAttrs = { webkitdirectory: '', directory: '' } as Record<string, string>;
 
-export function Header({ onImportFiles, onExport, saveStatus }: HeaderProps) {
+export function Header({ onImportFiles, onExport, onPrint, saveStatus }: HeaderProps) {
   const workspace = useWorkspace();
   const dispatch = useDispatch();
   const services = useServices();
@@ -62,6 +63,9 @@ export function Header({ onImportFiles, onExport, saveStatus }: HeaderProps) {
         </button>
         <button type="button" onClick={() => folderInput.current?.click()} className={button}>
           <FolderUp className="size-4" aria-hidden /> Ordner
+        </button>
+        <button type="button" onClick={onPrint} className={button}>
+          <Printer className="size-4" aria-hidden /> Drucken
         </button>
         <button type="button" onClick={onExport} className={button}>
           <Download className="size-4" aria-hidden /> Exportieren

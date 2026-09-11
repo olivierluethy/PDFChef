@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { RotateCcw, RotateCw, Scissors, Trash2 } from 'lucide-react';
+import { GripVertical, RotateCcw, RotateCw, Scissors, Trash2 } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import { isOutput, type NodeId } from '../../domain/types';
 import type { SelectionScope } from '../../services/store/selection';
@@ -108,12 +108,22 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
               data-drop-index={position}
               className={`group relative flex w-full cursor-grab flex-col gap-1 rounded ring-2 transition-shadow ${selected ? 'ring-accent' : 'ring-transparent hover:ring-line'}`}
             >
-              {lineBefore && <InsertionLine side="left" />}
-              {lineAfter && <InsertionLine side="right" />}
+              {lineBefore && <InsertionLine side="left" atEdge={position === 0} />}
+              {lineAfter && <InsertionLine side="right" atEdge />}
               <span className="block w-full" style={{ aspectRatio: '1 / 1.35', transform: `rotate(${item.rotation}deg)` }}>
                 <Thumbnail blockRef={{ sourceId: item.sourceId, blockIndex: item.blockIndex }} alt={provenance} />
               </span>
               <span className="truncate px-1 text-[11px] text-muted">{provenance}</span>
+
+              {/* Greif-Hinweis: macht beim Hover sichtbar, dass sich die Kachel ziehen
+                  laesst. pointer-events-none, damit der PointerDown zur Kachel durchgeht
+                  und der Drag ganz normal startet. */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute left-1 top-1 grid size-6 place-items-center rounded bg-shell/80 text-muted opacity-0 ring-1 ring-line backdrop-blur transition-opacity group-hover:opacity-100"
+              >
+                <GripVertical className="size-3.5" />
+              </span>
 
               <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                 <CardButton
@@ -160,9 +170,16 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
   );
 }
 
-/** Die amberfarbene Einfuege-Marke in der Luecke neben einer Kachel. */
-function InsertionLine({ side }: { side: 'left' | 'right' }) {
-  const position = side === 'left' ? '-left-[7px]' : '-right-[7px]';
+/**
+ * Die amberfarbene Einfuege-Marke in der Luecke neben einer Kachel. Am aeusseren
+ * Rasterrand (`atEdge`) laege die Linie sonst ausserhalb des Scrollcontainers und
+ * wuerde abgeschnitten -- z. B. beim Ziehen vor das erste Dokument. Dort setzen
+ * wir sie leicht nach innen, damit die Positions-Vorschau auch ganz vorne (und
+ * ganz hinten) sichtbar bleibt.
+ */
+function InsertionLine({ side, atEdge = false }: { side: 'left' | 'right'; atEdge?: boolean }) {
+  const position =
+    side === 'left' ? (atEdge ? 'left-[2px]' : '-left-[7px]') : atEdge ? 'right-[2px]' : '-right-[7px]';
   return (
     <span
       aria-hidden
