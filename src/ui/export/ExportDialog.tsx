@@ -1,4 +1,4 @@
-import { Download, FolderTree, Info, TriangleAlert, X } from 'lucide-react';
+import { Check, Download, FolderInput, FolderTree, Info, TriangleAlert, X } from 'lucide-react';
 import type { ExportPlan } from '../../domain/exportPlan';
 import type { ExportWarning } from '../../domain/exportWarnings';
 import type { NodeId } from '../../domain/types';
@@ -11,8 +11,12 @@ export interface ExportDialogProps {
   warnings: ExportWarning[];
   canWriteDirectory: boolean;
   progress: ExportProgress | null;
+  /** Dokumente, die bereits einzeln an ein eigenes Ziel geschrieben wurden. */
+  exportedIds: ReadonlySet<NodeId>;
   onRename(outputId: NodeId, name: string): void;
   onExport(target: 'directory' | 'zip'): void;
+  /** Ein einzelnes Dokument an einen frei gewaehlten Ordner speichern. */
+  onExportEntry(outputId: NodeId): void;
   onCancel(): void;
   onClose(): void;
 }
@@ -27,13 +31,19 @@ export function ExportDialog({
   warnings,
   canWriteDirectory,
   progress,
+  exportedIds,
   onRename,
   onExport,
+  onExportEntry,
   onCancel,
   onClose,
 }: ExportDialogProps) {
   const running = progress !== null;
-  const nothing = plan.entries.length === 0;
+  const remaining = plan.entries.filter((entry) => !exportedIds.has(entry.outputId));
+  // "Nichts mehr" fuer den Sammel-Export, sobald jedes Dokument entweder leer
+  // oder bereits einzeln gespeichert ist.
+  const nothing = remaining.length === 0;
+  const someExported = exportedIds.size > 0;
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/50 p-4" role="dialog" aria-label="Exportieren">
@@ -52,7 +62,7 @@ export function ExportDialog({
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto px-4 py-3 text-sm">
-          {nothing ? (
+          {plan.entries.length === 0 ? (
             <p className="text-muted">
               Es gibt noch keine gefuellten Dokumente zum Exportieren. Ziehen Sie erst Seiten in ein
               Dokument.
@@ -63,26 +73,58 @@ export function ExportDialog({
                 {plan.entries.length} {plan.entries.length === 1 ? 'Dokument' : 'Dokumente'},{' '}
                 <span className="tabular">{pages(plan.totalBlocks)}</span> insgesamt. Namen sind vor dem
                 Export bearbeitbar.
+                {canWriteDirectory && ' Einzelne Dokumente koennen ueber das Ordner-Symbol an einen eigenen Ort gespeichert werden.'}
               </p>
               <ul className="flex flex-col gap-1.5">
-                {plan.entries.map((entry) => (
-                  <li key={entry.outputId} className="flex items-center gap-2">
-                    {entry.path.length > 0 && (
-                      <span className="shrink-0 text-xs text-muted">{entry.path.join(' / ')} /</span>
-                    )}
-                    <input
-                      value={names[entry.outputId] ?? entry.fileName.replace(/\.pdf$/i, '')}
-                      onChange={(e) => onRename(entry.outputId, e.target.value)}
-                      aria-label="Dokumentname"
-                      className="min-w-0 flex-1 rounded border border-line bg-shell px-2 py-1 text-sm focus:border-accent"
-                    />
-                    <span className="shrink-0 text-xs text-muted">.pdf</span>
-                    <span className="tabular w-16 shrink-0 text-right text-xs text-muted">
-                      {pages(entry.items.length)}
-                    </span>
-                  </li>
-                ))}
+                {plan.entries.map((entry) => {
+                  const isExported = exportedIds.has(entry.outputId);
+                  return (
+                    <li key={entry.outputId} className="flex items-center gap-2">
+                      {entry.path.length > 0 && (
+                        <span className="shrink-0 text-xs text-muted">{entry.path.join(' / ')} /</span>
+                      )}
+                      <input
+                        value={names[entry.outputId] ?? entry.fileName.replace(/\.pdf$/i, '')}
+                        onChange={(e) => onRename(entry.outputId, e.target.value)}
+                        aria-label="Dokumentname"
+                        disabled={isExported || running}
+                        className="min-w-0 flex-1 rounded border border-line bg-shell px-2 py-1 text-sm focus:border-accent disabled:opacity-50"
+                      />
+                      <span className="shrink-0 text-xs text-muted">.pdf</span>
+                      <span className="tabular w-16 shrink-0 text-right text-xs text-muted">
+                        {pages(entry.items.length)}
+                      </span>
+                      {canWriteDirectory &&
+                        (isExported ? (
+                          <span className="flex shrink-0 items-center gap-1 text-xs text-accent" aria-label="An eigenen Ort gespeichert">
+                            <Check className="size-3.5" /> Gespeichert
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onExportEntry(entry.outputId)}
+                            disabled={running}
+                            title="Dieses Dokument an einen eigenen Ordner speichern"
+                            aria-label={`${names[entry.outputId] ?? entry.fileName} an eigenen Ordner speichern`}
+                            className="flex shrink-0 items-center gap-1 rounded border border-line px-1.5 py-1 text-xs text-muted hover:border-accent/60 hover:text-ink disabled:opacity-40"
+                          >
+                            <FolderInput className="size-3.5" /> Eigener Ordner
+                          </button>
+                        ))}
+                    </li>
+                  );
+                })}
               </ul>
+              {someExported && (
+                <p className="mt-3 text-xs text-muted">
+                  {exportedIds.size} Dokument{exportedIds.size === 1 ? '' : 'e'} bereits einzeln gespeichert
+                  {nothing
+                    ? ' -- nichts mehr fuer den Sammel-Export uebrig.'
+                    : `; der Sammel-Export unten schreibt noch ${
+                        remaining.length === 1 ? 'das uebrige Dokument' : `die uebrigen ${remaining.length} Dokumente`
+                      }.`}
+                </p>
+              )}
               {plan.skipped.length > 0 && (
                 <p className="mt-3 text-xs text-muted">
                   {plan.skipped.length} leere{plan.skipped.length === 1 ? 's Dokument wird' : ' Dokumente werden'}{' '}

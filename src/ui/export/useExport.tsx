@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
-import { buildExportPlan, type ExportScope } from '../../domain/exportPlan';
+import { buildExportPlan, omitExportedEntries, type ExportScope } from '../../domain/exportPlan';
 import { analyzeExport } from '../../domain/exportWarnings';
 import type { NodeId } from '../../domain/types';
 import type { DirectoryHandleLike } from '../../services/export/fsAccessWriter';
@@ -34,6 +34,9 @@ export function useExport(): ExportController {
   const dispatch = useDispatch();
   const [scope, setScope] = useState<ExportScope | null>(null);
   const [progress, setProgress] = useState<ExportProgress | null>(null);
+  // Dokumente, die bereits einzeln an ein eigenes Ziel geschrieben wurden; sie
+  // werden aus dem anschliessenden Sammel-Export ausgeklammert.
+  const [exported, setExported] = useState<ReadonlySet<NodeId>>(() => new Set());
   const abort = useRef<AbortController | null>(null);
 
   // Der Plan wird live aus dem Arbeitsbereich abgeleitet: benennt der Nutzer im
@@ -48,12 +51,28 @@ export function useExport(): ExportController {
   const close = useCallback(() => {
     setScope(null);
     setProgress(null);
+    setExported(new Set());
   }, []);
+
+  const runDeps = useMemo(
+    () => ({
+      assembler: services.assembler,
+      readBytes: services.readBytesForSource,
+      sourceKind: (id: string) => workspace.sources[id]?.kind ?? 'pdf',
+      imageData: services.imageEmbeddable,
+      textData: services.textPages,
+    }),
+    [services, workspace],
+  );
+
+  const pickDirectory = () =>
+    (globalThis as unknown as { showDirectoryPicker(): Promise<DirectoryHandleLike> }).showDirectoryPicker();
 
   const onExport = useCallback(
     async (target: 'directory' | 'zip') => {
       if (!scope) return;
-      const current = buildExportPlan(workspace, scope);
+      // Bereits einzeln gespeicherte Dokumente hier ueberspringen.
+      const current = omitExportedEntries(buildExportPlan(workspace, scope), exported);
       if (current.entries.length === 0) return;
       const controller = new AbortController();
       abort.current = controller;
@@ -62,17 +81,9 @@ export function useExport(): ExportController {
         const writer =
           target === 'zip'
             ? createZipWriter(`${workspace.name}.zip`)
-            : createFsAccessWriter(
-                await (
-                  globalThis as unknown as { showDirectoryPicker(): Promise<DirectoryHandleLike> }
-                ).showDirectoryPicker(),
-              );
+            : createFsAccessWriter(await pickDirectory());
         const artifact = await runExport(current, writer, {
-          assembler: services.assembler,
-          readBytes: services.readBytesForSource,
-          sourceKind: (id) => workspace.sources[id]?.kind ?? 'pdf',
-          imageData: services.imageEmbeddable,
-          textData: services.textPages,
+          ...runDeps,
           onProgress: setProgress,
           signal: controller.signal,
         });
@@ -83,7 +94,39 @@ export function useExport(): ExportController {
         setProgress(null);
       }
     },
-    [services, workspace, scope, close],
+    [workspace, scope, exported, runDeps, close],
+  );
+
+  // Ein einzelnes Dokument an einen frei gewaehlten Ordner schreiben. Danach ist
+  // es aus dem Sammel-Export ausgeklammert -- so lassen sich verschiedene
+  // Dokumente in einer Session an verschiedene Orte speichern.
+  const onExportEntry = useCallback(
+    async (outputId: NodeId) => {
+      const single = buildExportPlan(workspace, { kind: 'node', nodeId: outputId });
+      if (single.entries.length === 0) return;
+      let directory: DirectoryHandleLike;
+      try {
+        directory = await pickDirectory();
+      } catch {
+        return; // Auswahl abgebrochen -- kein Fehler.
+      }
+      const controller = new AbortController();
+      abort.current = controller;
+      setProgress({ done: 0, total: single.entries.length, currentName: '' });
+      try {
+        await runExport(single, createFsAccessWriter(directory), {
+          ...runDeps,
+          onProgress: setProgress,
+          signal: controller.signal,
+        });
+        setExported((prev) => new Set(prev).add(outputId));
+      } catch (error) {
+        console.error('Einzel-Export fehlgeschlagen oder abgebrochen', error);
+      } finally {
+        setProgress(null);
+      }
+    },
+    [workspace, runDeps],
   );
 
   return {
@@ -95,8 +138,10 @@ export function useExport(): ExportController {
         warnings={analyzeExport(plan)}
         canWriteDirectory={canWriteDirectory}
         progress={progress}
+        exportedIds={exported}
         onRename={(outputId, name) => dispatch({ type: 'renameNode', nodeId: outputId, name })}
         onExport={(target) => void onExport(target)}
+        onExportEntry={(outputId) => void onExportEntry(outputId)}
         onCancel={() => abort.current?.abort()}
         onClose={close}
       />
