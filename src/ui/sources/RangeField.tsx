@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { formatRanges, parseRanges, rangesToIndices } from '../../domain/ranges';
 import type { SourceId } from '../../domain/types';
 import { useSelection, useSelectionStore } from '../app/StoreProvider';
@@ -8,23 +8,32 @@ export interface RangeFieldProps {
   blockCount: number;
 }
 
+/**
+ * Das Seiten-Bereichsfeld: eine Mono-Eingabe mit fester Beschriftung, deren
+ * geparstes Ergebnis rechts als Chips samt Zaehler erscheint. Ungueltige Eingabe
+ * faerbt den Rahmen und meldet inline, ohne die bestehende Auswahl zu zerstoeren.
+ */
 export function RangeField({ sourceId, blockCount }: RangeFieldProps) {
   const selectionStore = useSelectionStore();
   const selection = useSelection();
   const inputId = useId();
+  const errorId = useId();
   const [text, setText] = useState('');
   const [error, setError] = useState<string | null>(null);
   const editing = useRef(false);
 
-  // Wenn die Selektion von aussen kommt (Klick im Raster, Undo), spiegelt das
-  // Feld sie -- aber nicht, waehrend der Nutzer gerade tippt.
+  const inScope = selection.scope?.kind === 'source' && selection.scope.sourceId === sourceId;
+  const selectedIndices = useMemo(
+    () => (inScope ? selection.ids.map(Number).sort((a, b) => a - b) : []),
+    [inScope, selection.ids],
+  );
+
+  // Feld spiegelt Auswahl von aussen (Klick, Undo) -- aber nicht waehrend des Tippens.
   useEffect(() => {
     if (editing.current) return;
-    const inScope = selection.scope?.kind === 'source' && selection.scope.sourceId === sourceId;
-    const indices = inScope ? selection.ids.map(Number).sort((a, b) => a - b) : [];
-    setText(formatRanges(indices));
+    setText(formatRanges(selectedIndices));
     setError(null);
-  }, [selection, sourceId]);
+  }, [selectedIndices]);
 
   function commit(value: string) {
     setText(value);
@@ -35,43 +44,56 @@ export function RangeField({ sourceId, blockCount }: RangeFieldProps) {
     }
     const parsed = parseRanges(value, blockCount);
     if (!parsed.ok) {
-      // Fehler inline, Selektion bleibt unangetastet.
       setError(parsed.error);
       return;
     }
     setError(null);
-    const indices = rangesToIndices(parsed.ranges);
-    const ids = indices.map(String);
+    const ids = rangesToIndices(parsed.ranges).map(String);
     selectionStore.getState().replace({ kind: 'source', sourceId }, ids, ids[0] ?? null, false);
   }
 
-  const count = selection.scope?.kind === 'source' && selection.scope.sourceId === sourceId
-    ? selection.ids.length
-    : 0;
+  // Chips aus der Auswahl gruppieren; en-dash fuer die Anzeige.
+  const chips = selectedIndices.length ? formatRanges(selectedIndices).split(',').map((c) => c.replace('-', '–')) : [];
+  const count = selectedIndices.length;
 
   return (
-    <div className="flex items-center gap-3 px-3 py-2 text-sm">
-      <label htmlFor={inputId} className="text-neutral-400">
-        Seiten
-      </label>
-      <input
-        id={inputId}
-        value={text}
-        onFocus={() => (editing.current = true)}
-        onBlur={() => (editing.current = false)}
-        onChange={(event) => commit(event.target.value)}
-        placeholder="z. B. 1-3,50-100"
-        className="w-48 rounded border border-line bg-panel px-2 py-1 font-mono"
-        aria-invalid={error !== null}
-      />
-      {error ? (
-        <span role="status" className="text-amber-400">
-          Eingabe ungueltig: {error}
+    <div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <label htmlFor={inputId} className="t-label shrink-0 text-text-secondary">
+          Seiten
+        </label>
+        <input
+          id={inputId}
+          value={text}
+          onFocus={() => (editing.current = true)}
+          onBlur={() => (editing.current = false)}
+          onChange={(event) => commit(event.target.value)}
+          placeholder="1-3, 50-100"
+          aria-invalid={error !== null}
+          aria-describedby={error ? errorId : undefined}
+          className={`h-8 w-[260px] rounded-md bg-surface-canvas px-2.5 font-mono text-[13px] tabular-nums text-text-primary placeholder:text-text-tertiary ring-1 ${
+            error ? 'ring-danger' : 'ring-line-structural focus:ring-accent'
+          }`}
+        />
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          {chips.map((chip, i) => (
+            <span
+              key={i}
+              className="rounded bg-surface-canvas px-1.5 py-0.5 font-mono text-[11.5px] tabular-nums text-text-secondary"
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+        <span className="ml-auto shrink-0 font-mono text-[12.5px] tabular-nums">
+          <span className="text-text-primary">{count}</span>
+          <span className="text-text-secondary"> von {blockCount}</span>
         </span>
-      ) : (
-        <span role="status" className="text-neutral-400">
-          {count === 1 ? '1 Seite ausgewaehlt' : `${count} Seiten ausgewaehlt`}
-        </span>
+      </div>
+      {error && (
+        <p id={errorId} role="status" className="t-meta mt-2 text-danger">
+          {error}
+        </p>
       )}
     </div>
   );

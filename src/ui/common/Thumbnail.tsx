@@ -39,7 +39,8 @@ export function Thumbnail({ blockRef, width = THUMBNAIL_WIDTH, priority = 0, alt
   }, [thumbnails, blockRef.sourceId, blockRef.blockIndex, width, priority]);
 
   if (!url) {
-    return <div className="h-full w-full animate-pulse rounded bg-panel" aria-label={`${alt} wird geladen`} />;
+    // Der Platzhalter liegt auf weissem Papier: ein heller Schimmer statt dunkler Flaeche.
+    return <div className="h-full w-full animate-pulse rounded-[2px] bg-black/[0.06]" aria-label={`${alt} wird geladen`} />;
   }
-  return <img src={url} alt={alt} className="h-full w-full rounded object-contain" draggable={false} />;
+  return <img src={url} alt={alt} className="h-full w-full rounded-[2px] object-contain" draggable={false} />;
 }

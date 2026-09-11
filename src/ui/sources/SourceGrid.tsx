@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type { SelectionScope } from '../../services/store/selection';
 import type { SourceDocument } from '../../domain/types';
 import type { DragOrigin } from '../workspace/dragLogic';
@@ -6,24 +6,22 @@ import { useMarquee } from '../workspace/useMarquee';
 import { MarqueeBox } from '../workspace/MarqueeBox';
 import { Thumbnail } from '../common/Thumbnail';
 import { VirtualGrid } from '../common/VirtualGrid';
-import { useSelection, useSelectionStore, useWorkspace } from '../app/StoreProvider';
-import { computeSourceUsage } from './sourceUsage';
+import { cx } from '../common/cx';
+import { useSelection, useSelectionStore } from '../app/StoreProvider';
 
 export interface SourceGridProps {
   source: SourceDocument;
+  /** Nutzung je Seitenindex (Anzahl Outputs), fuer Badge und Filter. */
+  usage: Map<number, number>;
+  onlyUnused: boolean;
   onCellPointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
-  /** Springt zur Rasterposition von `index` (z. B. Kapitelnavigation aus `OutlinePanel`). */
   scrollTo?: { index: number; nonce: number };
 }
 
-export function SourceGrid({ source, onCellPointerDown, scrollTo }: SourceGridProps) {
-  const workspace = useWorkspace();
+export function SourceGrid({ source, usage, onlyUnused, onCellPointerDown, scrollTo }: SourceGridProps) {
   const selection = useSelection();
   const selectionStore = useSelectionStore();
   const scrollRef = useRef<HTMLDivElement | null>(null);
-  const [onlyUnused, setOnlyUnused] = useState(false);
-
-  const usage = useMemo(() => computeSourceUsage(workspace, source.id), [workspace, source.id]);
 
   const scope: SelectionScope = { kind: 'source', sourceId: source.id };
   const indices = useMemo(() => {
@@ -58,53 +56,66 @@ export function SourceGrid({ source, onCellPointerDown, scrollTo }: SourceGridPr
     onCellPointerDown?.(event, { kind: 'source', sourceId: source.id, blockIndices: ids.map(Number) });
   }
 
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between px-3 py-1 text-xs text-neutral-500">
-        <span>{source.name}</span>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={onlyUnused} onChange={(e) => setOnlyUnused(e.target.checked)} />
-          Nur noch nicht verwendete Seiten
-        </label>
+  if (indices.length === 0) {
+    return (
+      <div className="grid h-full place-items-center p-8 text-center">
+        <p className="t-meta">Alle Seiten sind bereits einem Dokument zugeordnet.</p>
       </div>
-      <div className="relative min-h-0 flex-1" ref={gridRef} onPointerDown={marquee.onPointerDown}>
-        <VirtualGrid
-          count={indices.length}
-          minCellWidth={180}
-          cellAspect={1.35}
-          gap={12}
-          scrollRef={scrollRef}
-          scrollTo={scrollTo}
-          renderCell={(position) => {
-            const blockIndex = indices[position];
-            const id = String(blockIndex);
-            const selected = selection.scope?.kind === 'source' &&
-              selection.scope.sourceId === source.id && selection.ids.includes(id);
-            const count = usage.get(blockIndex) ?? 0;
-            return (
-              <button
-                type="button"
-                data-block-index={blockIndex}
-                onPointerDown={(e) => handleCellPointerDown(e, blockIndex)}
-                aria-pressed={selected}
-                className={`relative block w-full rounded ring-2 transition-shadow ${
-                  selected ? 'ring-accent' : 'ring-transparent hover:ring-line'
-                }`}
+    );
+  }
+
+  return (
+    <div className="relative h-full" ref={gridRef} onPointerDown={marquee.onPointerDown}>
+      <VirtualGrid
+        count={indices.length}
+        minCellWidth={180}
+        cellAspect={1.5}
+        gap={20}
+        scrollRef={scrollRef}
+        scrollTo={scrollTo}
+        renderCell={(position) => {
+          const blockIndex = indices[position];
+          const id = String(blockIndex);
+          const selected =
+            selection.scope?.kind === 'source' &&
+            selection.scope.sourceId === source.id &&
+            selection.ids.includes(id);
+          const count = usage.get(blockIndex) ?? 0;
+          return (
+            <button
+              type="button"
+              data-block-index={blockIndex}
+              onPointerDown={(e) => handleCellPointerDown(e, blockIndex)}
+              aria-pressed={selected}
+              className="group flex w-full cursor-grab flex-col items-center gap-2 rounded p-1"
+            >
+              <span
+                className={cx(
+                  'paper-sheet relative block w-full',
+                  selected && 'outline outline-2 outline-offset-2 outline-accent',
+                )}
                 style={{ aspectRatio: '1 / 1.35' }}
               >
-                <Thumbnail blockRef={{ sourceId: source.id, blockIndex }} alt={`${source.name} Seite ${blockIndex + 1}`} />
-                <span className="tabular absolute bottom-1 left-1 rounded bg-black/70 px-1.5 text-xs text-white">{blockIndex + 1}</span>
+                <Thumbnail
+                  blockRef={{ sourceId: source.id, blockIndex }}
+                  alt={`${source.name} Seite ${blockIndex + 1}`}
+                />
+                {selected && <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[2px] bg-accent-soft" />}
                 {count > 0 && (
-                  <span className="tabular absolute right-1 top-1 rounded bg-accent px-1.5 text-xs font-medium text-shell" aria-label={`in ${count} Dokumenten verwendet`}>
+                  <span
+                    className="absolute right-1 top-1 rounded-full bg-info-soft px-1.5 py-px font-mono text-[11px] font-medium tabular-nums text-info"
+                    title={`In ${count} ${count === 1 ? 'Dokument' : 'Dokumenten'} verwendet`}
+                  >
                     {count}
                   </span>
                 )}
-              </button>
-            );
-          }}
-        />
-        {marquee.marquee && <MarqueeBox rect={marquee.marquee} />}
-      </div>
+              </span>
+              <span className="font-mono text-[11.5px] tabular-nums text-text-secondary">{blockIndex + 1}</span>
+            </button>
+          );
+        }}
+      />
+      {marquee.marquee && <MarqueeBox rect={marquee.marquee} />}
     </div>
   );
 }
