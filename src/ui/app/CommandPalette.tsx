@@ -47,11 +47,11 @@ export function CommandPalette({ actions, onClose }: CommandPaletteProps) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-start bg-black/50 pt-32" role="dialog" aria-label="Befehlspalette" onClick={onClose}>
       <div
-        className="mx-auto flex w-[32rem] flex-col rounded-lg border border-line bg-panel shadow-xl"
+        className="mx-auto flex w-[32rem] flex-col rounded-[10px] bg-surface-raised shadow-[var(--float-shadow)] ring-1 ring-line-structural"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="flex items-center gap-2 border-b border-line px-3 py-2">
-          <Search className="size-4 shrink-0 text-neutral-500" />
+        <div className="flex items-center gap-2 border-b border-line-structural px-3 py-2.5">
+          <Search className="size-4 shrink-0 text-text-tertiary" />
           <input
             ref={inputRef}
             type="text"
@@ -64,12 +64,12 @@ export function CommandPalette({ actions, onClose }: CommandPaletteProps) {
               setSelectedIndex(0);
             }}
             onKeyDown={onKeyDown}
-            className="w-full bg-transparent text-sm outline-none placeholder:text-neutral-500"
+            className="w-full bg-transparent text-sm outline-none placeholder:text-text-tertiary"
           />
         </div>
 
         <ul className="max-h-80 overflow-auto py-1 text-sm">
-          {filtered.length === 0 && <li className="px-3 py-2 text-neutral-500">Keine Treffer</li>}
+          {filtered.length === 0 && <li className="px-3 py-2 text-text-tertiary">Keine Treffer</li>}
           {filtered.map((action, index) => (
             <li key={action.id}>
               <button
@@ -77,11 +77,11 @@ export function CommandPalette({ actions, onClose }: CommandPaletteProps) {
                 onClick={() => runAt(index)}
                 onMouseEnter={() => setSelectedIndex(index)}
                 className={`flex w-full items-center justify-between px-3 py-2 text-left ${
-                  index === clampedIndex ? 'bg-shell' : ''
+                  index === clampedIndex ? 'bg-surface-hover' : ''
                 }`}
               >
                 <span>{action.label}</span>
-                {action.hint && <span className="ml-2 shrink-0 text-xs text-neutral-500">{action.hint}</span>}
+                {action.hint && <span className="ml-2 shrink-0 text-xs text-text-tertiary">{action.hint}</span>}
               </button>
             </li>
           ))}

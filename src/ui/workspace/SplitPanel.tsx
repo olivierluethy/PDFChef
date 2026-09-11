@@ -109,7 +109,7 @@ export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
           className={field}
           aria-label="Strategie"
         >
-          <option value="equalHalves">Gleiche Haelften</option>
+          <option value="equalHalves">Gleiche Hälften</option>
           <option value="equalThirds">Gleiche Drittel</option>
           <option value="everyN">Alle N Seiten</option>
           <option value="custom">Eigene Bereiche</option>
@@ -151,11 +151,11 @@ export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
           </button>
           {detecting && (
             <p className="tabular text-sm text-muted">
-              Seite {detecting.done} von {detecting.total} geprueft
+              Seite {detecting.done} von {detecting.total} geprüft
             </p>
           )}
           {!detecting && detectedParts && detectedParts.length === 1 && (
-            <p className="text-sm text-accent">Keine Trennseiten gefunden.</p>
+            <p className="text-sm text-text-secondary">Keine Trennseiten gefunden.</p>
           )}
         </div>
       )}
@@ -169,7 +169,7 @@ export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
                   <input
                     value={partName(index)}
                     onChange={(e) => setNames((prev) => ({ ...prev, [index]: e.target.value }))}
-                    aria-label={`Name fuer Teil ${index + 1}`}
+                    aria-label={`Name für Teil ${index + 1}`}
                     className={`min-w-0 flex-1 ${field}`}
                   />
                   <span className="tabular shrink-0 text-xs text-muted">{describeSplitPart(part)}</span>
@@ -180,9 +180,9 @@ export function SplitPanel({ sourceId, parentId, onClose }: SplitPanelProps) {
             <p className="px-3 py-2 text-sm text-muted">Keine Teile.</p>
           )
         ) : choice === 'blankSeparators' ? (
-          <p className="px-3 py-2 text-sm text-muted">Noch keine Erkennung ausgefuehrt.</p>
+          <p className="px-3 py-2 text-sm text-muted">Noch keine Erkennung ausgeführt.</p>
         ) : (
-          <p className="px-3 py-2 text-sm text-accent">{plan.ok ? '' : plan.error}</p>
+          <p className="px-3 py-2 text-sm text-danger">{plan.ok ? '' : plan.error}</p>
         )}
       </div>
 
