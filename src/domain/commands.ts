@@ -1,4 +1,5 @@
 import {
+  addOverlay,
   copyItems,
   createFolder,
   createOutput,
@@ -8,15 +9,25 @@ import {
   moveItems,
   moveNode,
   removeItems,
+  removeOverlay,
   removeSourceAndItems,
   renameNode,
   reorderItems,
   rotateItems,
   siblingNames,
+  updateOverlay,
   type CreateNodeInput,
 } from './composition';
 import { resolveCollision, sanitizeName } from './naming';
-import type { CompositionItem, ItemId, NodeId, SourceDocument, SourceId, Workspace } from './types';
+import type {
+  CompositionItem,
+  ItemId,
+  NodeId,
+  Overlay,
+  SourceDocument,
+  SourceId,
+  Workspace,
+} from './types';
 
 /** Ein Teil eines Splits: das neue Output und seine fertigen Items. */
 export interface SplitOutputSpec {
@@ -39,6 +50,9 @@ export type Command =
   | { type: 'removeItems'; itemIds: ItemId[] }
   | { type: 'reorderItems'; outputId: NodeId; itemIds: ItemId[]; index: number }
   | { type: 'rotateItems'; itemIds: ItemId[]; delta: 90 | 180 | 270 }
+  | { type: 'addOverlay'; itemId: ItemId; overlay: Overlay }
+  | { type: 'updateOverlay'; itemId: ItemId; overlayId: string; patch: Partial<Overlay> }
+  | { type: 'removeOverlay'; itemId: ItemId; overlayId: string }
   | { type: 'splitSource'; sourceId: SourceId; parentId: NodeId | null; parts: SplitOutputSpec[] }
   | { type: 'renameWorkspace'; name: string }
   | { type: 'batch'; label: string; commands: Command[] };
@@ -108,6 +122,15 @@ export function applyCommand(ws: Workspace, command: Command, ctx: CommandCtx): 
       break;
     case 'rotateItems':
       rotateItems(ws, command.itemIds, command.delta);
+      break;
+    case 'addOverlay':
+      addOverlay(ws, command.itemId, command.overlay);
+      break;
+    case 'updateOverlay':
+      updateOverlay(ws, command.itemId, command.overlayId, command.patch);
+      break;
+    case 'removeOverlay':
+      removeOverlay(ws, command.itemId, command.overlayId);
       break;
     case 'splitSource':
       for (const part of command.parts) {
@@ -184,6 +207,12 @@ export function describeCommand(command: Command, before: Workspace): string {
       return `${pages(command.itemIds.length)} umsortiert`;
     case 'rotateItems':
       return `${pages(command.itemIds.length)} gedreht`;
+    case 'addOverlay':
+      return command.overlay.kind === 'image' ? 'Unterschrift hinzugefuegt' : 'Feld hinzugefuegt';
+    case 'updateOverlay':
+      return 'Feld bearbeitet';
+    case 'removeOverlay':
+      return 'Feld entfernt';
     case 'splitSource': {
       const source = before.sources[command.sourceId];
       const name = source ? source.name : 'Quelle';
