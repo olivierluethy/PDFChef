@@ -91,7 +91,7 @@ export function SignatureDialog({ onCancel, onConfirm }: SignatureDialogProps) {
           onPointerMove={move}
           onPointerUp={end}
           onPointerLeave={end}
-          className="mt-3 aspect-[3/1] w-full touch-none rounded-lg bg-surface-canvas ring-1 ring-line-structural"
+          className="mt-3 aspect-[3/1] w-full touch-none rounded-lg bg-white ring-1 ring-line-structural"
         />
         <div className="mt-4 flex items-center gap-2">
           <Button variant="quiet" size="sm" icon={Eraser} onClick={clear}>

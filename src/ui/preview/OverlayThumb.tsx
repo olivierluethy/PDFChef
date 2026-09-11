@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { Overlay } from '../../domain/types';
-import { overlayFontSpec } from '../../domain/overlayFonts';
+import { overlayCssFamily, overlayFontSpec } from '../../domain/overlayFonts';
 import { ensureOverlayFontFaces } from '../text/overlayFontFaces';
 
 /**
@@ -43,13 +43,15 @@ export function OverlayThumb({ overlays }: { overlays: Overlay[] }) {
         const text = overlay.text ?? '';
         if (text.trim() === '') return null;
         const spec = overlayFontSpec(overlay.font);
+        const bold = overlay.bold ?? false;
         return (
           <div
             key={overlay.id}
             style={{
               ...common,
-              fontFamily: spec.cssFamily,
-              fontWeight: spec.cssWeight,
+              fontFamily: overlayCssFamily(spec, bold),
+              fontWeight: bold ? 700 : spec.cssWeight,
+              fontStyle: overlay.italic ? 'italic' : 'normal',
               fontSize: `${(overlay.fontSize ?? 0.024) * 100}cqh`,
               lineHeight: 1.25,
               color: '#171c21',
