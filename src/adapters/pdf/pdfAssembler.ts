@@ -2,7 +2,7 @@ import { PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import type { PDFDocument as PDFDoc, PDFFont, PDFImage, PDFPage } from 'pdf-lib';
 import type { Overlay, SourceId } from '../../domain/types';
-import { overlayFontSpec } from '../../domain/overlayFonts';
+import { OVERLAY_ITALIC_SKEW_DEG, overlayFontSpec } from '../../domain/overlayFonts';
 import type { AssembleCtx, BlockAssembler, ImageEmbeddable } from '../types';
 import { TEXT_PAGE } from '../text/textLayout';
 
@@ -40,26 +40,28 @@ export function createPdfAssembler(): BlockAssembler {
       // Overlay-Schriften werden je Schluessel genau einmal eingebettet.
       const overlayFonts = new Map<string, PDFFont>();
       let overlayFallback: PDFFont | undefined;
-      const getOverlayFont = async (key: string | undefined) => {
+      const getOverlayFont = async (key: string | undefined, bold: boolean) => {
         const spec = overlayFontSpec(key);
-        const cached = overlayFonts.get(spec.key);
+        const cacheKey = `${spec.key}:${bold ? 'b' : 'r'}`;
+        const cached = overlayFonts.get(cacheKey);
         if (cached) return cached;
-        // Eingebettete Familie: TTF holen und einbetten; sonst Standardschrift.
-        if (spec.file) {
+        // Eingebettete Familie: passenden Schnitt (Regular/Bold) holen und einbetten.
+        const file = bold && spec.boldFile ? spec.boldFile : spec.file;
+        if (file) {
           try {
-            const bytes = await ctx.fontBytes(spec.file);
+            const bytes = await ctx.fontBytes(file);
             const font = await out.embedFont(bytes, { subset: true });
-            overlayFonts.set(spec.key, font);
+            overlayFonts.set(cacheKey, font);
             return font;
           } catch (error) {
             console.warn(`Overlay-Font ${spec.key} nicht einbettbar, nutze Helvetica`, error);
             overlayFallback ??= await out.embedFont(StandardFonts.Helvetica);
-            overlayFonts.set(spec.key, overlayFallback);
+            overlayFonts.set(cacheKey, overlayFallback);
             return overlayFallback;
           }
         }
-        const font = await out.embedFont(standardFontFor(key));
-        overlayFonts.set(spec.key, font);
+        const font = await out.embedFont(standardFontFor(spec.key, bold));
+        overlayFonts.set(cacheKey, font);
         return font;
       };
 
@@ -144,18 +146,14 @@ export function createPdfAssembler(): BlockAssembler {
  * das Ausfuellen ist bewusst auf ungedrehte Seiten beschraenkt.
  */
 /** Bildet einen Overlay-Schriftschluessel auf eine pdf-lib-Standardschrift ab. */
-function standardFontFor(key: string | undefined): StandardFonts {
+function standardFontFor(key: string | undefined, bold: boolean): StandardFonts {
   switch (key) {
-    case 'helvetica-bold':
-      return StandardFonts.HelveticaBold;
     case 'times':
-      return StandardFonts.TimesRoman;
-    case 'times-bold':
-      return StandardFonts.TimesRomanBold;
+      return bold ? StandardFonts.TimesRomanBold : StandardFonts.TimesRoman;
     case 'courier':
-      return StandardFonts.Courier;
+      return bold ? StandardFonts.CourierBold : StandardFonts.Courier;
     default:
-      return StandardFonts.Helvetica;
+      return bold ? StandardFonts.HelveticaBold : StandardFonts.Helvetica;
   }
 }
 
@@ -163,7 +161,7 @@ async function drawOverlays(
   out: PDFDoc,
   page: PDFPage,
   overlays: Overlay[] | undefined,
-  getFont: (key: string | undefined) => Promise<PDFFont>,
+  getFont: (key: string | undefined, bold: boolean) => Promise<PDFFont>,
 ): Promise<void> {
   if (!overlays || overlays.length === 0) return;
   const { width: w, height: h } = page.getSize();
@@ -171,7 +169,7 @@ async function drawOverlays(
     if (overlay.kind === 'text') {
       const text = overlay.text ?? '';
       if (text.trim() === '') continue;
-      const font = await getFont(overlay.font);
+      const font = await getFont(overlay.font, overlay.bold ?? false);
       const size = (overlay.fontSize ?? 0.02) * h;
       page.drawText(text, {
         x: overlay.x * w,
@@ -181,6 +179,8 @@ async function drawOverlays(
         font,
         color: rgb(0.09, 0.11, 0.13),
         lineHeight: size * 1.25,
+        // Kursiv: synthetische Neigung (dieselbe wie in der Vorschau).
+        ...(overlay.italic ? { ySkew: degrees(OVERLAY_ITALIC_SKEW_DEG) } : {}),
       });
     } else if (overlay.kind === 'image' && overlay.dataUrl) {
       const image = await out.embedPng(dataUrlToBytes(overlay.dataUrl));

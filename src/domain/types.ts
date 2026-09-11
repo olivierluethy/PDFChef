@@ -63,6 +63,10 @@ export interface Overlay {
   fontSize?: number;
   /** Text: Schriftart-Schluessel aus OVERLAY_FONTS (Standard: Helvetica). */
   font?: string;
+  /** Text: fett (echter Bold-Schnitt in Vorschau und Export). */
+  bold?: boolean;
+  /** Text: kursiv (synthetische Neigung in Vorschau und Export). */
+  italic?: boolean;
   /** Bild/Unterschrift: PNG als data-URL. */
   dataUrl?: string;
   /**
