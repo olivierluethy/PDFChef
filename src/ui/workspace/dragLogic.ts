@@ -2,22 +2,28 @@ import type { ItemId, NodeId, SourceId } from '../../domain/types';
 
 export type DragOrigin =
   | { kind: 'source'; sourceId: SourceId; blockIndices: number[] }
-  | { kind: 'output'; outputId: NodeId; itemIds: ItemId[] };
+  | { kind: 'output'; outputId: NodeId; itemIds: ItemId[] }
+  // Ein ganzer Baum-Knoten (Dokument oder Ordner), der umgehaengt werden soll.
+  | { kind: 'node'; nodeId: NodeId };
 
 export type DropTarget =
   | { kind: 'folder'; nodeId: NodeId }
   | { kind: 'output'; outputId: NodeId; index: number }
-  | { kind: 'tree-output'; outputId: NodeId };
+  | { kind: 'tree-output'; outputId: NodeId }
+  // Der leere Bereich des Baums = die Wurzel.
+  | { kind: 'tree-root' };
 
 export type DropAction =
   | { kind: 'addFromSource' }
   | { kind: 'moveItems' }
   | { kind: 'copyItems' }
   | { kind: 'createOutputFromFolder' }
+  | { kind: 'moveNode' }
   | { kind: 'none' };
 
 /**
  * Die Move/Copy-Regel des Designs, ohne Zeiger und ohne Store:
+ * - Knoten -> Ordner / Baum-Dokument / Wurzel: den ganzen Knoten umhaengen.
  * - Quelle -> Ordner: neues Output. Quelle -> Output: hinzufuegen (Modifier egal).
  * - Output -> Ordner: neues Output aus den Items.
  * - Output -> Output: verschieben, mit Modifier kopieren.
@@ -27,6 +33,14 @@ export function resolveDropAction(
   target: DropTarget,
   modifier: boolean,
 ): DropAction {
+  if (origin.kind === 'node') {
+    // Ein ganzer Knoten kommt nur in einen Ordner, neben ein Baum-Dokument
+    // (= in dessen Ordner) oder auf die Wurzel. Modifier spielt keine Rolle.
+    if (target.kind === 'folder' || target.kind === 'tree-output' || target.kind === 'tree-root') {
+      return { kind: 'moveNode' };
+    }
+    return { kind: 'none' };
+  }
   if (target.kind === 'folder') return { kind: 'createOutputFromFolder' };
   if (origin.kind === 'source') return { kind: 'addFromSource' };
   // origin ist ein Output, target ein Output oder ein Baum-Output.
