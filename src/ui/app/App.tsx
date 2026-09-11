@@ -34,6 +34,7 @@ import { useOcr } from '../preview/useOcr';
 import { useSearch } from '../preview/useSearch';
 import { useExport } from '../export/useExport';
 import { usePrint } from '../export/usePrint';
+import { useShare } from '../export/useShare';
 import { useLatexExport } from '../export/useLatexExport';
 import { CommandPalette } from './CommandPalette';
 import type { PaletteAction } from './commandFilter';
@@ -123,6 +124,7 @@ function Workspace() {
   const external = useExternalDrop();
   const exportUi = useExport();
   const printUi = usePrint();
+  const shareUi = useShare();
   const latex = useLatexExport();
   const search = useSearch({ sourceId: activeSourceId, outputId: activeOutputId });
   const ocr = useOcr();
@@ -152,6 +154,7 @@ function Workspace() {
       },
       { id: 'export', label: 'Exportieren', run: () => exportUi.open() },
       { id: 'print', label: 'Drucken', run: () => printUi.open() },
+      { id: 'share', label: 'Teilen / E-Mail', run: () => shareUi.open() },
       { id: 'search', label: 'Suchen', run: () => search.open() },
       { id: 'trash', label: 'Papierkorb öffnen', run: () => setTrashOpen(true) },
       {
@@ -175,6 +178,7 @@ function Workspace() {
       dispatch,
       exportUi,
       printUi,
+      shareUi,
       search,
       ocr,
       latex,
@@ -283,6 +287,7 @@ function Workspace() {
         onImportFiles={importFiles}
         onExport={() => exportUi.open()}
         onPrint={() => printUi.open()}
+        onShare={() => shareUi.open()}
         saveStatus={status}
       />
 
@@ -369,6 +374,7 @@ function Workspace() {
                     onCellPointerDown={drag.onCellPointerDown}
                     onExportNode={(nodeId) => exportUi.open({ kind: 'node', nodeId })}
                     onPrintNode={(nodeId) => printUi.open({ kind: 'node', nodeId })}
+                    onShareNode={(nodeId) => shareUi.open({ kind: 'node', nodeId })}
                     onDeleteNode={(nodeId) => {
                       const snapshot = buildNodeSnapshot(workspace, nodeId);
                       const node = workspace.nodes[nodeId];
@@ -479,6 +485,7 @@ function Workspace() {
       )}
       {exportUi.dialog}
       {printUi.dialog}
+      {shareUi.dialog}
       {paletteOpen && (
         <CommandPalette actions={paletteActions} onClose={() => setPaletteOpen(false)} />
       )}
