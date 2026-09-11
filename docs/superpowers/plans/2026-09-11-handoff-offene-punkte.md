@@ -19,13 +19,21 @@ angefangen werden kann.
   `.tex` enthält `\section{…}` und korrektes Escaping.
 - ✅ **P4 erledigt** — konstante Griffzone (`data-marquee-handle`, 56px) am unteren Rand jedes
   Rasters; Marquee lässt sich auch bei vollem Raster aufziehen. Playwright + Screenshot bestätigt.
+- ✅ **P5 erledigt** — im Export-Dialog kann jedes Dokument einzeln über „Eigener Ordner" an ein
+  frei gewähltes Ziel geschrieben werden (`omitExportedEntries`, `onExportEntry`); danach ist es aus
+  dem Sammel-Export ausgeklammert. Nur bei File-System-Access (Chromium). Playwright (Picker gemockt):
+  Einzel-Export schreibt genau ein gültiges PDF, Rest-ZIP enthält nur das übrige Dokument.
 - 🟡 **P6 teilweise** — verifiziert: PDF-/DOCX-Import, Text-Pipeline, LaTeX-Export, Marquee,
-  **Kern-Export (Auswahl → Dokument → ZIP)** liefert gültiges PDF mit korrekter Seitenzahl.
-  **Noch nicht frisch verifiziert:** OCR, PWA/Offline, Ordner-Import (`webkitRelativePath`),
-  Suche (`Ctrl/Cmd+F`), Bild-/PPTX-/XLSX-Import.
-- ⏸️ **P5 offen** — bewusst **nicht** umgesetzt; braucht Nutzer-Entscheidung (siehe unten).
+  **Kern-Export (Auswahl → Dokument → ZIP)** liefert gültiges PDF mit korrekter Seitenzahl,
+  Einzel-Ziel-Export (siehe P5). **Noch nicht frisch verifiziert:** OCR, PWA/Offline,
+  Ordner-Import (`webkitRelativePath`), Suche (`Ctrl/Cmd+F`), Bild-/PPTX-/XLSX-Import.
 
-Alle 47 Vitest-Tests grün, `typecheck` + `lint` sauber, 8/8 Playwright-Checks grün.
+Alle 50 Vitest-Tests grün, `typecheck` + `lint` sauber, 8/8 + 5/5 Playwright-Checks grün.
+
+**Hinweis zu P1/Dependabot:** GitHub kann `xlsx` trotz gepatchter CDN-Version weiter als verwundbar
+melden, weil die gefixte Version **nicht** in der npm-Registry liegt (SheetJS verteilt nur über die
+eigene CDN). `npm audit` meldet lokal 0 Findings — der installierte Code (0.20.3) ist gepatcht. Falls
+Dependabot weiter meldet, ist das eine Erkennungs-Einschränkung, kein echtes Risiko.
 
 ---
 
