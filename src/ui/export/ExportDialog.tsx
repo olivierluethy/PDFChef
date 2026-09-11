@@ -1,8 +1,13 @@
+import { motion } from 'motion/react';
 import { Check, Download, FolderInput, FolderTree, Info, TriangleAlert, X } from 'lucide-react';
 import type { ExportPlan } from '../../domain/exportPlan';
 import type { ExportWarning } from '../../domain/exportWarnings';
 import type { NodeId } from '../../domain/types';
 import type { ExportProgress } from '../../services/export/exportRunner';
+import { Button } from '../common/Button';
+import { IconButton } from '../common/IconButton';
+import { cx } from '../common/cx';
+import { overlayVariants, tween, useMotionPrefs } from '../common/motion';
 
 export interface ExportDialogProps {
   plan: ExportPlan;
@@ -15,7 +20,7 @@ export interface ExportDialogProps {
   exportedIds: ReadonlySet<NodeId>;
   onRename(outputId: NodeId, name: string): void;
   onExport(target: 'directory' | 'zip'): void;
-  /** Ein einzelnes Dokument an einen frei gewaehlten Ordner speichern. */
+  /** Ein einzelnes Dokument an einen frei gewählten Ordner speichern. */
   onExportEntry(outputId: NodeId): void;
   onCancel(): void;
   onClose(): void;
@@ -38,42 +43,39 @@ export function ExportDialog({
   onCancel,
   onClose,
 }: ExportDialogProps) {
+  const prefs = useMotionPrefs();
   const running = progress !== null;
   const remaining = plan.entries.filter((entry) => !exportedIds.has(entry.outputId));
-  // "Nichts mehr" fuer den Sammel-Export, sobald jedes Dokument entweder leer
-  // oder bereits einzeln gespeichert ist.
   const nothing = remaining.length === 0;
   const someExported = exportedIds.size > 0;
 
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-black/50 p-4" role="dialog" aria-label="Exportieren">
-      <div className="flex max-h-[85vh] w-[34rem] flex-col rounded-lg border border-line bg-panel shadow-2xl">
-        <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <h2 className="text-sm font-semibold text-ink">Exportieren</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Schliessen"
-            disabled={running}
-            className="rounded p-1 text-muted hover:bg-raised hover:text-ink disabled:opacity-40"
-          >
-            <X className="size-4" />
-          </button>
+    <div className="fixed inset-0 z-40 grid place-items-center bg-black/60 p-4" role="dialog" aria-label="Exportieren">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={overlayVariants}
+        transition={prefs.t(tween.overlayIn)}
+        className="flex max-h-[85vh] w-[34rem] flex-col rounded-[10px] bg-surface-panel shadow-[var(--float-shadow)] ring-1 ring-line-structural"
+      >
+        <div className="flex items-center justify-between border-b border-line-structural px-5 py-3.5">
+          <h2 className="t-panel-title text-text-primary">Exportieren</h2>
+          <IconButton icon={X} label="Schliessen" onClick={onClose} disabled={running} />
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto px-4 py-3 text-sm">
+        <div className="min-h-0 flex-1 overflow-auto px-5 py-4 text-[13px]">
           {plan.entries.length === 0 ? (
-            <p className="text-muted">
-              Es gibt noch keine gefuellten Dokumente zum Exportieren. Ziehen Sie erst Seiten in ein
-              Dokument.
+            <p className="text-text-secondary">
+              Es gibt noch keine gefüllten Dokumente zum Exportieren. Zieh zuerst Seiten in ein Dokument.
             </p>
           ) : (
             <>
-              <p className="mb-3 text-muted">
+              <p className="mb-4 text-text-secondary">
                 {plan.entries.length} {plan.entries.length === 1 ? 'Dokument' : 'Dokumente'},{' '}
-                <span className="tabular">{pages(plan.totalBlocks)}</span> insgesamt. Namen sind vor dem
-                Export bearbeitbar.
-                {canWriteDirectory && ' Einzelne Dokumente koennen ueber das Ordner-Symbol an einen eigenen Ort gespeichert werden.'}
+                <span className="font-mono tabular-nums">{pages(plan.totalBlocks)}</span> insgesamt. Namen sind vor
+                dem Export bearbeitbar.
+                {canWriteDirectory &&
+                  ' Einzelne Dokumente können über das Ordner-Symbol an einen eigenen Ort gespeichert werden.'}
               </p>
               <ul className="flex flex-col gap-1.5">
                 {plan.entries.map((entry) => {
@@ -81,54 +83,54 @@ export function ExportDialog({
                   return (
                     <li key={entry.outputId} className="flex items-center gap-2">
                       {entry.path.length > 0 && (
-                        <span className="shrink-0 text-xs text-muted">{entry.path.join(' / ')} /</span>
+                        <span className="shrink-0 text-[12px] text-text-tertiary">{entry.path.join(' / ')} /</span>
                       )}
                       <input
                         value={names[entry.outputId] ?? entry.fileName.replace(/\.pdf$/i, '')}
                         onChange={(e) => onRename(entry.outputId, e.target.value)}
                         aria-label="Dokumentname"
                         disabled={isExported || running}
-                        className="min-w-0 flex-1 rounded border border-line bg-shell px-2 py-1 text-sm focus:border-accent disabled:opacity-50"
+                        className="min-w-0 flex-1 rounded-md bg-surface-raised px-2.5 py-1.5 text-[13px] text-text-primary ring-1 ring-line-structural focus:ring-accent disabled:opacity-50"
                       />
-                      <span className="shrink-0 text-xs text-muted">.pdf</span>
-                      <span className="tabular w-16 shrink-0 text-right text-xs text-muted">
+                      <span className="shrink-0 text-[12px] text-text-tertiary">.pdf</span>
+                      <span className="w-16 shrink-0 text-right font-mono text-[12px] tabular-nums text-text-secondary">
                         {pages(entry.items.length)}
                       </span>
                       {canWriteDirectory &&
                         (isExported ? (
-                          <span className="flex shrink-0 items-center gap-1 text-xs text-accent" aria-label="An eigenen Ort gespeichert">
+                          <span className="flex shrink-0 items-center gap-1 text-[12px] text-success" aria-label="An eigenen Ort gespeichert">
                             <Check className="size-3.5" /> Gespeichert
                           </span>
                         ) : (
-                          <button
-                            type="button"
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={FolderInput}
                             onClick={() => onExportEntry(entry.outputId)}
                             disabled={running}
                             title="Dieses Dokument an einen eigenen Ordner speichern"
-                            aria-label={`${names[entry.outputId] ?? entry.fileName} an eigenen Ordner speichern`}
-                            className="flex shrink-0 items-center gap-1 rounded border border-line px-1.5 py-1 text-xs text-muted hover:border-accent/60 hover:text-ink disabled:opacity-40"
                           >
-                            <FolderInput className="size-3.5" /> Eigener Ordner
-                          </button>
+                            Eigener Ordner
+                          </Button>
                         ))}
                     </li>
                   );
                 })}
               </ul>
               {someExported && (
-                <p className="mt-3 text-xs text-muted">
+                <p className="mt-3 text-[12px] text-text-secondary">
                   {exportedIds.size} Dokument{exportedIds.size === 1 ? '' : 'e'} bereits einzeln gespeichert
                   {nothing
-                    ? ' -- nichts mehr fuer den Sammel-Export uebrig.'
+                    ? ' — nichts mehr für den Sammel-Export übrig.'
                     : `; der Sammel-Export unten schreibt noch ${
-                        remaining.length === 1 ? 'das uebrige Dokument' : `die uebrigen ${remaining.length} Dokumente`
+                        remaining.length === 1 ? 'das übrige Dokument' : `die übrigen ${remaining.length} Dokumente`
                       }.`}
                 </p>
               )}
               {plan.skipped.length > 0 && (
-                <p className="mt-3 text-xs text-muted">
+                <p className="mt-3 text-[12px] text-text-secondary">
                   {plan.skipped.length} leere{plan.skipped.length === 1 ? 's Dokument wird' : ' Dokumente werden'}{' '}
-                  uebersprungen.
+                  übersprungen.
                 </p>
               )}
             </>
@@ -136,11 +138,11 @@ export function ExportDialog({
         </div>
 
         {warnings.length > 0 && (
-          <div className="flex flex-col gap-1 border-t border-line px-4 py-2 text-xs">
+          <div className="flex flex-col gap-1 border-t border-line-structural px-5 py-2.5 text-[12px]">
             {warnings.map((warning, index) => (
               <div
                 key={`${warning.kind}-${warning.outputId ?? ''}-${index}`}
-                className={`flex items-start gap-1.5 ${warning.severity === 'warn' ? 'text-accent' : 'text-muted'}`}
+                className={cx('flex items-start gap-1.5', warning.severity === 'warn' ? 'text-accent' : 'text-text-secondary')}
               >
                 {warning.severity === 'warn' ? (
                   <TriangleAlert className="size-3.5 shrink-0 translate-y-0.5" />
@@ -153,54 +155,45 @@ export function ExportDialog({
           </div>
         )}
 
-        <div className="border-t border-line px-4 py-3">
+        <div className="border-t border-line-structural px-5 py-3.5">
           {running ? (
             <div className="flex items-center justify-between">
-              <span className="text-sm text-ink">
-                <span className="tabular">
+              <span className="flex items-center gap-2 text-[13px] text-text-primary">
+                <span className="font-mono tabular-nums">
                   {progress.done} von {progress.total}
                 </span>
-                {progress.currentName ? ` · ${progress.currentName}` : ''}
+                {progress.currentName && <span className="text-text-secondary">{progress.currentName}</span>}
               </span>
-              <button type="button" onClick={onCancel} className="rounded px-3 py-1 text-sm hover:bg-raised">
+              <Button variant="quiet" size="sm" onClick={onCancel}>
                 Abbrechen
-              </button>
+              </Button>
             </div>
           ) : (
             <div className="flex flex-col gap-2">
               <div className="flex justify-end gap-2">
                 {canWriteDirectory && (
-                  <button
-                    type="button"
-                    disabled={nothing}
-                    onClick={() => onExport('directory')}
-                    className="flex items-center gap-1.5 rounded bg-accent px-3 py-1.5 text-sm font-medium text-shell hover:brightness-110 disabled:opacity-40"
-                  >
-                    <FolderTree className="size-4" /> In Ordner speichern
-                  </button>
+                  <Button variant="primary" icon={FolderTree} disabled={nothing} onClick={() => onExport('directory')}>
+                    In Ordner speichern
+                  </Button>
                 )}
-                <button
-                  type="button"
+                <Button
+                  variant={canWriteDirectory ? 'secondary' : 'primary'}
+                  icon={Download}
                   disabled={nothing}
                   onClick={() => onExport('zip')}
-                  className={`flex items-center gap-1.5 rounded px-3 py-1.5 text-sm disabled:opacity-40 ${
-                    canWriteDirectory
-                      ? 'border border-line hover:bg-raised'
-                      : 'bg-accent font-medium text-shell hover:brightness-110'
-                  }`}
                 >
-                  <Download className="size-4" /> Als ZIP herunterladen
-                </button>
+                  Als ZIP herunterladen
+                </Button>
               </div>
-              <p className="text-right text-xs text-muted">
+              <p className="text-right text-[12px] text-text-secondary">
                 {canWriteDirectory
-                  ? 'In Ordner speichern schreibt die ganze Struktur an einen frei gewaehlten Ort.'
-                  : 'Dieser Browser kann nicht direkt in einen Ordner schreiben; der ZIP-Export enthaelt die vollstaendige Struktur.'}
+                  ? 'In Ordner speichern schreibt die ganze Struktur an einen frei gewählten Ort.'
+                  : 'Dieser Browser kann nicht direkt in einen Ordner schreiben; der ZIP-Export enthält die vollständige Struktur.'}
               </p>
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

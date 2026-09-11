@@ -51,14 +51,14 @@ export function TrashPanel({ onClose }: TrashPanelProps) {
 
         <div className="min-h-0 flex-1 overflow-auto px-4 py-3 text-sm">
           {entries.length === 0 ? (
-            <p className="text-neutral-500">Der Papierkorb ist leer.</p>
+            <p className="text-text-tertiary">Der Papierkorb ist leer.</p>
           ) : (
             <ul className="flex flex-col gap-1">
               {entries.map((entry) => (
                 <li key={entry.id} className="flex items-center justify-between gap-2 rounded px-2 py-1 hover:bg-shell">
                   <div className="min-w-0">
                     <p className="truncate">{entry.name}</p>
-                    <p className="text-xs text-neutral-500">{formatDeletedAt(entry.deletedAt)}</p>
+                    <p className="text-xs text-text-tertiary">{formatDeletedAt(entry.deletedAt)}</p>
                   </div>
                   <div className="flex shrink-0 gap-2">
                     <button
@@ -71,9 +71,9 @@ export function TrashPanel({ onClose }: TrashPanelProps) {
                     <button
                       type="button"
                       onClick={() => void purge(entry)}
-                      className="rounded border border-line px-2 py-1 text-xs text-red-400 hover:bg-panel"
+                      className="rounded border border-line px-2 py-1 text-xs text-danger hover:bg-panel"
                     >
-                      Endgueltig loeschen
+                      Endgültig löschen
                     </button>
                   </div>
                 </li>
