@@ -2,6 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefO
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { computeColumns } from './gridLayout';
 
+/**
+ * Immer vorhandene, leere „Griffzone" am unteren Ende des Rasters. Sie stellt
+ * sicher, dass sich eine Marquee-Auswahl auch bei vollstaendig gefuelltem Raster
+ * aufziehen laesst -- sonst gaebe es dort kaum freie Flaeche zum Starten.
+ */
+const BOTTOM_HANDLE = 56;
+
 export interface VirtualGridProps {
   count: number;
   minCellWidth: number;
@@ -86,6 +93,7 @@ export function VirtualGrid({
           );
         })}
       </div>
+      <div aria-hidden="true" data-marquee-handle style={{ height: BOTTOM_HANDLE }} />
     </div>
   );
 }
