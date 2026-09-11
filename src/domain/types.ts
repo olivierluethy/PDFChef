@@ -40,6 +40,31 @@ export interface SourceDocument {
   statusDetail?: string;
 }
 
+export type OverlayKind = 'text' | 'image';
+
+/**
+ * Ein frei platzierter Zusatz auf einer Seiteninstanz -- ein ausgefuelltes
+ * Textfeld oder eine Unterschrift. Alle Masse sind Bruchteile 0..1 der
+ * ungedrehten Seite (Ursprung oben links), damit sie unabhaengig von Zoom und
+ * Renderaufloesung sind und in der Vorschau wie im Export gleich landen.
+ */
+export interface Overlay {
+  id: string;
+  kind: OverlayKind;
+  x: number;
+  y: number;
+  /** Breite des Kastens (Text) bzw. sichtbare Breite (Bild). */
+  w: number;
+  /** Hoehe -- nur fuer Bilder relevant. */
+  h: number;
+  /** Text: der eingegebene Wert. */
+  text?: string;
+  /** Text: Schriftgroesse als Bruchteil der Seitenhoehe. */
+  fontSize?: number;
+  /** Bild/Unterschrift: PNG als data-URL. */
+  dataUrl?: string;
+}
+
 /** Eine Instanz einer Quellseite in genau einem Output. Eine Kopie ist ein zweites Item. */
 export interface CompositionItem {
   id: ItemId;
@@ -47,6 +72,8 @@ export interface CompositionItem {
   blockIndex: number;
   /** Additiv zur Rotation der Quellseite. */
   rotation: Rotation;
+  /** Ausgefuellte Felder und Unterschriften auf dieser Seiteninstanz. */
+  overlays?: Overlay[];
 }
 
 export interface FolderNode {
@@ -99,7 +126,11 @@ export interface CreateWorkspaceInput {
   now?: number;
 }
 
-export function createEmptyWorkspace({ id, name, now = Date.now() }: CreateWorkspaceInput): Workspace {
+export function createEmptyWorkspace({
+  id,
+  name,
+  now = Date.now(),
+}: CreateWorkspaceInput): Workspace {
   return {
     id,
     name,

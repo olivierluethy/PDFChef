@@ -4,6 +4,7 @@ import type {
   ItemId,
   NodeId,
   OutputDocument,
+  Overlay,
   Rotation,
   SourceId,
   Workspace,
@@ -109,6 +110,32 @@ export function reorderItems(
   index: number,
 ): void {
   moveItems(ws, itemIds, outputId, index);
+}
+
+/** Ein ausgefuelltes Feld / eine Unterschrift an eine Seiteninstanz anfuegen. */
+export function addOverlay(ws: Workspace, itemId: ItemId, overlay: Overlay): void {
+  const item = ws.items[itemId];
+  if (!item) return;
+  (item.overlays ??= []).push(overlay);
+}
+
+/** Position, Groesse, Text oder Bilddaten eines Overlays anpassen. */
+export function updateOverlay(
+  ws: Workspace,
+  itemId: ItemId,
+  overlayId: string,
+  patch: Partial<Overlay>,
+): void {
+  const overlay = ws.items[itemId]?.overlays?.find((o) => o.id === overlayId);
+  if (!overlay) return;
+  Object.assign(overlay, patch, { id: overlay.id, kind: overlay.kind });
+}
+
+/** Ein Overlay wieder entfernen. */
+export function removeOverlay(ws: Workspace, itemId: ItemId, overlayId: string): void {
+  const item = ws.items[itemId];
+  if (!item?.overlays) return;
+  item.overlays = item.overlays.filter((o) => o.id !== overlayId);
 }
 
 export function copyItems(
