@@ -1,11 +1,45 @@
 import { useMemo } from 'react';
-import { isOutput, type BlockRef, type NodeId, type SourceId } from '../../domain/types';
-import { useDispatch, useWorkspace } from '../app/StoreProvider';
+import {
+  isOutput,
+  type BlockRef,
+  type ItemId,
+  type NodeId,
+  type Overlay,
+  type SourceId,
+} from '../../domain/types';
+import { newId } from '../../domain/ids';
+import type { DetectedField } from '../../adapters/types';
+import { useDispatch, useServices, useWorkspace } from '../app/StoreProvider';
 import type { DragOrigin } from '../workspace/dragLogic';
 import { Viewer, type ViewerPage } from './Viewer';
 
 /** Was die Vorschau gerade zeigt -- gezielt gesetzt, unabhaengig von den Mittelpanels. */
 export type PreviewTarget = { kind: 'source'; id: SourceId } | { kind: 'output'; id: NodeId };
+
+/** Ein erkanntes Formularfeld wird zu einem vorplatzierten Overlay. */
+function fieldToOverlay(field: DetectedField): Overlay {
+  const base: Overlay = {
+    id: newId(),
+    kind: 'text',
+    x: field.x,
+    y: field.y,
+    w: field.w,
+    h: field.h,
+    text: '',
+    // Schrift ungefaehr auf Feldhoehe, damit der Wert ins Feld passt.
+    fontSize: Math.min(0.05, Math.max(0.012, field.h * 0.6)),
+  };
+  if (field.kind === 'select') {
+    return {
+      ...base,
+      options: field.options && field.options.length > 0 ? ['', ...field.options] : [''],
+    };
+  }
+  if (field.kind === 'checkbox') {
+    return { ...base, options: ['', 'X'] };
+  }
+  return base;
+}
 
 export interface PreviewPaneProps {
   target: PreviewTarget | null;
@@ -17,6 +51,24 @@ export interface PreviewPaneProps {
 export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: PreviewPaneProps) {
   const workspace = useWorkspace();
   const dispatch = useDispatch();
+  const services = useServices();
+
+  const detectFields = async (itemId: ItemId) => {
+    const item = workspace.items[itemId];
+    if (!item) return;
+    const fields = await services.detectFields(item.sourceId, item.blockIndex);
+    if (fields.length === 0) return;
+    // Ein Batch, damit die Erkennung als ein einziger Undo-Schritt zaehlt.
+    dispatch({
+      type: 'batch',
+      label: 'Formularfelder erkannt',
+      commands: fields.map((field) => ({
+        type: 'addOverlay',
+        itemId,
+        overlay: fieldToOverlay(field),
+      })),
+    });
+  };
 
   const pages = useMemo<ViewerPage[]>(() => {
     if (target?.kind === 'output') {
@@ -65,6 +117,7 @@ export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: Previ
       onRemoveOverlay={(itemId, overlayId) =>
         dispatch({ type: 'removeOverlay', itemId, overlayId })
       }
+      onDetectFields={(itemId) => void detectFields(itemId)}
       emptyLabel="Wähle eine Quelle oder ein Dokument für die Vorschau."
     />
   );
