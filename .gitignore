@@ -6,3 +6,4 @@ coverage/
 *.tsbuildinfo
 public/pdfjs/
 public/tesseract/
+public/fonts/

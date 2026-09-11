@@ -111,7 +111,11 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
               {lineBefore && <InsertionLine side="left" />}
               {lineAfter && <InsertionLine side="right" />}
               <span className="block w-full" style={{ aspectRatio: '1 / 1.35', transform: `rotate(${item.rotation}deg)` }}>
-                <Thumbnail blockRef={{ sourceId: item.sourceId, blockIndex: item.blockIndex }} alt={provenance} />
+                <Thumbnail
+                  blockRef={{ sourceId: item.sourceId, blockIndex: item.blockIndex }}
+                  alt={provenance}
+                  annotations={item.annotations}
+                />
               </span>
               <span className="truncate px-1 text-[11px] text-muted">{provenance}</span>
 

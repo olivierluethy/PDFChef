@@ -1,4 +1,6 @@
 import type {
+  Annotation,
+  AnnotationId,
   CompositionItem,
   FolderNode,
   ItemId,
@@ -125,7 +127,15 @@ export function copyItems(
   itemIds.forEach((itemId, position) => {
     const original = ws.items[itemId];
     if (!original) return;
-    copies.push({ ...original, id: newIds[position] });
+    // Annotationen werden mitkopiert, aber als eigene Objekte -- sonst teilten
+    // sich Original und Kopie dasselbe Array und ein Edit an einem traefe beide.
+    copies.push({
+      ...original,
+      id: newIds[position],
+      ...(original.annotations
+        ? { annotations: original.annotations.map((annotation) => ({ ...annotation })) }
+        : {}),
+    });
   });
   insertItems(ws, targetOutputId, copies, index);
 }
@@ -138,6 +148,38 @@ export function rotateItems(ws: Workspace, itemIds: ItemId[], delta: 90 | 180 | 
     // negativ bleiben, die zweite bringt 360 wieder auf 0.
     item.rotation = ((((item.rotation + delta) % 360) + 360) % 360) as Rotation;
   }
+}
+
+export function addAnnotation(ws: Workspace, itemId: ItemId, annotation: Annotation): void {
+  const item = ws.items[itemId];
+  if (!item) return;
+  if (item.annotations?.some((existing) => existing.id === annotation.id)) return;
+  (item.annotations ??= []).push(annotation);
+}
+
+/**
+ * Aendert die Felder EINER Annotation. `patch` traegt nur die geaenderten
+ * Felder; `kind`/`id` bleiben. Ein Patch auf eine andere Annotationsart wird
+ * ignoriert, damit ein Text-Patch nie eine Unterschrift verbiegt.
+ */
+export function updateAnnotation(
+  ws: Workspace,
+  itemId: ItemId,
+  annotationId: AnnotationId,
+  patch: Partial<Annotation>,
+): void {
+  const item = ws.items[itemId];
+  const annotation = item?.annotations?.find((current) => current.id === annotationId);
+  if (!annotation) return;
+  if (patch.kind && patch.kind !== annotation.kind) return;
+  Object.assign(annotation, { ...patch, id: annotation.id, kind: annotation.kind });
+}
+
+export function removeAnnotation(ws: Workspace, itemId: ItemId, annotationId: AnnotationId): void {
+  const item = ws.items[itemId];
+  if (!item?.annotations) return;
+  item.annotations = item.annotations.filter((current) => current.id !== annotationId);
+  if (item.annotations.length === 0) delete item.annotations;
 }
 
 export interface CreateNodeInput {

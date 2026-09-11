@@ -5,11 +5,20 @@ import { useServices } from '../app/StoreProvider';
 
 export type PageImageStatus = 'idle' | 'loading' | 'ready' | 'error';
 
+export interface PageImageResult {
+  url: string | undefined;
+  status: PageImageStatus;
+  /** Punktmasse der Seite (Anzeigeorientierung) -- fuer die Annotationsebene. */
+  pageWidth: number | undefined;
+  pageHeight: number | undefined;
+}
+
 /** Rendert eine Seite in voller Ansichtsgroesse; das Thumbnail-Raster deckelt bei 180 px, der Viewer nicht. */
-export function usePageImage(ref: BlockRef, targetWidth: number): { url: string | undefined; status: PageImageStatus } {
+export function usePageImage(ref: BlockRef, targetWidth: number): PageImageResult {
   const { adapter } = useServices();
   const [blob, setBlob] = useState<Blob | undefined>(undefined);
   const [status, setStatus] = useState<PageImageStatus>('idle');
+  const [size, setSize] = useState<{ width: number; height: number } | undefined>(undefined);
   const url = useObjectUrl(blob);
 
   useEffect(() => {
@@ -22,6 +31,7 @@ export function usePageImage(ref: BlockRef, targetWidth: number): { url: string 
       .then((bitmap) => {
         if (!active) return;
         setBlob(bitmap.blob);
+        setSize({ width: bitmap.pageWidth, height: bitmap.pageHeight });
         setStatus('ready');
       })
       .catch((error) => {
@@ -35,5 +45,5 @@ export function usePageImage(ref: BlockRef, targetWidth: number): { url: string 
     };
   }, [adapter, ref.sourceId, ref.blockIndex, targetWidth]);
 
-  return { url, status };
+  return { url, status, pageWidth: size?.width, pageHeight: size?.height };
 }

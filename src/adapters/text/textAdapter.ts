@@ -101,6 +101,8 @@ export function createTextAdapter({
         blob: await surface.toBlob(imageType, imageQuality),
         width: surface.width,
         height: surface.height,
+        pageWidth: TEXT_PAGE.width,
+        pageHeight: TEXT_PAGE.height,
       };
     },
   };

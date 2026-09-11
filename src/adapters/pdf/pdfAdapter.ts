@@ -112,6 +112,8 @@ export function createPdfAdapter({
             blob: await surface.toBlob(imageType, imageQuality),
             width: surface.width,
             height: surface.height,
+            pageWidth: unscaled.width,
+            pageHeight: unscaled.height,
           };
         } finally {
           page.release();
