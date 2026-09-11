@@ -29,7 +29,7 @@ import { TrashPanel } from '../workspace/TrashPanel';
 import { DragPreview } from '../workspace/DragPreview';
 import { usePointerDrag } from '../workspace/usePointerDrag';
 import { useExternalDrop } from '../workspace/useExternalDrop';
-import { PreviewPane } from '../preview/PreviewPane';
+import { PreviewPane, type PreviewTarget } from '../preview/PreviewPane';
 import { useOcr } from '../preview/useOcr';
 import { useSearch } from '../preview/useSearch';
 import { useExport } from '../export/useExport';
@@ -102,6 +102,7 @@ function Workspace() {
   const [status, setStatus] = useState<SaveStatus>({ kind: 'idle' });
   const [activeSourceId, setActiveSourceId] = useState<SourceId | null>(null);
   const [activeOutputId, setActiveOutputId] = useState<NodeId | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<PreviewTarget | null>(null);
   const [splitting, setSplitting] = useState<SourceId | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
@@ -194,12 +195,26 @@ function Workspace() {
 
   const activeSource = activeSourceId ? workspace.sources[activeSourceId] : undefined;
   const activeOutput = activeOutputId ? workspace.nodes[activeOutputId] : undefined;
+
+  // Einfachauswahl setzt zugleich die Vorschau; Auge/Doppelklick oeffnet zusaetzlich das Panel.
+  const focusSource = (id: SourceId) => {
+    setActiveSourceId(id);
+    setPreviewTarget({ kind: 'source', id });
+  };
+  const focusOutput = (id: NodeId) => {
+    setActiveOutputId(id);
+    setPreviewTarget({ kind: 'output', id });
+  };
+  const openInPreview = (nextTarget: PreviewTarget) => {
+    setPreviewTarget(nextTarget);
+    setPreviewOpen(true);
+  };
   const hasSources = workspace.sourceOrder.length > 0;
   const importFiles = (files: FileList | File[]) =>
     void services.importForFiles(files).then((report) => {
       if (report.sources.length > 0) {
         dispatch({ type: 'importSources', sources: report.sources });
-        setActiveSourceId(report.sources[0].id);
+        focusSource(report.sources[0].id);
       }
     });
 
@@ -290,8 +305,12 @@ function Workspace() {
                 <div className="scroll-fade-y min-h-0 flex-1 overflow-auto pb-4">
                   <SourceList
                     activeSourceId={activeSourceId}
-                    onSelect={setActiveSourceId}
-                    onRemove={(id) => activeSourceId === id && setActiveSourceId(null)}
+                    onSelect={focusSource}
+                    onOpenPreview={(id) => openInPreview({ kind: 'source', id })}
+                    onRemove={(id) => {
+                      if (activeSourceId === id) setActiveSourceId(null);
+                      setPreviewTarget((t) => (t?.kind === 'source' && t.id === id ? null : t));
+                    }}
                   />
                 </div>
               </section>
@@ -345,7 +364,8 @@ function Workspace() {
                 <div className="scroll-fade-y min-h-0 flex-1 overflow-auto pb-4" data-tree-root>
                   <OutputTree
                     activeOutputId={activeOutputId}
-                    onSelectOutput={setActiveOutputId}
+                    onSelectOutput={focusOutput}
+                    onOpenPreview={(id) => openInPreview({ kind: 'output', id })}
                     onCellPointerDown={drag.onCellPointerDown}
                     onExportNode={(nodeId) => exportUi.open({ kind: 'node', nodeId })}
                     onPrintNode={(nodeId) => printUi.open({ kind: 'node', nodeId })}
@@ -362,6 +382,7 @@ function Workspace() {
                         })
                         .then(() => dispatch({ type: 'deleteNode', nodeId }));
                       if (activeOutputId === nodeId) setActiveOutputId(null);
+                      setPreviewTarget((t) => (t?.kind === 'output' && t.id === nodeId ? null : t));
                     }}
                   />
                 </div>
@@ -419,9 +440,9 @@ function Workspace() {
                 </header>
                 <div className="min-h-0 flex-1">
                   <PreviewPane
-                    activeSourceId={activeSourceId}
-                    activeOutputId={activeOutputId}
-                    onJumpToSource={(ref) => setActiveSourceId(ref.sourceId)}
+                    target={previewTarget}
+                    onJumpToSource={(ref) => focusSource(ref.sourceId)}
+                    onPagePointerDown={drag.onCellPointerDown}
                   />
                 </div>
               </div>
