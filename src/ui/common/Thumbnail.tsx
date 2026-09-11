@@ -8,9 +8,17 @@ export interface ThumbnailProps {
   width?: number;
   priority?: number;
   alt: string;
+  /** Meldet das echte Seitenverhaeltnis (Breite/Hoehe), sobald das Bild geladen ist. */
+  onNaturalAspect?(ratio: number): void;
 }
 
-export function Thumbnail({ blockRef, width = THUMBNAIL_WIDTH, priority = 0, alt }: ThumbnailProps) {
+export function Thumbnail({
+  blockRef,
+  width = THUMBNAIL_WIDTH,
+  priority = 0,
+  alt,
+  onNaturalAspect,
+}: ThumbnailProps) {
   const { thumbnails } = useServices();
   // Synchroner Blick in den Speicher-Cache: ein bereits gerendertes Thumbnail
   // erscheint ohne Flackern und ohne einen zweiten Renderauftrag.
@@ -40,7 +48,24 @@ export function Thumbnail({ blockRef, width = THUMBNAIL_WIDTH, priority = 0, alt
 
   if (!url) {
     // Der Platzhalter liegt auf weissem Papier: ein heller Schimmer statt dunkler Flaeche.
-    return <div className="h-full w-full animate-pulse rounded-[2px] bg-black/[0.06]" aria-label={`${alt} wird geladen`} />;
+    return (
+      <div
+        className="h-full w-full animate-pulse rounded-[2px] bg-black/[0.06]"
+        aria-label={`${alt} wird geladen`}
+      />
+    );
   }
-  return <img src={url} alt={alt} className="h-full w-full rounded-[2px] object-contain" draggable={false} />;
+  return (
+    <img
+      src={url}
+      alt={alt}
+      className="h-full w-full rounded-[2px] object-contain"
+      draggable={false}
+      onLoad={(e) => {
+        const im = e.currentTarget;
+        if (im.naturalWidth > 0 && im.naturalHeight > 0)
+          onNaturalAspect?.(im.naturalWidth / im.naturalHeight);
+      }}
+    />
+  );
 }
