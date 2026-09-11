@@ -302,10 +302,11 @@ function Workspace() {
                 />
               </div>
             </div>
-            <div className="scroll-fade-y min-h-0 flex-1 overflow-auto pb-4">
+            <div className="scroll-fade-y min-h-0 flex-1 overflow-auto pb-4" data-tree-root>
               <OutputTree
                 activeOutputId={activeOutputId}
                 onSelectOutput={setActiveOutputId}
+                onCellPointerDown={drag.onCellPointerDown}
                 onExportNode={(nodeId) => exportUi.open({ kind: 'node', nodeId })}
                 onPrintNode={(nodeId) => printUi.open({ kind: 'node', nodeId })}
                 onDeleteNode={(nodeId) => {
