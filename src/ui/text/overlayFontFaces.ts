@@ -11,10 +11,19 @@ let injected = false;
 export function ensureOverlayFontFaces(): void {
   if (injected || typeof document === 'undefined') return;
   injected = true;
-  const rules = OVERLAY_FONTS.filter((font) => font.file).map(
-    (font) =>
-      `@font-face{font-family:"PDFM-${font.key}";src:url("${FONTS_URL}${font.file}") format("truetype");font-display:swap;}`,
-  );
+  const rules: string[] = [];
+  for (const font of OVERLAY_FONTS) {
+    if (font.file) {
+      rules.push(
+        `@font-face{font-family:"PDFM-${font.key}";src:url("${FONTS_URL}${font.file}") format("truetype");font-display:swap;}`,
+      );
+    }
+    if (font.boldFile) {
+      rules.push(
+        `@font-face{font-family:"PDFM-${font.key}-bold";src:url("${FONTS_URL}${font.boldFile}") format("truetype");font-display:swap;}`,
+      );
+    }
+  }
   if (rules.length === 0) return;
   const style = document.createElement('style');
   style.dataset.pdfmOverlayFonts = 'true';
