@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, Download, FilePlus2, Folder, FolderPlus, FileText, Trash2 } from 'lucide-react';
+import { ChevronRight, Download, FilePlus2, Folder, FolderPlus, FileText, Pencil, Printer, Trash2 } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import type { NodeId } from '../../domain/types';
 import { useDispatch, useWorkspace } from '../app/StoreProvider';
@@ -10,9 +10,16 @@ export interface OutputTreeProps {
   onSelectOutput(id: NodeId): void;
   onDeleteNode?(nodeId: NodeId): void;
   onExportNode?(nodeId: NodeId): void;
+  onPrintNode?(nodeId: NodeId): void;
 }
 
-export function OutputTree({ activeOutputId, onSelectOutput, onDeleteNode, onExportNode }: OutputTreeProps) {
+export function OutputTree({
+  activeOutputId,
+  onSelectOutput,
+  onDeleteNode,
+  onExportNode,
+  onPrintNode,
+}: OutputTreeProps) {
   const workspace = useWorkspace();
   const dispatch = useDispatch();
   const [renaming, setRenaming] = useState<NodeId | null>(null);
@@ -85,6 +92,32 @@ export function OutputTree({ activeOutputId, onSelectOutput, onDeleteNode, onExp
                     )}
                     <span className="truncate">{record.name}</span>
                   </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenaming(node.id);
+                    }}
+                    aria-label={`"${record.name}" umbenennen`}
+                    title="Umbenennen"
+                    className="shrink-0 rounded p-1 text-muted opacity-0 hover:bg-shell hover:text-ink group-hover:opacity-100"
+                  >
+                    <Pencil className="size-3.5" aria-hidden />
+                  </button>
+                  {node.type === 'output' && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPrintNode?.(node.id);
+                      }}
+                      aria-label={`"${record.name}" drucken`}
+                      title="Drucken"
+                      className="shrink-0 rounded p-1 text-muted opacity-0 hover:bg-shell hover:text-ink group-hover:opacity-100"
+                    >
+                      <Printer className="size-3.5" aria-hidden />
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={(e) => {
