@@ -6,15 +6,17 @@ import {
   ExternalLink,
   Maximize,
   MoreVertical,
+  PenLine,
   RotateCw,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import type { BlockRef, Rotation } from '../../domain/types';
+import type { BlockRef, ItemId, Overlay, Rotation } from '../../domain/types';
 import type { DragOrigin } from '../workspace/dragLogic';
 import { IconButton } from '../common/IconButton';
 import { Menu } from '../common/Menu';
 import { cx } from '../common/cx';
+import { FillLayer } from './FillLayer';
 import { usePageImage } from './usePageImage';
 import { clampPageIndex, nextZoom } from './viewerModel';
 
@@ -25,6 +27,12 @@ export interface ViewerPage {
   pageNumber: number;
   /** Wenn gesetzt, laesst sich diese Seite direkt aus dem Betrachter herausziehen. */
   dragOrigin?: DragOrigin;
+  /** Die Seiteninstanz, falls diese Seite ausgefuellt werden kann (Ausgabe). */
+  itemId?: ItemId;
+  /** Vorhandene Felder/Unterschriften dieser Seite. */
+  overlays?: Overlay[];
+  /** true, wenn diese Seite ausgefuellt werden darf (Ausgabe, ungedreht). */
+  fillable?: boolean;
 }
 
 export interface ViewerProps {
@@ -32,6 +40,9 @@ export interface ViewerProps {
   onJumpToSource?(ref: BlockRef): void;
   /** Startet einen Seiten-Drag aus dem Betrachter an das gewuenschte Ziel. */
   onPagePointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
+  onAddOverlay?(itemId: ItemId, overlay: Overlay): void;
+  onUpdateOverlay?(itemId: ItemId, overlayId: string, patch: Partial<Overlay>): void;
+  onRemoveOverlay?(itemId: ItemId, overlayId: string): void;
   emptyLabel?: string;
 }
 
@@ -39,12 +50,24 @@ const VIEW_WIDTH = 800;
 const COMPACT_WIDTH = 440;
 const clampZoom = (z: number) => Math.min(4, Math.max(0.25, z));
 
-export function Viewer({ pages, onJumpToSource, onPagePointerDown, emptyLabel }: ViewerProps) {
+export function Viewer({
+  pages,
+  onJumpToSource,
+  onPagePointerDown,
+  onAddOverlay,
+  onUpdateOverlay,
+  onRemoveOverlay,
+  emptyLabel,
+}: ViewerProps) {
   const [index, setIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [extraRotation, setExtraRotation] = useState<Rotation>(0);
   const [scrolling, setScrolling] = useState(false);
   const [compact, setCompact] = useState(false);
+  const [fillMode, setFillMode] = useState(false);
+
+  const anyFillable = pages.some((page) => page.fillable);
+  const filling = fillMode && anyFillable;
   const rootRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -204,6 +227,21 @@ export function Viewer({ pages, onJumpToSource, onPagePointerDown, emptyLabel }:
 
         <span aria-hidden className="mx-1 h-5 w-px bg-line-structural" />
 
+        {anyFillable && (
+          <button
+            type="button"
+            onClick={() => setFillMode((value) => !value)}
+            className={cx(
+              'mr-1 inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium',
+              filling
+                ? 'bg-accent text-on-accent'
+                : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary',
+            )}
+          >
+            <PenLine className="size-3.5" aria-hidden /> Ausfüllen
+          </button>
+        )}
+
         {compact ? (
           <Menu
             align="end"
@@ -245,8 +283,12 @@ export function Viewer({ pages, onJumpToSource, onPagePointerDown, emptyLabel }:
               zoom={zoom}
               extraRotation={extraRotation}
               scrollRef={scrollRef}
+              filling={filling}
               onJumpToSource={onJumpToSource}
               onPagePointerDown={onPagePointerDown}
+              onAddOverlay={onAddOverlay}
+              onUpdateOverlay={onUpdateOverlay}
+              onRemoveOverlay={onRemoveOverlay}
               blockRef={(el) => (pageRefs.current[i] = el)}
             />
           ))}
@@ -272,8 +314,12 @@ interface PageBlockProps {
   zoom: number;
   extraRotation: Rotation;
   scrollRef: RefObject<HTMLDivElement | null>;
+  filling: boolean;
   onJumpToSource?(ref: BlockRef): void;
   onPagePointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
+  onAddOverlay?(itemId: ItemId, overlay: Overlay): void;
+  onUpdateOverlay?(itemId: ItemId, overlayId: string, patch: Partial<Overlay>): void;
+  onRemoveOverlay?(itemId: ItemId, overlayId: string): void;
   blockRef(el: HTMLDivElement | null): void;
 }
 
@@ -282,8 +328,12 @@ function PageBlock({
   zoom,
   extraRotation,
   scrollRef,
+  filling,
   onJumpToSource,
   onPagePointerDown,
+  onAddOverlay,
+  onUpdateOverlay,
+  onRemoveOverlay,
   blockRef,
 }: PageBlockProps) {
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -344,7 +394,17 @@ function PageBlock({
             zoom={zoom}
             rotation={rotation}
             alt={`${page.sourceName}, Seite ${page.pageNumber}`}
-          />
+          >
+            {page.fillable && page.itemId && (
+              <FillLayer
+                overlays={page.overlays ?? []}
+                active={filling}
+                onAdd={(overlay) => onAddOverlay?.(page.itemId!, overlay)}
+                onUpdate={(overlayId, patch) => onUpdateOverlay?.(page.itemId!, overlayId, patch)}
+                onRemove={(overlayId) => onRemoveOverlay?.(page.itemId!, overlayId)}
+              />
+            )}
+          </PageImage>
         </div>
       ) : (
         <div
@@ -361,11 +421,13 @@ function PageImage({
   zoom,
   rotation,
   alt,
+  children,
 }: {
   ref: BlockRef;
   zoom: number;
   rotation: Rotation;
   alt: string;
+  children?: React.ReactNode;
 }) {
   const { url, status } = usePageImage(ref, VIEW_WIDTH);
   if (status === 'error') {
@@ -385,13 +447,18 @@ function PageImage({
   }
   return (
     <div className="flex justify-center">
-      <img
-        src={url}
-        alt={alt}
-        draggable={false}
-        className="paper-sheet max-w-full"
-        style={{ width: `${zoom * 100}%`, transform: `rotate(${rotation}deg)` }}
-      />
+      {/* Der Wrapper schrumpft auf die Bildgroesse, damit die Ausfuell-Schicht
+          (children) deckungsgleich ueber dem Blatt liegt. */}
+      <div className="relative inline-block max-w-full" style={{ width: `${zoom * 100}%` }}>
+        <img
+          src={url}
+          alt={alt}
+          draggable={false}
+          className="paper-sheet block w-full"
+          style={{ transform: `rotate(${rotation}deg)` }}
+        />
+        {children}
+      </div>
     </div>
   );
 }
