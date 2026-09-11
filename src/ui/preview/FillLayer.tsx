@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Minus, PenLine, Plus, Trash2, Type } from 'lucide-react';
+import { Minus, PenLine, Plus, ScanLine, Trash2, Type } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import type { Overlay } from '../../domain/types';
 import { cx } from '../common/cx';
@@ -12,6 +12,8 @@ export interface FillLayerProps {
   onAdd(overlay: Overlay): void;
   onUpdate(overlayId: string, patch: Partial<Overlay>): void;
   onRemove(overlayId: string): void;
+  /** Erkennt die AcroForm-Felder dieser Seite und legt sie als Overlays an. */
+  onDetect?(): void;
 }
 
 interface Box {
@@ -34,7 +36,14 @@ const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
  * zu bearbeiten und zu loeschen. Alle Positionen sind Bruchteile der Seite --
  * unabhaengig vom Zoom.
  */
-export function FillLayer({ overlays, active, onAdd, onUpdate, onRemove }: FillLayerProps) {
+export function FillLayer({
+  overlays,
+  active,
+  onAdd,
+  onUpdate,
+  onRemove,
+  onDetect,
+}: FillLayerProps) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [signing, setSigning] = useState(false);
@@ -132,6 +141,16 @@ export function FillLayer({ overlays, active, onAdd, onUpdate, onRemove }: FillL
         <div className="pointer-events-auto absolute left-2 top-2 flex items-center gap-1 rounded-md bg-surface-raised px-1.5 py-1 text-[11.5px] text-text-secondary shadow-[var(--float-shadow)] ring-1 ring-line-structural">
           <Type className="size-3.5" aria-hidden />
           <span className="mr-1">Klicken für Textfeld</span>
+          {onDetect && (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={onDetect}
+              className="inline-flex items-center gap-1 rounded bg-surface-panel px-1.5 py-0.5 text-text-primary ring-1 ring-line-structural hover:bg-surface-hover"
+            >
+              <ScanLine className="size-3.5" aria-hidden /> Felder erkennen
+            </button>
+          )}
           <button
             type="button"
             onPointerDown={(e) => e.stopPropagation()}
@@ -238,20 +257,36 @@ export function FillLayer({ overlays, active, onAdd, onUpdate, onRemove }: FillL
                     <Trash2 className="size-3" aria-hidden />
                   </button>
                 </div>
-                <textarea
-                  defaultValue={overlay.text}
-                  autoFocus={(overlay.text ?? '') === ''}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onInput={(e) => {
-                    const ta = e.currentTarget;
-                    ta.style.height = 'auto';
-                    ta.style.height = `${ta.scrollHeight}px`;
-                  }}
-                  onBlur={(e) => onUpdate(overlay.id, { text: e.currentTarget.value })}
-                  className="block w-full resize-none rounded-b bg-white/70 px-1 leading-tight text-[#15181c] outline-none ring-1 ring-accent/60 focus:bg-white focus:ring-accent"
-                  style={{ fontSize: `${fontPx}px`, minHeight: `${fontPx * 1.4}px` }}
-                  rows={1}
-                />
+                {overlay.options ? (
+                  <select
+                    value={overlay.text ?? ''}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onChange={(e) => onUpdate(overlay.id, { text: e.currentTarget.value })}
+                    className="block w-full rounded-b bg-white/80 px-1 leading-tight text-[#15181c] outline-none ring-1 ring-accent/60 focus:bg-white focus:ring-accent"
+                    style={{ fontSize: `${fontPx}px` }}
+                  >
+                    {overlay.options.map((option, i) => (
+                      <option key={i} value={option}>
+                        {option === '' ? '—' : option}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <textarea
+                    defaultValue={overlay.text}
+                    autoFocus={(overlay.text ?? '') === ''}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onInput={(e) => {
+                      const ta = e.currentTarget;
+                      ta.style.height = 'auto';
+                      ta.style.height = `${ta.scrollHeight}px`;
+                    }}
+                    onBlur={(e) => onUpdate(overlay.id, { text: e.currentTarget.value })}
+                    className="block w-full resize-none rounded-b bg-white/70 px-1 leading-tight text-[#15181c] outline-none ring-1 ring-accent/60 focus:bg-white focus:ring-accent"
+                    style={{ fontSize: `${fontPx}px`, minHeight: `${fontPx * 1.4}px` }}
+                    rows={1}
+                  />
+                )}
               </>
             ) : (
               overlay.text?.trim() && (

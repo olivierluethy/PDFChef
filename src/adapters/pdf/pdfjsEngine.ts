@@ -1,6 +1,6 @@
 import * as pdfjs from 'pdfjs-dist';
 import type { OutlineNode } from '../../domain/types';
-import type { TextSpan } from '../types';
+import type { DetectedField, TextSpan } from '../types';
 import type {
   CreateSurface,
   PdfDocumentHandle,
@@ -37,17 +37,15 @@ export function createPdfjsEngine(): PdfEngine {
   return {
     async open(bytes) {
       // pdf.js uebernimmt den Puffer und leert ihn dabei; deshalb eine Kopie.
-      const task = pdfjs.getDocument(
-        {
-          data: bytes.slice(),
-          cMapUrl: CMAP_URL,
-          cMapPacked: true,
-          standardFontDataUrl: STANDARD_FONT_URL,
-          disableAutoFetch: true,
-          isEvalSupported: false,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any,
-      );
+      const task = pdfjs.getDocument({
+        data: bytes.slice(),
+        cMapUrl: CMAP_URL,
+        cMapPacked: true,
+        standardFontDataUrl: STANDARD_FONT_URL,
+        disableAutoFetch: true,
+        isEvalSupported: false,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
       return wrapDocument(await task.promise, task);
     },
     isPasswordError(error) {
@@ -139,6 +137,55 @@ function wrapPage(page: pdfjs.PDFPageProxy): PdfPageHandle {
         });
       }
       return spans;
+    },
+    async fields(): Promise<DetectedField[]> {
+      const annotations = await page.getAnnotations();
+      const viewport = page.getViewport({ scale: 1 });
+      const vw = viewport.width;
+      const vh = viewport.height;
+      const out: DetectedField[] = [];
+      // pdf.js typisiert Annotationen nur lose; die Widget-Felder werden roh gelesen.
+      for (const raw of annotations as Array<Record<string, unknown>>) {
+        if (raw.subtype !== 'Widget' || raw.hidden || raw.readOnly || raw.pushButton) continue;
+        let kind: DetectedField['kind'] | null = null;
+        let options: string[] | undefined;
+        if (raw.fieldType === 'Tx') {
+          kind = 'text';
+        } else if (raw.fieldType === 'Ch') {
+          kind = 'select';
+          const rawOptions =
+            (raw.options as Array<{ displayValue?: string; exportValue?: string }>) ?? [];
+          options = rawOptions
+            .map((o) => String(o.displayValue ?? o.exportValue ?? ''))
+            .filter((v) => v !== '');
+        } else if (raw.fieldType === 'Btn' && raw.checkBox) {
+          kind = 'checkbox';
+        }
+        if (!kind || !Array.isArray(raw.rect)) continue;
+
+        // Feld-Rechteck (PDF-Koordinaten, unten links) via Viewport-Matrix in
+        // Anzeigekoordinaten (oben links) umrechnen -- so, wie es das gerenderte
+        // Bild sieht. `transform` ist [a, b, c, d, e, f].
+        const [a, b, c, d, e, f] = (viewport as unknown as { transform: number[] }).transform;
+        const [rx1, ry1, rx2, ry2] = raw.rect as number[];
+        const toView = (x: number, y: number): [number, number] => [a * x + c * y + e, b * x + d * y + f];
+        const [ax, ay] = toView(rx1, ry1);
+        const [bx, by] = toView(rx2, ry2);
+        const left = Math.min(ax, bx);
+        const right = Math.max(ax, bx);
+        const top = Math.min(ay, by);
+        const bottom = Math.max(ay, by);
+        if (vw <= 0 || vh <= 0) continue;
+        out.push({
+          kind,
+          x: left / vw,
+          y: top / vh,
+          w: (right - left) / vw,
+          h: (bottom - top) / vh,
+          options,
+        });
+      }
+      return out;
     },
     release() {
       page.cleanup();

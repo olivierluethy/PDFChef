@@ -1,5 +1,6 @@
 import type { BlockRef } from '../../domain/types';
 import type {
+  DetectedField,
   DocumentAdapter,
   FileDescriptor,
   PageText,
@@ -129,6 +130,17 @@ export function createPdfAdapter({
             text: spans.map((span) => span.text).join(' '),
             spans,
           };
+        } finally {
+          page.release();
+        }
+      });
+    },
+
+    async detectFields(ref: BlockRef): Promise<DetectedField[]> {
+      return pool.use(ref.sourceId, async (document) => {
+        const page = await document.page(ref.blockIndex);
+        try {
+          return await page.fields();
         } finally {
           page.release();
         }

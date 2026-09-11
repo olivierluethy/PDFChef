@@ -52,6 +52,21 @@ export interface PageText {
   spans: TextSpan[];
 }
 
+/**
+ * Ein auf einer Seite erkanntes AcroForm-Feld. Position und Groesse sind
+ * Bruchteile der Seite (0..1, Ursprung oben links) -- deckungsgleich mit dem
+ * gerenderten Seitenbild, sodass sie direkt zu einem Overlay werden koennen.
+ */
+export interface DetectedField {
+  kind: 'text' | 'select' | 'checkbox';
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Nur bei Auswahlfeldern: die anwaehlbaren Werte. */
+  options?: string[];
+}
+
 export interface ExtractRequest {
   type: 'extract';
   sourceId: string;
@@ -70,6 +85,8 @@ export interface DocumentAdapter {
   probe(blob: Blob): Promise<SourceProbeResult>;
   renderBlock(ref: BlockRef, opts: RenderOpts): Promise<RenderedBitmap>;
   extractText?(ref: BlockRef): Promise<PageText>;
+  /** Erkennt AcroForm-Felder auf einer Seite (nur PDF). */
+  detectFields?(ref: BlockRef): Promise<DetectedField[]>;
 }
 
 /** Einbettbare PNG/JPEG-Bytes + Masse fuer den Assembler. */
