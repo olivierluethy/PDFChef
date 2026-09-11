@@ -1,20 +1,63 @@
 @import 'tailwindcss';
 
+/*
+ * Machinist's light table. Ein dunkler, matter Werkbank-Grund traegt weisses
+ * Papier bei vollem Kontrast; eine warme Signalfarbe markiert ausschliesslich
+ * die Entscheidungen des Nutzers, eine kuehle Info-Farbe berichtet Fakten ueber
+ * die Daten. Farbe traegt Information, sie dekoriert nie.
+ */
 @theme {
-  /* Leuchttisch-Werkbank: Graphit-Grund, damit helle Seiten der Star sind. */
-  --color-shell: #15171c;
-  --color-panel: #1c1f26;
-  --color-raised: #242833;
-  --color-line: #313743;
-  --color-ink: #e7e9ee;
-  --color-muted: #969db0;
-  --color-accent: #e7a13a;
-  --color-accent-soft: #7a5a1c;
-  --color-danger: #e5645a;
+  /* Flaechen */
+  --color-surface-canvas: #0d0f11; /* App-Grund hinter allen Panels */
+  --color-surface-panel: #15181c; /* Panel-Hintergruende */
+  --color-surface-raised: #1d2127; /* Karten, Felder, Werkzeugleisten, Menues */
+  --color-surface-hover: #252a31;
+
+  /* Linien */
+  --color-line-hairline: #272c33; /* Trenner innerhalb eines Panels */
+  --color-line-structural: #363d46; /* Panelkanten, Splitter, Fokusring-Basis */
+
+  /* Text */
+  --color-text-primary: #e9ecef;
+  --color-text-secondary: #9ba3ad;
+  --color-text-tertiary: #6c757e; /* nie fuer etwas, das der Nutzer lesen muss */
+
+  /* Signalfarbe: nur die Entscheidungen des Nutzers */
+  --color-accent: #e3a23c;
+  --color-accent-soft: rgba(227, 162, 60, 0.14);
+  --color-accent-strong: #f2b457; /* nur Hover/Active der Primaeraktion */
+  --color-on-accent: #1a1206; /* Text auf gefuelltem Akzent */
+
+  /* Info: nur Fakten ueber die Daten (Herkunft, Nutzungszahlen) */
+  --color-info: #7c97b5;
+  --color-info-soft: rgba(124, 151, 181, 0.14);
+
+  --color-danger: #d97066; /* nur destruktiv */
+  --color-success: #6fa97f; /* nur Abschluss */
+
+  --color-paper: #ffffff;
+
+  /* Alias-Namen, damit noch nicht migrierte Komponenten die neue Palette treffen. */
+  --color-shell: var(--color-surface-canvas);
+  --color-panel: var(--color-surface-panel);
+  --color-raised: var(--color-surface-raised);
+  --color-line: var(--color-line-structural);
+  --color-ink: var(--color-text-primary);
+  --color-muted: var(--color-text-secondary);
+  --color-info-bg: var(--color-info-soft);
 
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+    'IBM Plex Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+/* Nicht-Farb-Tokens: als reine CSS-Variablen, in Shadows/Ringen referenziert. */
+:root {
+  --paper-edge: rgba(255, 255, 255, 0.1); /* 1px Innenring auf jedem Blatt */
+  --paper-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), 0 6px 16px rgba(0, 0, 0, 0.4);
+  --float-shadow: 0 8px 28px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35);
+  --ease-panel: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 html,
@@ -24,15 +67,75 @@ body,
 }
 
 body {
-  background-color: var(--color-shell);
-  color: var(--color-ink);
+  background-color: var(--color-surface-canvas);
+  color: var(--color-text-primary);
   font-family: var(--font-sans);
+  font-size: 13.5px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---- Typografische Skala (px / line-height / weight aus dem Brief) ---- */
+.t-panel-title {
+  font-size: 15px;
+  line-height: 1.3;
+  font-weight: 550;
+  letter-spacing: -0.005em;
+}
+.t-body {
+  font-size: 13.5px;
+  line-height: 1.5;
+  font-weight: 400;
+}
+.t-label {
+  font-size: 12.5px;
+  line-height: 1.4;
+  font-weight: 500;
+}
+.t-meta {
+  font-size: 12px;
+  line-height: 1.45;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+}
+.t-data {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 450;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Zahlen (Seitennummern, Ranges, Zaehler) laufen nicht, sie stehen. */
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Ein Blatt Papier: scharfe Ecken, feiner Innenring, echte Elevation. */
+.paper-sheet {
+  background-color: var(--color-paper);
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--paper-edge), var(--paper-shadow);
+}
+
+/* Scroll-Fade: 4px weiche Maske oben/unten, damit mehr Inhalt sichtbar bleibt.
+   Nur hier sind Verlaeufe erlaubt (Flaechenfarbe -> transparent). */
+.scroll-fade-y {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 4px,
+    #000 calc(100% - 4px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 4px,
+    #000 calc(100% - 4px),
+    transparent 100%
+  );
 }
 
 /* Waehrend eines Seiten-Drags: kein natives Textmarkieren, klarer Cursor. */
@@ -42,24 +145,43 @@ body.is-dragging {
   -webkit-user-select: none;
 }
 
-/* Das aktuelle Drop-Ziel (Ordner, Baum-Dokument oder Ausgaberaster) hervorheben.
+/* ---- Drag-Orchestrierung ----
+   Waehrend ein interner Seiten-Drag laeuft (body[data-page-drag]) treten gueltige
+   Ablageziele hervor und alles andere tritt zurueck -- das macht das Datenmodell
+   ohne ein Wort Dokumentation lesbar. */
+[data-page-drag] [data-dim-on-drag] {
+  opacity: 0.45;
+  transition: opacity 120ms ease;
+}
+[data-page-drag] [data-drop-zone] {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+  border-radius: 10px;
+  transition: outline-color 120ms ease;
+}
+
+/* Das aktuell getroffene Drop-Ziel (Ordner, Baum-Dokument, Ausgaberaster).
    Auswahl nutzt einen soliden Ring; Drop unterscheidet sich durch Fuellung. */
 [data-drop-active] {
   outline: 2px solid var(--color-accent);
   outline-offset: -2px;
-  border-radius: 0.5rem;
-  background-color: color-mix(in srgb, var(--color-accent) 14%, transparent);
+  border-radius: 10px;
+  background-color: var(--color-accent-soft);
 }
 
 /* Sichtbarer Tastaturfokus ueberall. */
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+  border-radius: 4px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
