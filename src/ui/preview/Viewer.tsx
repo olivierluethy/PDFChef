@@ -18,7 +18,7 @@ import { Menu } from '../common/Menu';
 import { cx } from '../common/cx';
 import { FillLayer } from './FillLayer';
 import { usePageImage } from './usePageImage';
-import { clampPageIndex, nextZoom } from './viewerModel';
+import { clampPageIndex, nextZoom, pagesSignature } from './viewerModel';
 
 export interface ViewerPage {
   ref: BlockRef;
@@ -76,10 +76,14 @@ export function Viewer({
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollStop = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // Nur bei einem echten Seitenwechsel (anderes Dokument/andere Seiten) an den
+  // Anfang springen -- nicht, wenn auf derselben Seite ein Feld gesetzt oder
+  // bearbeitet wird (dann bleibt der Blick, wo er ist).
+  const pagesKey = pagesSignature(pages);
   useLayoutEffect(() => {
     setIndex(0);
     scrollRef.current?.scrollTo({ top: 0 });
-  }, [pages]);
+  }, [pagesKey]);
 
   // Panelbreite bestimmt, ob Drehen/Vollbild ins Ueberlaufmenue wandern.
   useLayoutEffect(() => {
