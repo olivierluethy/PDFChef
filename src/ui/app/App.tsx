@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FolderUp, PanelRightClose, PanelRightOpen } from 'lucide-react';
+import { FilePlus2, FolderPlus, FolderUp, PanelRightClose, PanelRightOpen, Plus } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import { buildNodeSnapshot } from '../../domain/trash';
 import { isOutput, type NodeId, type SourceId } from '../../domain/types';
 import { SplitPane } from '../common/SplitPane';
+import { IconButton } from '../common/IconButton';
+import { Menu } from '../common/Menu';
+import { Pill } from '../common/Pill';
+import { ResizeHandle } from '../common/ResizeHandle';
 import type { SaveStatus } from '../../services/persistence/autosave';
 import { createTrashService } from '../../services/persistence/trashService';
-import { SourceGrid } from '../sources/SourceGrid';
+import { SourcePanel } from '../sources/SourcePanel';
 import { SourceList } from '../sources/SourceList';
 import { DuplicatesNotice } from '../sources/DuplicatesNotice';
-import { RangeField } from '../sources/RangeField';
-import { OutlinePanel } from '../sources/OutlinePanel';
+import { Button } from '../common/Button';
+import { EmptyState, SheetGhosts } from '../common/EmptyState';
 import { OutputGrid } from '../workspace/OutputGrid';
 import { OutputTree } from '../workspace/OutputTree';
 import { SplitPanel } from '../workspace/SplitPanel';
@@ -34,11 +38,11 @@ import {
   StoreProvider,
   useDispatch,
   useServices,
-  useSelectionStore,
   useWorkspace,
   useWorkspaceStore,
   type StoreContextValue,
 } from './StoreProvider';
+import { cx } from '../common/cx';
 
 export interface AppProps {
   bootstrap?: () => Promise<StoreContextValue>;
@@ -63,15 +67,15 @@ export function App({ bootstrap = bootstrapWorkspace }: AppProps = {}) {
 
   if (error) {
     return (
-      <div className="grid min-h-screen place-items-center bg-shell text-neutral-300">
+      <div className="grid min-h-screen place-items-center bg-surface-canvas text-text-secondary">
         <p>{error}</p>
       </div>
     );
   }
   if (!store) {
     return (
-      <div className="grid min-h-screen place-items-center bg-shell text-neutral-500">
-        <p>Arbeitsbereich wird geladen...</p>
+      <div className="grid min-h-screen place-items-center bg-surface-canvas text-text-tertiary">
+        <p>Arbeitsbereich wird geladen …</p>
       </div>
     );
   }
@@ -88,18 +92,26 @@ function Workspace() {
   const services = useServices();
   const dispatch = useDispatch();
   const workspaceStore = useWorkspaceStore();
-  const selectionStore = useSelectionStore();
   const [status, setStatus] = useState<SaveStatus>({ kind: 'idle' });
   const [activeSourceId, setActiveSourceId] = useState<SourceId | null>(null);
   const [activeOutputId, setActiveOutputId] = useState<NodeId | null>(null);
   const [splitting, setSplitting] = useState<SourceId | null>(null);
-  const [sourceSeek, setSourceSeek] = useState<{ index: number; nonce: number } | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [previewWidth, setPreviewWidth] = useState(380);
   const trash = useMemo(() => createTrashService(services.db), [services.db]);
 
   const drag = usePointerDrag();
+
+  // Waehrend eines internen Seiten-Drags treten gueltige Ablageziele hervor und
+  // alles andere tritt zurueck. Ein einziges Body-Attribut steuert die CSS-Regeln.
+  useEffect(() => {
+    const active = drag.preview != null;
+    document.body.toggleAttribute('data-page-drag', active);
+    return () => document.body.removeAttribute('data-page-drag');
+  }, [drag.preview]);
   const external = useExternalDrop();
   const exportUi = useExport();
   const printUi = usePrint();
@@ -110,7 +122,7 @@ function Workspace() {
 
   const paletteActions = useMemo<PaletteAction[]>(
     () => [
-      { id: 'undo', label: 'Rueckgaengig', run: () => workspaceStore.getState().undo() },
+      { id: 'undo', label: 'Rückgängig', run: () => workspaceStore.getState().undo() },
       { id: 'redo', label: 'Wiederherstellen', run: () => workspaceStore.getState().redo() },
       {
         id: 'createFolder',
@@ -125,7 +137,7 @@ function Workspace() {
       { id: 'export', label: 'Exportieren', run: () => exportUi.open() },
       { id: 'print', label: 'Drucken', run: () => printUi.open() },
       { id: 'search', label: 'Suchen', run: () => search.open() },
-      { id: 'trash', label: 'Papierkorb oeffnen', run: () => setTrashOpen(true) },
+      { id: 'trash', label: 'Papierkorb öffnen', run: () => setTrashOpen(true) },
       {
         id: 'ocr',
         label: 'Text erkennen (aktuelle Quelle)',
@@ -165,66 +177,39 @@ function Workspace() {
       }
     });
 
-  const sourcePane = (
-    <section className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center gap-2 border-b border-line px-3 py-2">
-        <span className="text-sm font-medium text-ink">{activeSource ? activeSource.name : 'Quelle'}</span>
-        {activeSource && (
-          <span className="tabular text-xs text-muted">{activeSource.blockCount} Seiten</span>
-        )}
-        <span className="ml-auto text-xs text-muted">Seiten nach unten ins Dokument ziehen</span>
-        {activeSource && (
-          <button
-            type="button"
-            disabled={latex.busy}
-            onClick={() => void latex.runForSource(activeSource.id)}
-            title="Den Text dieses Dokuments als LaTeX-Datei erzeugen"
-            className="rounded border border-line px-2 py-0.5 text-xs hover:border-accent/60 disabled:opacity-50"
-          >
-            {latex.busy ? 'LaTeX…' : 'LaTeX'}
-          </button>
-        )}
-      </header>
-      {activeSource ? (
-        <>
-          {activeSource.outline && activeSource.outline.length > 0 && (
-            <OutlinePanel
-              outline={activeSource.outline}
-              blockCount={activeSource.blockCount}
-              onNavigate={(blockIndex) => {
-                selectionStore
-                  .getState()
-                  .select({ kind: 'source', sourceId: activeSource.id }, String(blockIndex), [String(blockIndex)]);
-                setSourceSeek({ index: blockIndex, nonce: Date.now() });
-              }}
-            />
-          )}
-          <RangeField sourceId={activeSource.id} blockCount={activeSource.blockCount} />
-          <div className="min-h-0 flex-1">
-            <SourceGrid
-              source={activeSource}
-              onCellPointerDown={drag.onCellPointerDown}
-              scrollTo={sourceSeek ?? undefined}
-            />
-          </div>
-        </>
-      ) : (
-        <p className="p-4 text-sm text-muted">Waehlen Sie links eine Quelle, um ihre Seiten zu sehen.</p>
-      )}
-    </section>
+  const createOutputAndSelect = () => {
+    const id = newId();
+    dispatch({ type: 'createOutput', node: { id, name: 'Neues Dokument', parentId: null } });
+    setActiveOutputId(id);
+  };
+
+  const sourcePane = activeSource ? (
+    <SourcePanel
+      source={activeSource}
+      onCellPointerDown={drag.onCellPointerDown}
+      onLatex={(id) => void latex.runForSource(id)}
+      latexBusy={latex.busy}
+      onOcr={(src) => void ocr.runForSource(src.id, src.blockCount)}
+    />
+  ) : (
+    <div className="grid h-full place-items-center p-8">
+      <p className="t-meta">Wähle links eine Quelle, um ihre Seiten zu sehen.</p>
+    </div>
   );
 
   const outputPane = (
     <section className="flex h-full min-h-0 flex-col">
-      <header className="flex items-center gap-2 border-b border-t border-line px-3 py-2">
-        <span className="text-sm font-medium text-ink">
-          {activeOutput ? activeOutput.name : 'Ausgabedokument'}
-        </span>
+      <header className="flex h-12 shrink-0 items-center gap-3 px-5">
+        <h2 className="t-panel-title min-w-0 truncate text-text-primary" title={activeOutput?.name}>
+          {activeOutput ? activeOutput.name : 'Ausgabe'}
+        </h2>
         {activeOutput && isOutput(activeOutput) && (
-          <span className="tabular text-xs text-muted">{activeOutput.items.length} Seiten</span>
+          <span className="shrink-0 font-mono text-[12px] tabular-nums text-text-secondary">
+            {activeOutput.items.length} {activeOutput.items.length === 1 ? 'Seite' : 'Seiten'}
+          </span>
         )}
       </header>
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 px-5 pb-2">
         {activeOutputId ? (
           <OutputGrid
             outputId={activeOutputId}
@@ -232,16 +217,22 @@ function Workspace() {
             dropIndex={drag.dropIndicator?.outputId === activeOutputId ? drag.dropIndicator.index : null}
           />
         ) : (
-          <p className="p-4 text-sm text-muted">
-            Waehlen Sie links ein Ausgabedokument oder legen Sie eines an.
-          </p>
+          <EmptyState
+            title="Noch kein Dokument"
+            description="Zieh Seiten aus dem oberen Raster hierher, oder erstelle ein leeres Dokument."
+            illustration={<SheetGhosts />}
+          >
+            <Button variant="secondary" icon={FilePlus2} onClick={createOutputAndSelect}>
+              Dokument erstellen
+            </Button>
+          </EmptyState>
         )}
       </div>
     </section>
   );
 
   return (
-    <div className="flex h-screen flex-col bg-shell text-ink" {...external.dropHandlers}>
+    <div className="flex h-screen flex-col bg-surface-canvas text-text-primary" {...external.dropHandlers}>
       <Header
         onImportFiles={importFiles}
         onExport={() => exportUi.open()}
@@ -250,17 +241,68 @@ function Workspace() {
       />
 
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-64 flex-col border-r border-line bg-panel">
-          <div className="flex min-h-0 flex-1 flex-col border-b border-line">
-            <h2 className="px-3 pb-1 pt-3 text-xs font-medium text-muted">Quellen</h2>
-            <DuplicatesNotice />
-            <div className="min-h-0 flex-1 overflow-auto">
-              <SourceList activeSourceId={activeSourceId} onSelect={setActiveSourceId} />
+        <aside
+          style={{ width: sidebarWidth }}
+          className="flex shrink-0 flex-col border-r border-line-structural bg-surface-panel"
+        >
+          {/* Quellen -- keine Ablageziele, also treten sie beim Drag zurueck. */}
+          <section data-dim-on-drag className="flex min-h-0 flex-1 flex-col">
+            <div className="flex items-center gap-2 px-5 pb-2 pt-4">
+              <h2 className="t-panel-title text-text-primary">Quellen</h2>
+              <Pill>{workspace.sourceOrder.length}</Pill>
             </div>
-          </div>
-          <div className="flex min-h-0 flex-1 flex-col">
-            <h2 className="px-3 pb-1 pt-3 text-xs font-medium text-muted">Ausgabestruktur</h2>
-            <div className="min-h-0 flex-1 overflow-auto">
+            <DuplicatesNotice />
+            <div className="scroll-fade-y min-h-0 flex-1 overflow-auto pb-4">
+              <SourceList
+                activeSourceId={activeSourceId}
+                onSelect={setActiveSourceId}
+                onRemove={(id) => activeSourceId === id && setActiveSourceId(null)}
+              />
+            </div>
+          </section>
+
+          <div aria-hidden className="h-px shrink-0 bg-line-structural" />
+
+          {/* Ausgabestruktur -- Ordner und Dokumente sind Ablageziele. */}
+          <section className="flex min-h-0 flex-1 flex-col">
+            <div className="flex items-center gap-2 px-5 pb-2 pt-4">
+              <h2 className="t-panel-title text-text-primary">Ausgabestruktur</h2>
+              <Pill>{Object.keys(workspace.nodes).length}</Pill>
+              <div className="ml-auto">
+                <Menu
+                  align="end"
+                  minWidth={176}
+                  items={[
+                    {
+                      id: 'folder',
+                      label: 'Ordner',
+                      icon: FolderPlus,
+                      onSelect: () =>
+                        dispatch({ type: 'createFolder', node: { id: newId(), name: 'Neuer Ordner', parentId: null } }),
+                    },
+                    {
+                      id: 'output',
+                      label: 'Dokument',
+                      icon: FilePlus2,
+                      onSelect: () =>
+                        dispatch({ type: 'createOutput', node: { id: newId(), name: 'Neues Dokument', parentId: null } }),
+                    },
+                  ]}
+                  renderTrigger={({ ref, toggle, ariaProps }) => (
+                    <button
+                      ref={ref}
+                      type="button"
+                      onClick={toggle}
+                      className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+                      {...ariaProps}
+                    >
+                      <Plus className="size-4" aria-hidden /> Neu
+                    </button>
+                  )}
+                />
+              </div>
+            </div>
+            <div className="scroll-fade-y min-h-0 flex-1 overflow-auto pb-4">
               <OutputTree
                 activeOutputId={activeOutputId}
                 onSelectOutput={setActiveOutputId}
@@ -282,50 +324,76 @@ function Workspace() {
                 }}
               />
             </div>
-          </div>
+          </section>
         </aside>
+
+        <ResizeHandle
+          orientation="col"
+          value={sidebarWidth}
+          min={240}
+          max={400}
+          onChange={setSidebarWidth}
+          ariaLabel="Breite der Seitenleiste"
+        />
 
         <main className="flex min-w-0 flex-1 flex-col">
           {hasSources ? (
             <SplitPane top={sourcePane} bottom={outputPane} />
           ) : (
-            <EmptyWorkspace onImportFiles={importFiles} accept={services.registry.acceptAttribute()} />
+            <EmptyWorkspace
+              onImportFiles={importFiles}
+              accept={services.registry.acceptAttribute()}
+              active={external.isOver}
+            />
           )}
         </main>
 
         {previewOpen ? (
-          <aside className="flex w-96 shrink-0 border-l border-line bg-panel">
-            <div className="flex min-w-0 flex-1 flex-col">
-              <header className="flex items-center gap-2 border-b border-line px-3 py-2">
-                <span className="text-sm font-medium text-ink">Vorschau</span>
-                <button
-                  type="button"
-                  onClick={() => setPreviewOpen(false)}
-                  aria-label="Vorschau einklappen"
-                  className="ml-auto rounded p-1 text-muted hover:bg-raised hover:text-ink"
-                >
-                  <PanelRightClose className="size-4" aria-hidden />
-                </button>
-              </header>
-              <div className="min-h-0 flex-1">
-                <PreviewPane
-                  activeSourceId={activeSourceId}
-                  activeOutputId={activeOutputId}
-                  onJumpToSource={(ref) => setActiveSourceId(ref.sourceId)}
-                />
+          <>
+            <ResizeHandle
+              orientation="col"
+              value={previewWidth}
+              min={320}
+              max={640}
+              onChange={setPreviewWidth}
+              ariaLabel="Breite der Vorschau"
+              invert
+            />
+            <aside
+              data-dim-on-drag
+              style={{ width: previewWidth }}
+              className="flex shrink-0 border-l border-line-structural bg-surface-panel"
+            >
+              <div className="flex min-w-0 flex-1 flex-col">
+                <header className="flex h-11 items-center gap-2 border-b border-line-structural px-4">
+                  <span className="t-panel-title text-text-primary">Vorschau</span>
+                  <IconButton
+                    icon={PanelRightClose}
+                    label="Vorschau einklappen"
+                    onClick={() => setPreviewOpen(false)}
+                    className="ml-auto"
+                  />
+                </header>
+                <div className="min-h-0 flex-1">
+                  <PreviewPane
+                    activeSourceId={activeSourceId}
+                    activeOutputId={activeOutputId}
+                    onJumpToSource={(ref) => setActiveSourceId(ref.sourceId)}
+                  />
+                </div>
               </div>
-            </div>
-            {search.panel && <div className="w-80 shrink-0 border-l border-line">{search.panel}</div>}
-          </aside>
+              {search.panel && <div className="w-80 shrink-0 border-l border-line-structural">{search.panel}</div>}
+            </aside>
+          </>
         ) : (
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
             aria-label="Vorschau ausklappen"
-            className="flex w-9 shrink-0 flex-col items-center gap-2 border-l border-line bg-panel pt-3 text-muted hover:text-ink"
+            className="flex w-10 shrink-0 flex-col items-center gap-2 border-l border-line-structural bg-surface-panel pt-3 text-text-secondary hover:text-text-primary"
           >
             <PanelRightOpen className="size-4" aria-hidden />
-            <span className="[writing-mode:vertical-rl] text-xs">Vorschau</span>
+            <span className="text-[12px] [writing-mode:vertical-rl]">Vorschau</span>
           </button>
         )}
       </div>
@@ -334,7 +402,10 @@ function Workspace() {
       {splitting && <SplitPanel sourceId={splitting} parentId={null} onClose={() => setSplitting(null)} />}
       {drag.preview && <DragPreview state={drag.preview} />}
       {external.rejected.length > 0 && (
-        <div role="alert" className="border-t border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm text-amber-300">
+        <div
+          role="alert"
+          className="fixed left-1/2 top-4 z-50 max-w-[90vw] -translate-x-1/2 rounded-[10px] bg-surface-raised px-4 py-2.5 text-[12.5px] text-danger shadow-[var(--float-shadow)] ring-1 ring-danger/30"
+        >
           {external.rejected.join(' · ')}
         </div>
       )}
@@ -343,8 +414,12 @@ function Workspace() {
       {paletteOpen && <CommandPalette actions={paletteActions} onClose={() => setPaletteOpen(false)} />}
       {trashOpen && <TrashPanel onClose={() => setTrashOpen(false)} />}
       {ocr.progress && (
-        <div className="fixed inset-x-0 bottom-0 z-50 border-t border-line bg-shell px-4 py-2 text-center text-sm text-muted">
-          Seite {ocr.progress.done} von {ocr.progress.total} erkannt
+        <div
+          role="status"
+          className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-full bg-surface-raised px-3.5 py-1.5 text-[12.5px] text-text-secondary shadow-[var(--float-shadow)] ring-1 ring-line-structural"
+        >
+          Seite <span className="font-mono tabular-nums text-text-primary">{ocr.progress.done}</span> von{' '}
+          <span className="font-mono tabular-nums">{ocr.progress.total}</span> erkannt
         </div>
       )}
     </div>
@@ -354,20 +429,25 @@ function Workspace() {
 interface EmptyWorkspaceProps {
   onImportFiles(files: FileList | File[]): void;
   accept: string;
+  /** true, wenn gerade Dateien aus dem Betriebssystem ueber dem Fenster schweben. */
+  active: boolean;
 }
 
-/** Der erste Bildschirm ohne Quellen: eine grosse, offensichtliche Ablageflaeche. */
-function EmptyWorkspace({ onImportFiles, accept }: EmptyWorkspaceProps) {
+/** Der erste Bildschirm ohne Quellen: die ganze Mitte ist Ablageflaeche. */
+function EmptyWorkspace({ onImportFiles, accept, active }: EmptyWorkspaceProps) {
   const input = useRef<HTMLInputElement | null>(null);
   return (
-    <div className="grid h-full place-items-center p-8">
-      <div className="max-w-md text-center">
-        <FolderUp className="mx-auto size-10 text-accent" aria-hidden />
-        <h2 className="mt-4 text-xl font-semibold text-ink">Seiten wie Bausteine ordnen</h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
-          Ziehen Sie PDFs oder einen ganzen Ordner hierher. Danach ordnen Sie einzelne Seiten per
-          Maus in neue Dokumente und Ordner um &ndash; ganz ohne Zwischenexport.
-        </p>
+    <div
+      className={cx(
+        'h-full rounded-xl transition-colors',
+        active && 'outline-2 outline-dashed -outline-offset-8 outline-accent',
+      )}
+    >
+      <EmptyState
+        title="Dokumente importieren"
+        description="Wähle PDFs oder einen ganzen Ordner. Danach ordnest du einzelne Seiten per Maus zu neuen Dokumenten und Ordnern um — ganz ohne Zwischenexport."
+        footnote="oder Dateien hierher ziehen"
+      >
         <input
           ref={input}
           type="file"
@@ -379,14 +459,10 @@ function EmptyWorkspace({ onImportFiles, accept }: EmptyWorkspaceProps) {
             e.target.value = '';
           }}
         />
-        <button
-          type="button"
-          onClick={() => input.current?.click()}
-          className="mt-6 rounded-md bg-accent px-4 py-2 text-sm font-medium text-shell hover:brightness-110"
-        >
-          Dateien auswaehlen
-        </button>
-      </div>
+        <Button variant="primary" size="lg" icon={FolderUp} onClick={() => input.current?.click()}>
+          Dateien wählen
+        </Button>
+      </EmptyState>
     </div>
   );
 }

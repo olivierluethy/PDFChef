@@ -153,11 +153,11 @@ body.is-dragging {
   opacity: 0.45;
   transition: opacity 120ms ease;
 }
+/* Gueltige Ablageziele bekommen einen ruhigen Ruhe-Umriss; der Outline folgt der
+   vorhandenen Ecken-Rundung, ohne die Flaeche des Elements zu veraendern. */
 [data-page-drag] [data-drop-zone] {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
   outline-offset: -2px;
-  border-radius: 10px;
-  transition: outline-color 120ms ease;
 }
 
 /* Das aktuell getroffene Drop-Ziel (Ordner, Baum-Dokument, Ausgaberaster).
@@ -165,7 +165,6 @@ body.is-dragging {
 [data-drop-active] {
   outline: 2px solid var(--color-accent);
   outline-offset: -2px;
-  border-radius: 10px;
   background-color: var(--color-accent-soft);
 }
 
