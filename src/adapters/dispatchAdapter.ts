@@ -9,11 +9,11 @@ export interface DispatchDeps {
 function adapterFor(deps: DispatchDeps, sourceId: SourceId): DocumentAdapter {
   const kind = deps.sourceKindOf(sourceId);
   if (!kind) {
-    throw new Error(`Zur Quelle ${sourceId} ist keine Quellart bekannt.`);
+    throw new Error(`No source kind is known for source ${sourceId}.`);
   }
   const adapter = deps.byKind[kind];
   if (!adapter) {
-    throw new Error(`Fuer die Quellart ${kind} ist kein Adapter registriert.`);
+    throw new Error(`No adapter is registered for source kind ${kind}.`);
   }
   return adapter;
 }
@@ -29,11 +29,11 @@ export function createDispatchingAdapter(deps: DispatchDeps): DocumentAdapter {
     kind: 'pdf',
 
     accepts(): boolean {
-      throw new Error('Der Dispatcher wird nicht fuer den Import benutzt.');
+      throw new Error('The dispatcher is not used for import.');
     },
 
     probe(): Promise<never> {
-      throw new Error('Der Dispatcher wird nicht fuer den Import benutzt.');
+      throw new Error('The dispatcher is not used for import.');
     },
 
     async renderBlock(ref: BlockRef, opts: RenderOpts): Promise<RenderedBitmap> {
@@ -43,7 +43,7 @@ export function createDispatchingAdapter(deps: DispatchDeps): DocumentAdapter {
     async extractText(ref: BlockRef): Promise<PageText> {
       const adapter = adapterFor(deps, ref.sourceId);
       if (!adapter.extractText) {
-        throw new Error(`Der Adapter fuer ${adapter.kind} unterstuetzt keine Textextraktion.`);
+        throw new Error(`The adapter for ${adapter.kind} does not support text extraction.`);
       }
       return adapter.extractText(ref);
     },

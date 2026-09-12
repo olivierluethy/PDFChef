@@ -57,7 +57,7 @@ export async function importCandidates(
     if (!adapter) {
       report.rejected.push({
         name: file.name,
-        message: 'Dieses Dateiformat wird noch nicht unterstuetzt.',
+        message: 'This file format is not supported yet.',
       });
       continue;
     }
@@ -90,8 +90,8 @@ export async function importCandidates(
         ...(probe.statusDetail ? { statusDetail: probe.statusDetail } : {}),
       });
     } catch (error) {
-      console.error(`Import von ${file.name} fehlgeschlagen`, error);
-      report.rejected.push({ name: file.name, message: 'Diese Datei konnte nicht gelesen werden.' });
+      console.error(`Import of ${file.name} failed`, error);
+      report.rejected.push({ name: file.name, message: 'This file could not be read.' });
     }
   }
 

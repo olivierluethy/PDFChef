@@ -13,9 +13,9 @@ export function checkWorkspaceInvariants(ws: Workspace): string[] {
     if (node.parentId !== null) {
       const parent = ws.nodes[node.parentId];
       if (!parent) {
-        problems.push(`Node ${node.id} verweist auf den unbekannten Ordner ${node.parentId}`);
+        problems.push(`Node ${node.id} references the unknown folder ${node.parentId}`);
       } else if (parent.type !== 'folder') {
-        problems.push(`Node ${node.id} liegt in ${parent.id}, das kein Ordner ist`);
+        problems.push(`Node ${node.id} sits in ${parent.id}, which is not a folder`);
       }
     }
 
@@ -24,51 +24,51 @@ export function checkWorkspaceInvariants(ws: Workspace): string[] {
     for (const itemId of node.items) {
       const owner = ownerOfItem.get(itemId);
       if (owner !== undefined) {
-        problems.push(`Item ${itemId} steht in ${owner} und in ${node.id}`);
+        problems.push(`Item ${itemId} is in ${owner} and in ${node.id}`);
       } else {
         ownerOfItem.set(itemId, node.id);
       }
 
       const item = ws.items[itemId];
       if (!item) {
-        problems.push(`Item ${itemId} steht in ${node.id}, fehlt aber in items`);
+        problems.push(`Item ${itemId} is in ${node.id} but missing from items`);
         continue;
       }
 
       const source = ws.sources[item.sourceId];
       if (!source) {
-        problems.push(`Item ${itemId} verweist auf die unbekannte Quelle ${item.sourceId}`);
+        problems.push(`Item ${itemId} references the unknown source ${item.sourceId}`);
         continue;
       }
       if (item.blockIndex < 0 || item.blockIndex >= source.blockCount) {
         problems.push(
-          `Item ${itemId} hat blockIndex ${item.blockIndex} ausserhalb von [0, ${source.blockCount})`,
+          `Item ${itemId} has blockIndex ${item.blockIndex} outside [0, ${source.blockCount})`,
         );
       }
     }
   }
 
   for (const itemId of Object.keys(ws.items)) {
-    if (!ownerOfItem.has(itemId)) problems.push(`Item ${itemId} liegt in keinem Output`);
+    if (!ownerOfItem.has(itemId)) problems.push(`Item ${itemId} is in no output`);
   }
 
   const placed = new Set<NodeId>();
   for (const [key, children] of Object.entries(ws.childOrder) as [ParentKey, NodeId[]][]) {
     for (const childId of children) {
-      if (placed.has(childId)) problems.push(`Node ${childId} steht mehrfach in childOrder`);
+      if (placed.has(childId)) problems.push(`Node ${childId} appears multiple times in childOrder`);
       placed.add(childId);
       const child = ws.nodes[childId];
       if (!child) {
-        problems.push(`childOrder[${key}] nennt die unbekannte Node ${childId}`);
+        problems.push(`childOrder[${key}] names the unknown node ${childId}`);
         continue;
       }
       if (parentKey(child.parentId) !== key) {
-        problems.push(`Node ${childId} steht unter ${key}, hat aber parentId ${child.parentId}`);
+        problems.push(`Node ${childId} sits under ${key} but has parentId ${child.parentId}`);
       }
     }
   }
   for (const node of Object.values(ws.nodes)) {
-    if (!placed.has(node.id)) problems.push(`Node ${node.id} fehlt in childOrder`);
+    if (!placed.has(node.id)) problems.push(`Node ${node.id} missing from childOrder`);
   }
 
   for (const node of Object.values(ws.nodes)) {
@@ -76,7 +76,7 @@ export function checkWorkspaceInvariants(ws: Workspace): string[] {
     let current = node.parentId;
     while (current !== null) {
       if (seen.has(current)) {
-        problems.push(`Node ${node.id} ist ihr eigener Vorfahre`);
+        problems.push(`Node ${node.id} is its own ancestor`);
         break;
       }
       seen.add(current);
@@ -87,10 +87,10 @@ export function checkWorkspaceInvariants(ws: Workspace): string[] {
   }
 
   for (const sourceId of ws.sourceOrder) {
-    if (!ws.sources[sourceId]) problems.push(`sourceOrder nennt die unbekannte Quelle ${sourceId}`);
+    if (!ws.sources[sourceId]) problems.push(`sourceOrder names the unknown source ${sourceId}`);
   }
   for (const sourceId of Object.keys(ws.sources)) {
-    if (!ws.sourceOrder.includes(sourceId)) problems.push(`Quelle ${sourceId} fehlt in sourceOrder`);
+    if (!ws.sourceOrder.includes(sourceId)) problems.push(`Source ${sourceId} missing from sourceOrder`);
   }
 
   return problems;
@@ -100,6 +100,6 @@ export function checkWorkspaceInvariants(ws: Workspace): string[] {
 export function assertWorkspaceInvariants(ws: Workspace): void {
   const problems = checkWorkspaceInvariants(ws);
   if (problems.length > 0) {
-    throw new Error(`Workspace-Invarianten verletzt:\n- ${problems.join('\n- ')}`);
+    throw new Error(`Workspace invariants violated:\n- ${problems.join('\n- ')}`);
   }
 }

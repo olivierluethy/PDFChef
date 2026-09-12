@@ -39,7 +39,7 @@ export function createStorageGuard(
       if (typeof usage !== 'number' || typeof quota !== 'number') return undefined;
       return { usage, quota };
     } catch (error) {
-      console.warn('Speicherschaetzung nicht verfuegbar', error);
+      console.warn('Storage estimate not available', error);
       return undefined;
     }
   }
@@ -51,7 +51,7 @@ export function createStorageGuard(
         if (storage.persisted && (await storage.persisted())) return true;
         return await storage.persist();
       } catch (error) {
-        console.warn('Dauerhafte Ablage konnte nicht angefragt werden', error);
+        console.warn('Could not request persistent storage', error);
         return false;
       }
     },
@@ -70,8 +70,8 @@ export function createStorageGuard(
       return {
         ok: false,
         message:
-          `Fuer diesen Import fehlen rund ${formatBytes(bytes - free)} Speicher im Browser. ` +
-          'Loeschen Sie nicht mehr benoetigte Workspaces oder leeren Sie die Vorschau-Caches.',
+          `This import needs about ${formatBytes(bytes - free)} more storage in the browser. ` +
+          'Delete workspaces you no longer need or clear the preview caches.',
       };
     },
   };

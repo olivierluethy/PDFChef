@@ -1,7 +1,7 @@
 {
-  "name": "PDF-Master",
-  "short_name": "PDF-Master",
-  "description": "Lokaler Dokument-Arbeitsbereich fuer PDF- und Bildseiten.",
+  "name": "PDFChef",
+  "short_name": "PDFChef",
+  "description": "Local-first document workspace for reordering, splitting, merging and exporting PDF and image pages in the browser.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

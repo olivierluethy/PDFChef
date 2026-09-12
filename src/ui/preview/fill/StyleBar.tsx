@@ -18,6 +18,7 @@ import {
   overlayShapeSupportsText,
 } from '../../../domain/overlayShapes';
 import { cx } from '../../common/cx';
+import { useT } from '../../i18n';
 import { ColorPicker } from './ColorPicker';
 import { FontPicker } from './FontPicker';
 import {
@@ -59,6 +60,7 @@ export function StyleBar({
   canGroup,
   canUngroup,
 }: StyleBarProps) {
+  const t = useT();
   const textBearing = overlays.filter((o) => o.kind === 'text' || overlayShapeSupportsText(o));
   const shapes = overlays.filter((o) => o.kind === 'shape');
   const formable = overlays.filter((o) => o.kind === 'text');
@@ -85,7 +87,7 @@ export function StyleBar({
           />
           <div className="flex items-center">
             <IconBtn
-              label="Schrift kleiner"
+              label={t('preview.fill.fontSmaller')}
               onClick={() => onPatch({ fontSize: ptToFraction(fractionToPt(fontSize) - 0.5) })}
             >
               <Minus className="size-3.5" aria-hidden />
@@ -97,8 +99,8 @@ export function StyleBar({
               min={fractionToPt(MIN_FONT_SIZE)}
               max={fractionToPt(MAX_FONT_SIZE)}
               defaultValue={fractionToPt(fontSize)}
-              aria-label="Schriftgrösse in Punkt"
-              title="Schriftgrösse in Punkt"
+              aria-label={t('preview.fill.fontSizePt')}
+              title={t('preview.fill.fontSizePt')}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') e.currentTarget.blur();
               }}
@@ -109,25 +111,25 @@ export function StyleBar({
               className="h-6 w-11 rounded-md bg-surface-panel px-1 text-center text-[11.5px] tabular-nums text-text-primary outline-none ring-1 ring-line-structural focus:ring-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
             <IconBtn
-              label="Schrift grösser"
+              label={t('preview.fill.fontLarger')}
               onClick={() => onPatch({ fontSize: ptToFraction(fractionToPt(fontSize) + 0.5) })}
             >
               <Plus className="size-3.5" aria-hidden />
             </IconBtn>
           </div>
           <IconBtn
-            label={canBold ? 'Fett' : 'Für diese Schrift kein Fett verfügbar'}
+            label={canBold ? t('preview.fill.bold') : t('preview.fill.boldUnavailable')}
             pressed={boldActive}
             disabled={!canBold}
             onClick={() => onPatch({ bold: !boldActive })}
           >
             <Bold className="size-3.5" aria-hidden />
           </IconBtn>
-          <IconBtn label="Kursiv" pressed={italicActive} onClick={() => onPatch({ italic: !italicActive })}>
+          <IconBtn label={t('preview.fill.italic')} pressed={italicActive} onClick={() => onPatch({ italic: !italicActive })}>
             <Italic className="size-3.5" aria-hidden />
           </IconBtn>
           <ColorPicker
-            title="Textfarbe"
+            title={t('preview.fill.textColor')}
             glyph="A"
             value={firstText?.color ?? '#15181c'}
             swatches={OVERLAY_COLORS}
@@ -141,7 +143,7 @@ export function StyleBar({
           {textBearing.length > 0 && <Divider />}
           {!hasHighlight && (
             <ColorPicker
-              title="Randfarbe"
+              title={t('preview.fill.borderColor')}
               glyph="▢"
               allowNone
               value={firstShape?.stroke}
@@ -150,7 +152,7 @@ export function StyleBar({
             />
           )}
           <ColorPicker
-            title="Füllfarbe"
+            title={t('preview.fill.fillColor')}
             glyph="■"
             allowNone
             value={firstShape?.fill}
@@ -158,10 +160,10 @@ export function StyleBar({
             onChange={(v) => onPatch({ fill: v ?? 'none' })}
           />
           {!hasHighlight && (
-            <div className="flex items-center" title="Randstärke">
+            <div className="flex items-center" title={t('preview.fill.strokeWidth')}>
               <Waypoints className="mr-0.5 size-3.5 text-text-tertiary" aria-hidden />
               <IconBtn
-                label="Rand dünner"
+                label={t('preview.fill.borderThinner')}
                 onClick={() =>
                   onPatch({
                     strokeWidth: ptToStroke(strokeToPt(firstShape?.strokeWidth ?? 0.004) - 0.5),
@@ -174,7 +176,7 @@ export function StyleBar({
                 {strokeToPt(firstShape?.strokeWidth ?? 0.004)}
               </span>
               <IconBtn
-                label="Rand dicker"
+                label={t('preview.fill.borderThicker')}
                 onClick={() =>
                   onPatch({
                     strokeWidth: ptToStroke(strokeToPt(firstShape?.strokeWidth ?? 0.004) + 0.5),
@@ -185,7 +187,7 @@ export function StyleBar({
               </IconBtn>
             </div>
           )}
-          <label className="flex items-center gap-1 text-[11px] text-text-secondary" title="Deckkraft">
+          <label className="flex items-center gap-1 text-[11px] text-text-secondary" title={t('preview.fill.opacity')}>
             <span aria-hidden>◐</span>
             <input
               type="range"
@@ -204,30 +206,30 @@ export function StyleBar({
 
       {formable.length > 0 && (
         <IconBtn
-          label={interactiveActive ? 'Interaktives Feld (an)' : 'Als interaktives Feld exportieren'}
+          label={interactiveActive ? t('preview.fill.interactiveOn') : t('preview.fill.interactiveOff')}
           pressed={interactiveActive}
           onClick={() => onPatch({ interactive: !interactiveActive })}
         >
           <span className="text-[11px] font-semibold leading-none">⌨</span>
         </IconBtn>
       )}
-      <IconBtn label="Duplizieren" onClick={onDuplicate}>
+      <IconBtn label={t('preview.fill.duplicate')} onClick={onDuplicate}>
         <Copy className="size-3.5" aria-hidden />
       </IconBtn>
       {canGroup && (
-        <IconBtn label="Gruppieren" onClick={onGroup}>
+        <IconBtn label={t('preview.fill.group')} onClick={onGroup}>
           <Group className="size-3.5" aria-hidden />
         </IconBtn>
       )}
       {canUngroup && (
-        <IconBtn label="Gruppierung aufheben" onClick={onUngroup}>
+        <IconBtn label={t('preview.fill.ungroup')} onClick={onUngroup}>
           <Ungroup className="size-3.5" aria-hidden />
         </IconBtn>
       )}
-      <IconBtn label="In Bibliothek speichern" onClick={onSaveToLibrary}>
+      <IconBtn label={t('preview.fill.saveToLibrary')} onClick={onSaveToLibrary}>
         <Save className="size-3.5" aria-hidden />
       </IconBtn>
-      <IconBtn label="Löschen" danger onClick={onDelete}>
+      <IconBtn label={t('preview.fill.delete')} danger onClick={onDelete}>
         <Trash2 className="size-3.5" aria-hidden />
       </IconBtn>
     </div>

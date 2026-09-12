@@ -24,6 +24,7 @@ import { Tooltip } from '../common/Tooltip';
 import { cx } from '../common/cx';
 import { spring, useMotionPrefs } from '../common/motion';
 import { useDispatch, useSelection, useSelectionStore, useWorkspace } from '../app/StoreProvider';
+import { useT } from '../i18n';
 
 export interface OutputGridProps {
   outputId: NodeId;
@@ -43,6 +44,7 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
   const selectionStore = useSelectionStore();
   const dispatch = useDispatch();
   const prefs = useMotionPrefs();
+  const t = useT();
   const node = workspace.nodes[outputId];
   const scope: SelectionScope = { kind: 'output', outputId };
   const itemIds = isOutput(node) ? node.items : [];
@@ -83,7 +85,7 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
   );
 
   if (!isOutput(node)) {
-    return <p className="t-meta p-4">Kein Dokument gewählt.</p>;
+    return <p className="t-meta p-4">{t('workspace.grid.noDocumentSelected')}</p>;
   }
 
   const count = itemIds.length;
@@ -99,7 +101,7 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
         data-drop-zone
       >
         <div className="grid h-full min-h-[140px] place-items-center rounded-[10px] border-2 border-dashed border-line-structural text-center">
-          <p className="t-meta">Seiten hierher ziehen</p>
+          <p className="t-meta">{t('workspace.grid.dropPagesHere')}</p>
         </div>
       </div>
     );
@@ -117,7 +119,7 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
       <OutputCard
         key={itemId}
         itemId={itemId}
-        sourceName={source?.name ?? 'Quelle'}
+        sourceName={source?.name ?? t('workspace.grid.sourceFallback')}
         pageNumber={item.blockIndex + 1}
         sourceId={item.sourceId}
         blockIndex={item.blockIndex}
@@ -142,6 +144,7 @@ export function OutputGrid({ outputId, onCellPointerDown, dropIndex = null }: Ou
             atIndex: position,
             parentId: node.parentId,
             newOutputId: newId(),
+            t,
           });
           if (command) dispatch(command);
         }}
@@ -239,9 +242,10 @@ function OutputCard({
   onRemove,
   onSplit,
 }: OutputCardProps) {
+  const t = useT();
   const lineBefore = dropIndex === position;
   const lineAfter = dropIndex === total && position === total - 1;
-  const provenance = `${sourceName}, Seite ${pageNumber}`;
+  const provenance = t('workspace.grid.provenance', { source: sourceName, n: pageNumber });
 
   // Das Blatt uebernimmt das echte Seitenverhaeltnis der Seite, sobald es geladen ist --
   // so umschliesst der Auswahl-Rahmen exakt die Seitenkante statt eines festen Kastens.
@@ -278,16 +282,29 @@ function OutputCard({
           >
             <GripVertical className="size-4" />
           </span>
-          <CardTool icon={RotateCcw} label="Nach links drehen" onClick={() => onRotate(270)} />
-          <CardTool icon={RotateCw} label="Nach rechts drehen" onClick={() => onRotate(90)} />
+          <CardTool
+            icon={RotateCcw}
+            label={t('workspace.grid.rotateLeft')}
+            onClick={() => onRotate(270)}
+          />
+          <CardTool
+            icon={RotateCw}
+            label={t('workspace.grid.rotateRight')}
+            onClick={() => onRotate(90)}
+          />
           <CardTool
             icon={Scissors}
-            label="Hier trennen"
+            label={t('workspace.grid.splitHere')}
             disabled={position === 0}
-            disabledReason="Trennen ist ab der zweiten Seite möglich."
+            disabledReason={t('workspace.grid.splitDisabledReason')}
             onClick={onSplit}
           />
-          <CardTool icon={Trash2} label="Seite entfernen" danger onClick={onRemove} />
+          <CardTool
+            icon={Trash2}
+            label={t('workspace.grid.removePage')}
+            danger
+            onClick={onRemove}
+          />
         </div>
       </div>
 
@@ -336,7 +353,7 @@ function OutputCard({
           {sourceName}
         </span>
         <span className="mt-0.5 block font-mono text-[11.5px] tabular-nums text-text-secondary">
-          Seite {pageNumber}
+          {t('workspace.grid.page', { n: pageNumber })}
         </span>
       </div>
     </div>
@@ -348,12 +365,13 @@ function OutputCard({
  * rechts schiebt. Er unterbricht den Zeiger, damit ein Klick nicht als Drag zaehlt.
  */
 function MoveArrow({ side, onClick }: { side: 'left' | 'right'; onClick(): void }) {
+  const t = useT();
   const Icon = side === 'left' ? ChevronLeft : ChevronRight;
   return (
     <button
       type="button"
       aria-label={
-        side === 'left' ? 'Seite nach links verschieben' : 'Seite nach rechts verschieben'
+        side === 'left' ? t('workspace.grid.movePageLeft') : t('workspace.grid.movePageRight')
       }
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => {

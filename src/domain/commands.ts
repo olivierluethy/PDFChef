@@ -155,17 +155,17 @@ export function applyCommand(ws: Workspace, command: Command, ctx: CommandCtx): 
 }
 
 function pages(count: number): string {
-  return count === 1 ? '1 Seite' : `${count} Seiten`;
+  return count === 1 ? '1 page' : `${count} pages`;
 }
 
 function documents(count: number): string {
-  return count === 1 ? '1 Dokument' : `${count} Dokumente`;
+  return count === 1 ? '1 document' : `${count} documents`;
 }
 
 function nodeLabel(ws: Workspace, nodeId: NodeId): string {
   const node = ws.nodes[nodeId];
-  if (!node) return 'Element';
-  return node.type === 'folder' ? `Ordner "${node.name}"` : `Dokument "${node.name}"`;
+  if (!node) return 'Item';
+  return node.type === 'folder' ? `Folder "${node.name}"` : `Document "${node.name}"`;
 }
 
 /**
@@ -175,7 +175,7 @@ function nodeLabel(ws: Workspace, nodeId: NodeId): string {
 export function describeCommand(command: Command, before: Workspace): string {
   switch (command.type) {
     case 'importSources':
-      return `${documents(command.sources.length)} importiert`;
+      return `Imported ${documents(command.sources.length)}`;
     case 'removeSource': {
       const items = itemsOfSource(before, command.sourceId);
       const outputs = new Set<NodeId>();
@@ -183,47 +183,47 @@ export function describeCommand(command: Command, before: Workspace): string {
         if (node.type !== 'output') continue;
         if (node.items.some((id) => items.includes(id))) outputs.add(node.id);
       }
-      return `Quelle entfernt (${pages(items.length)} aus ${documents(outputs.size)})`;
+      return `Removed source (${pages(items.length)} from ${documents(outputs.size)})`;
     }
     case 'createFolder':
-      return `Ordner "${sanitizeName(command.node.name)}" erstellt`;
+      return `Created folder "${sanitizeName(command.node.name)}"`;
     case 'createOutput':
-      return `Dokument "${sanitizeName(command.node.name)}" erstellt`;
+      return `Created document "${sanitizeName(command.node.name)}"`;
     case 'renameNode':
-      return `In "${sanitizeName(command.name)}" umbenannt`;
+      return `Renamed to "${sanitizeName(command.name)}"`;
     case 'moveNode':
-      return `${nodeLabel(before, command.nodeId)} verschoben`;
+      return `Moved ${nodeLabel(before, command.nodeId)}`;
     case 'deleteNode':
-      return `${nodeLabel(before, command.nodeId)} geloescht`;
+      return `Deleted ${nodeLabel(before, command.nodeId)}`;
     case 'addItems':
-      return `${pages(command.items.length)} hinzugefuegt`;
+      return `Added ${pages(command.items.length)}`;
     case 'moveItems':
-      return `${pages(command.itemIds.length)} verschoben`;
+      return `Moved ${pages(command.itemIds.length)}`;
     case 'copyItems':
-      return `${pages(command.itemIds.length)} kopiert`;
+      return `Copied ${pages(command.itemIds.length)}`;
     case 'removeItems':
-      return `${pages(command.itemIds.length)} entfernt`;
+      return `Removed ${pages(command.itemIds.length)}`;
     case 'reorderItems':
-      return `${pages(command.itemIds.length)} umsortiert`;
+      return `Reordered ${pages(command.itemIds.length)}`;
     case 'rotateItems':
-      return `${pages(command.itemIds.length)} gedreht`;
+      return `Rotated ${pages(command.itemIds.length)}`;
     case 'addOverlay':
       return command.overlay.kind === 'image'
-        ? 'Unterschrift hinzugefuegt'
+        ? 'Added signature'
         : command.overlay.kind === 'shape'
-          ? 'Form hinzugefuegt'
-          : 'Feld hinzugefuegt';
+          ? 'Added shape'
+          : 'Added field';
     case 'updateOverlay':
-      return 'Feld bearbeitet';
+      return 'Edited field';
     case 'removeOverlay':
-      return 'Feld entfernt';
+      return 'Removed field';
     case 'splitSource': {
       const source = before.sources[command.sourceId];
-      const name = source ? source.name : 'Quelle';
-      return `"${name}" in ${documents(command.parts.length)} aufgeteilt`;
+      const name = source ? source.name : 'Source';
+      return `Split "${name}" into ${documents(command.parts.length)}`;
     }
     case 'renameWorkspace':
-      return 'Workspace umbenannt';
+      return 'Renamed workspace';
     case 'batch':
       return command.label;
   }

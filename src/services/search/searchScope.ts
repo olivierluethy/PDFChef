@@ -36,7 +36,7 @@ export function targetsForScope(
     }
     return [...bySource].map(([sourceId, indices]) => {
       const source = ws.sources[sourceId];
-      return { sourceId, name: source?.name ?? 'Quelle', kind: source?.kind ?? 'pdf', indices };
+      return { sourceId, name: source?.name ?? 'Source', kind: source?.kind ?? 'pdf', indices };
     });
   }
 

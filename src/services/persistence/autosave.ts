@@ -37,9 +37,9 @@ export function describeSaveStatus(status: SaveStatus): string {
       return '';
     case 'pending':
     case 'saving':
-      return 'Speichern...';
+      return 'Saving...';
     case 'saved':
-      return 'Lokal gespeichert';
+      return 'Saved locally';
     case 'error':
       return status.message;
   }
@@ -73,14 +73,14 @@ export function createAutosave({
         await save(ws);
         setStatus({ kind: 'saved', at: now() });
       } catch (error) {
-        console.error('Autosave fehlgeschlagen', error);
+        console.error('Autosave failed', error);
         setStatus(
           isQuotaError(error)
-            ? { kind: 'error', reason: 'quota', message: 'Nicht gespeichert -- Speicher voll' }
+            ? { kind: 'error', reason: 'quota', message: 'Not saved -- storage full' }
             : {
                 kind: 'error',
                 reason: 'unknown',
-                message: 'Nicht gespeichert -- ein Fehler ist aufgetreten',
+                message: 'Not saved -- an error occurred',
               },
         );
       }

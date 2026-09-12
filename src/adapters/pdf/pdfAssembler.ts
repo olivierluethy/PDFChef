@@ -28,7 +28,7 @@ export function createPdfAssembler(): BlockAssembler {
   return {
     targetFormat: 'pdf',
     async assemble(items, ctx: AssembleCtx) {
-      if (items.length === 0) throw new Error('Dieses Dokument enthaelt keine Seiten.');
+      if (items.length === 0) throw new Error('This document contains no pages.');
       ctx.signal?.throwIfAborted();
 
       // Erst planen: pro Quelle die Liste der zu kopierenden Blockindizes --
@@ -72,7 +72,7 @@ export function createPdfAssembler(): BlockAssembler {
             overlayFonts.set(cacheKey, font);
             return font;
           } catch (error) {
-            console.warn(`Overlay-Font ${spec.key} nicht einbettbar, nutze Helvetica`, error);
+            console.warn(`Overlay font ${spec.key} could not be embedded, using Helvetica`, error);
             overlayFallback ??= await out.embedFont(StandardFonts.Helvetica);
             overlayFonts.set(cacheKey, overlayFallback);
             return overlayFallback;
@@ -116,7 +116,7 @@ export function createPdfAssembler(): BlockAssembler {
         const pageCount = source.getPageCount();
         for (const index of indices) {
           if (index < 0 || index >= pageCount) {
-            throw new Error(`Seite ${index + 1} existiert in der Quelle ${sourceId} nicht.`);
+            throw new Error(`Page ${index + 1} does not exist in source ${sourceId}.`);
           }
         }
         copiedBySource.set(sourceId, await out.copyPages(source, indices));
@@ -152,7 +152,7 @@ export function createPdfAssembler(): BlockAssembler {
           await drawOverlays(page, entry.overlays, overlayCtx);
         } else {
           const page = copiedBySource.get(entry.sourceId)?.[entry.slot];
-          if (!page) throw new Error(`Kopierte Seite fehlt: ${entry.sourceId}#${entry.slot}`);
+          if (!page) throw new Error(`Copied page missing: ${entry.sourceId}#${entry.slot}`);
           if (entry.rotation !== 0) {
             // Additiv zur Rotation der Quellseite, die die Kopie schon mitbringt.
             page.setRotation(degrees((page.getRotation().angle + entry.rotation) % 360));
@@ -461,7 +461,7 @@ async function addInteractiveField(
       });
     }
   } catch (error) {
-    console.warn(`Interaktives Feld ${name} nicht erstellbar`, error);
+    console.warn(`Interactive field ${name} could not be created`, error);
   }
 }
 

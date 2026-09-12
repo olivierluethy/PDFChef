@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { cx } from '../../common/cx';
+import { useT } from '../../i18n';
 import { hasFill } from '../../../domain/overlayShapes';
 
 export interface ColorPickerProps {
@@ -27,6 +28,7 @@ export function ColorPicker({
   allowNone,
   glyph,
 }: ColorPickerProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   const active = hasFill(value) ? value! : undefined;
@@ -99,7 +101,7 @@ export function ColorPicker({
                 onChange={(e) => onChange(e.currentTarget.value)}
                 className="size-6 cursor-pointer rounded border-0 bg-transparent p-0"
               />
-              Frei
+              {t('preview.fill.colorFree')}
             </label>
             {allowNone && (
               <button
@@ -110,7 +112,7 @@ export function ColorPicker({
                 }}
                 className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-text-secondary hover:bg-surface-hover hover:text-text-primary"
               >
-                Keine
+                {t('preview.fill.colorNone')}
               </button>
             )}
           </div>

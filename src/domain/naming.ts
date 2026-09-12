@@ -4,7 +4,7 @@ const FORBIDDEN = /[<>:"/\\|?*]|\p{Cc}/gu;
 const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 const MAX_LENGTH = 120;
 
-export const FALLBACK_NAME = 'Unbenannt';
+export const FALLBACK_NAME = 'Untitled';
 
 export function sanitizeName(name: string): string {
   let out = name.replace(FORBIDDEN, ' ').replace(/\s+/g, ' ');
