@@ -87,7 +87,7 @@ export async function createAppServices({
 
   function hashOrThrow(sourceId: SourceId): string {
     const hash = contentHashOf(sourceId);
-    if (!hash) throw new Error(`Zur Quelle ${sourceId} ist kein gespeicherter Inhalt bekannt.`);
+    if (!hash) throw new Error(`No stored content is known for source ${sourceId}.`);
     return hash;
   }
 

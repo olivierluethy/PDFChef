@@ -42,6 +42,7 @@ import { ContextBar } from './ContextBar';
 import { Header } from './Header';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { bootstrapWorkspace } from './bootstrap';
+import { useT } from '../i18n';
 import {
   StoreProvider,
   useDispatch,
@@ -57,16 +58,17 @@ export interface AppProps {
 }
 
 export function App({ bootstrap = bootstrapWorkspace }: AppProps = {}) {
+  const t = useT();
   const [store, setStore] = useState<StoreContextValue | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     let active = true;
     bootstrap()
       .then((value) => active && setStore(value))
       .catch((cause) => {
-        console.error('Arbeitsbereich konnte nicht geladen werden', cause);
-        if (active) setError('Der Arbeitsbereich konnte nicht geladen werden.');
+        console.error('Failed to load workspace', cause);
+        if (active) setError(true);
       });
     return () => {
       active = false;
@@ -76,14 +78,14 @@ export function App({ bootstrap = bootstrapWorkspace }: AppProps = {}) {
   if (error) {
     return (
       <div className="grid min-h-screen place-items-center bg-surface-canvas text-text-secondary">
-        <p>{error}</p>
+        <p>{t('app.workspaceLoadError')}</p>
       </div>
     );
   }
   if (!store) {
     return (
       <div className="grid min-h-screen place-items-center bg-surface-canvas text-text-tertiary">
-        <p>Arbeitsbereich wird geladen …</p>
+        <p>{t('app.loading')}</p>
       </div>
     );
   }
@@ -96,6 +98,7 @@ export function App({ bootstrap = bootstrapWorkspace }: AppProps = {}) {
 }
 
 function Workspace() {
+  const t = useT();
   const workspace = useWorkspace();
   const services = useServices();
   const dispatch = useDispatch();
@@ -132,34 +135,34 @@ function Workspace() {
 
   const paletteActions = useMemo<PaletteAction[]>(
     () => [
-      { id: 'undo', label: 'Rückgängig', run: () => workspaceStore.getState().undo() },
-      { id: 'redo', label: 'Wiederherstellen', run: () => workspaceStore.getState().redo() },
+      { id: 'undo', label: t('app.palette.undo'), run: () => workspaceStore.getState().undo() },
+      { id: 'redo', label: t('app.palette.redo'), run: () => workspaceStore.getState().redo() },
       {
         id: 'createFolder',
-        label: 'Ordner anlegen',
+        label: t('app.palette.createFolder'),
         run: () =>
           dispatch({
             type: 'createFolder',
-            node: { id: newId(), name: 'Neuer Ordner', parentId: null },
+            node: { id: newId(), name: t('app.defaultFolderName'), parentId: null },
           }),
       },
       {
         id: 'createOutput',
-        label: 'Dokument anlegen',
+        label: t('app.palette.createOutput'),
         run: () =>
           dispatch({
             type: 'createOutput',
-            node: { id: newId(), name: 'Neues Dokument', parentId: null },
+            node: { id: newId(), name: t('app.defaultDocumentName'), parentId: null },
           }),
       },
-      { id: 'export', label: 'Exportieren', run: () => exportUi.open() },
-      { id: 'print', label: 'Drucken', run: () => printUi.open() },
-      { id: 'share', label: 'Teilen / E-Mail', run: () => shareUi.open() },
-      { id: 'search', label: 'Suchen', run: () => search.open() },
-      { id: 'trash', label: 'Papierkorb öffnen', run: () => setTrashOpen(true) },
+      { id: 'export', label: t('app.palette.export'), run: () => exportUi.open() },
+      { id: 'print', label: t('app.palette.print'), run: () => printUi.open() },
+      { id: 'share', label: t('app.palette.share'), run: () => shareUi.open() },
+      { id: 'search', label: t('app.palette.search'), run: () => search.open() },
+      { id: 'trash', label: t('app.palette.openTrash'), run: () => setTrashOpen(true) },
       {
         id: 'ocr',
-        label: 'Text erkennen (aktuelle Quelle)',
+        label: t('app.palette.ocr'),
         run: () => {
           const source = activeSourceId ? workspace.sources[activeSourceId] : undefined;
           if (activeSourceId && source) void ocr.runForSource(activeSourceId, source.blockCount);
@@ -167,13 +170,14 @@ function Workspace() {
       },
       {
         id: 'latexExport',
-        label: 'Als LaTeX exportieren (aktuelle Quelle)',
+        label: t('app.palette.latex'),
         run: () => {
           if (activeSourceId) void latex.runForSource(activeSourceId);
         },
       },
     ],
     [
+      t,
       workspaceStore,
       dispatch,
       exportUi,
@@ -224,7 +228,7 @@ function Workspace() {
 
   const createOutputAndSelect = () => {
     const id = newId();
-    dispatch({ type: 'createOutput', node: { id, name: 'Neues Dokument', parentId: null } });
+    dispatch({ type: 'createOutput', node: { id, name: t('app.defaultDocumentName'), parentId: null } });
     setActiveOutputId(id);
   };
 
@@ -238,7 +242,7 @@ function Workspace() {
     />
   ) : (
     <div className="grid h-full place-items-center p-8">
-      <p className="t-meta">Wähle links eine Quelle, um ihre Seiten zu sehen.</p>
+      <p className="t-meta">{t('app.selectSourceHint')}</p>
     </div>
   );
 
@@ -246,11 +250,12 @@ function Workspace() {
     <section className="flex h-full min-h-0 flex-col">
       <header className="flex h-12 shrink-0 items-center gap-3 px-5">
         <h2 className="t-panel-title min-w-0 truncate text-text-primary" title={activeOutput?.name}>
-          {activeOutput ? activeOutput.name : 'Ausgabe'}
+          {activeOutput ? activeOutput.name : t('app.outputFallback')}
         </h2>
         {activeOutput && isOutput(activeOutput) && (
           <span className="shrink-0 font-mono text-[12px] tabular-nums text-text-secondary">
-            {activeOutput.items.length} {activeOutput.items.length === 1 ? 'Seite' : 'Seiten'}
+            {activeOutput.items.length}{' '}
+            {activeOutput.items.length === 1 ? t('app.pageSingular') : t('app.pagePlural')}
           </span>
         )}
       </header>
@@ -265,12 +270,12 @@ function Workspace() {
           />
         ) : (
           <EmptyState
-            title="Noch kein Dokument"
-            description="Zieh Seiten aus dem oberen Raster hierher, oder erstelle ein leeres Dokument."
+            title={t('app.noDocumentTitle')}
+            description={t('app.noDocumentDesc')}
             illustration={<SheetGhosts />}
           >
             <Button variant="secondary" icon={FilePlus2} onClick={createOutputAndSelect}>
-              Dokument erstellen
+              {t('app.createDocument')}
             </Button>
           </EmptyState>
         )}
@@ -297,13 +302,13 @@ function Workspace() {
           className="flex shrink-0 flex-col border-r border-line-structural bg-surface-panel"
         >
           <SplitPane
-            label="Höhe von Quellen und Ausgabestruktur anpassen"
+            label={t('app.resizeSourcesOutput')}
             initial={0.5}
             top={
               /* Quellen -- keine Ablageziele, also treten sie beim Drag zurueck. */
               <section data-dim-on-drag className="flex h-full min-h-0 flex-col">
                 <div className="flex items-center gap-2 px-5 pb-2 pt-4">
-                  <h2 className="t-panel-title text-text-primary">Quellen</h2>
+                  <h2 className="t-panel-title text-text-primary">{t('app.sources')}</h2>
                   <Pill>{workspace.sourceOrder.length}</Pill>
                 </div>
                 <DuplicatesNotice />
@@ -324,7 +329,7 @@ function Workspace() {
               /* Ausgabestruktur -- Ordner und Dokumente sind Ablageziele. */
               <section className="flex h-full min-h-0 flex-col">
                 <div className="flex items-center gap-2 px-5 pb-2 pt-4">
-                  <h2 className="t-panel-title text-text-primary">Ausgabestruktur</h2>
+                  <h2 className="t-panel-title text-text-primary">{t('app.outputStructure')}</h2>
                   <Pill>{Object.keys(workspace.nodes).length}</Pill>
                   <div className="ml-auto">
                     <Menu
@@ -333,22 +338,22 @@ function Workspace() {
                       items={[
                         {
                           id: 'folder',
-                          label: 'Ordner',
+                          label: t('app.folder'),
                           icon: FolderPlus,
                           onSelect: () =>
                             dispatch({
                               type: 'createFolder',
-                              node: { id: newId(), name: 'Neuer Ordner', parentId: null },
+                              node: { id: newId(), name: t('app.defaultFolderName'), parentId: null },
                             }),
                         },
                         {
                           id: 'output',
-                          label: 'Dokument',
+                          label: t('app.document'),
                           icon: FilePlus2,
                           onSelect: () =>
                             dispatch({
                               type: 'createOutput',
-                              node: { id: newId(), name: 'Neues Dokument', parentId: null },
+                              node: { id: newId(), name: t('app.defaultDocumentName'), parentId: null },
                             }),
                         },
                       ]}
@@ -360,7 +365,7 @@ function Workspace() {
                           className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12.5px] font-medium text-text-secondary hover:bg-surface-hover hover:text-text-primary"
                           {...ariaProps}
                         >
-                          <Plus className="size-4" aria-hidden /> Neu
+                          <Plus className="size-4" aria-hidden /> {t('app.new')}
                         </button>
                       )}
                     />
@@ -382,7 +387,7 @@ function Workspace() {
                         .add({
                           id: newId(),
                           kind: 'node',
-                          name: node?.name ?? 'Element',
+                          name: node?.name ?? t('app.elementFallback'),
                           deletedAt: Date.now(),
                           snapshot,
                         })
@@ -403,7 +408,7 @@ function Workspace() {
           min={240}
           max={400}
           onChange={setSidebarWidth}
-          ariaLabel="Breite der Seitenleiste"
+          ariaLabel={t('app.resizeSidebar')}
         />
 
         <main className="flex min-w-0 flex-1 flex-col">
@@ -426,7 +431,7 @@ function Workspace() {
               min={320}
               max={640}
               onChange={setPreviewWidth}
-              ariaLabel="Breite der Vorschau"
+              ariaLabel={t('app.resizePreview')}
               invert
             />
             <aside
@@ -436,10 +441,10 @@ function Workspace() {
             >
               <div className="flex min-w-0 flex-1 flex-col">
                 <header className="flex h-11 items-center gap-2 border-b border-line-structural px-4">
-                  <span className="t-panel-title text-text-primary">Vorschau</span>
+                  <span className="t-panel-title text-text-primary">{t('app.preview')}</span>
                   <IconButton
                     icon={PanelRightClose}
-                    label="Vorschau einklappen"
+                    label={t('app.collapsePreview')}
                     onClick={() => setPreviewOpen(false)}
                     className="ml-auto"
                   />
@@ -461,11 +466,11 @@ function Workspace() {
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
-            aria-label="Vorschau ausklappen"
+            aria-label={t('app.expandPreview')}
             className="flex w-10 shrink-0 flex-col items-center gap-2 border-l border-line-structural bg-surface-panel pt-3 text-text-secondary hover:text-text-primary"
           >
             <PanelRightOpen className="size-4" aria-hidden />
-            <span className="text-[12px] [writing-mode:vertical-rl]">Vorschau</span>
+            <span className="text-[12px] [writing-mode:vertical-rl]">{t('app.preview')}</span>
           </button>
         )}
       </div>
@@ -495,9 +500,10 @@ function Workspace() {
           role="status"
           className="fixed left-1/2 top-4 z-50 -translate-x-1/2 rounded-full bg-surface-raised px-3.5 py-1.5 text-[12.5px] text-text-secondary shadow-[var(--float-shadow)] ring-1 ring-line-structural"
         >
-          Seite{' '}
-          <span className="font-mono tabular-nums text-text-primary">{ocr.progress.done}</span> von{' '}
-          <span className="font-mono tabular-nums">{ocr.progress.total}</span> erkannt
+          {t('app.ocrPage')}{' '}
+          <span className="font-mono tabular-nums text-text-primary">{ocr.progress.done}</span>{' '}
+          {t('app.ocrOf')} <span className="font-mono tabular-nums">{ocr.progress.total}</span>{' '}
+          {t('app.ocrRecognized')}
         </div>
       )}
     </div>
@@ -513,6 +519,7 @@ interface EmptyWorkspaceProps {
 
 /** Der erste Bildschirm ohne Quellen: die ganze Mitte ist Ablageflaeche. */
 function EmptyWorkspace({ onImportFiles, accept, active }: EmptyWorkspaceProps) {
+  const t = useT();
   const input = useRef<HTMLInputElement | null>(null);
   return (
     <div
@@ -522,9 +529,9 @@ function EmptyWorkspace({ onImportFiles, accept, active }: EmptyWorkspaceProps) 
       )}
     >
       <EmptyState
-        title="Dokumente importieren"
-        description="Wähle PDFs oder einen ganzen Ordner. Danach ordnest du einzelne Seiten per Maus zu neuen Dokumenten und Ordnern um — ganz ohne Zwischenexport."
-        footnote="oder Dateien hierher ziehen"
+        title={t('app.importTitle')}
+        description={t('app.importDesc')}
+        footnote={t('app.importFootnote')}
       >
         <input
           ref={input}
@@ -538,7 +545,7 @@ function EmptyWorkspace({ onImportFiles, accept, active }: EmptyWorkspaceProps) 
           }}
         />
         <Button variant="primary" size="lg" icon={FolderUp} onClick={() => input.current?.click()}>
-          Dateien wählen
+          {t('app.chooseFiles')}
         </Button>
       </EmptyState>
     </div>

@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { newId } from '../../domain/ids';
 import type { NodeId } from '../../domain/types';
 import { useDispatch, useSelectionStore, useWorkspaceStore } from '../app/StoreProvider';
+import { useT } from '../i18n';
 import { buildDropCommand } from './buildDropCommand';
 import type { DragState } from './DragPreview';
 import type { DragOrigin, DropTarget } from './dragLogic';
@@ -67,6 +68,7 @@ export function usePointerDrag() {
   const dispatch = useDispatch();
   const workspaceStore = useWorkspaceStore();
   const selectionStore = useSelectionStore();
+  const t = useT();
   const [preview, setPreview] = useState<DragState | null>(null);
   const [dropIndicator, setDropIndicator] = useState<DropIndicator | null>(null);
   const origin = useRef<DragOrigin | null>(null);
@@ -154,6 +156,7 @@ export function usePointerDrag() {
           modifier: e.metaKey || e.ctrlKey,
           ws: workspaceStore.getState().workspace,
           newId,
+          t,
         });
         if (command) dispatch(command, selectionStore.getState().snapshot());
       };
@@ -161,7 +164,7 @@ export function usePointerDrag() {
       window.addEventListener('pointermove', move);
       window.addEventListener('pointerup', up);
     },
-    [dispatch, workspaceStore, selectionStore],
+    [dispatch, workspaceStore, selectionStore, t],
   );
 
   return { onCellPointerDown, preview, dropIndicator };

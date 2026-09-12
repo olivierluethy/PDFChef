@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
+import { useT } from '../i18n';
 
 export interface SplitPaneProps {
   top: ReactNode;
@@ -23,8 +24,10 @@ export function SplitPane({
   initial = 0.6,
   min = 0.2,
   max = 0.85,
-  label = 'Höhe der Raster anpassen',
+  label,
 }: SplitPaneProps) {
+  const t = useT();
+  const resolvedLabel = label ?? t('common.splitPane.label');
   const [fraction, setFraction] = useState(initial);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const clampFraction = (f: number) => Math.min(max, Math.max(min, f));
@@ -72,7 +75,7 @@ export function SplitPane({
         role="separator"
         tabIndex={0}
         aria-orientation="horizontal"
-        aria-label={label}
+        aria-label={resolvedLabel}
         aria-valuenow={Math.round(fraction * 100)}
         aria-valuemin={Math.round(min * 100)}
         aria-valuemax={Math.round(max * 100)}

@@ -76,11 +76,11 @@ export function createTextAdapter({
           status: 'ready',
         };
       } catch (error) {
-        console.warn('Textdatei konnte nicht gelesen werden', error);
+        console.warn('Could not read text file', error);
         return {
           ...EMPTY_PROBE,
           status: 'error',
-          statusDetail: 'Diese Textdatei konnte nicht gelesen werden.',
+          statusDetail: 'This text file could not be read.',
         };
       }
     },

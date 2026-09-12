@@ -15,7 +15,7 @@ export interface SplitPart {
 export type SplitPlanResult = { ok: true; parts: SplitPart[] } | { ok: false; error: string };
 
 export function planSplit(strategy: SplitStrategy, blockCount: number): SplitPlanResult {
-  if (blockCount <= 0) return { ok: false, error: 'Das Dokument hat keine Seiten.' };
+  if (blockCount <= 0) return { ok: false, error: 'The document has no pages.' };
   switch (strategy.kind) {
     case 'equalParts':
       return equalParts(strategy.parts, blockCount);
@@ -30,11 +30,11 @@ export function planSplit(strategy: SplitStrategy, blockCount: number): SplitPla
 
 /** Beschriftung im Split-Panel, z. B. `Seiten 1-51 (51)`. */
 export function describeSplitPart(part: SplitPart): string {
-  return `Seiten ${formatRanges(part.indices)} (${part.indices.length})`;
+  return `Pages ${formatRanges(part.indices)} (${part.indices.length})`;
 }
 
 function label(index: number): string {
-  return `Teil ${index + 1}`;
+  return `Part ${index + 1}`;
 }
 
 function blockRange(start: number, size: number): number[] {
@@ -42,9 +42,9 @@ function blockRange(start: number, size: number): number[] {
 }
 
 function equalParts(parts: number, blockCount: number): SplitPlanResult {
-  if (!Number.isInteger(parts) || parts < 2) return { ok: false, error: 'Mindestens 2 Teile.' };
+  if (!Number.isInteger(parts) || parts < 2) return { ok: false, error: 'At least 2 parts.' };
   if (parts > blockCount) {
-    return { ok: false, error: `Bei ${blockCount} Seiten sind hoechstens ${blockCount} Teile moeglich.` };
+    return { ok: false, error: `With ${blockCount} pages, at most ${blockCount} parts are possible.` };
   }
 
   // Restseiten gehen an die vorderen Teile: 101 Seiten in 2 Teile ergibt 51/50.
@@ -61,7 +61,7 @@ function equalParts(parts: number, blockCount: number): SplitPlanResult {
 }
 
 function everyNBlocks(size: number, blockCount: number): SplitPlanResult {
-  if (!Number.isInteger(size) || size < 1) return { ok: false, error: 'Mindestens 1 Seite pro Teil.' };
+  if (!Number.isInteger(size) || size < 1) return { ok: false, error: 'At least 1 page per part.' };
   const result: SplitPart[] = [];
   for (let cursor = 0; cursor < blockCount; cursor += size) {
     result.push({
@@ -75,7 +75,7 @@ function everyNBlocks(size: number, blockCount: number): SplitPlanResult {
 function customRanges(input: string, blockCount: number): SplitPlanResult {
   const parsed = parseRanges(input, blockCount);
   if (!parsed.ok) return { ok: false, error: parsed.error };
-  if (parsed.ranges.length === 0) return { ok: false, error: 'Keine Bereiche angegeben.' };
+  if (parsed.ranges.length === 0) return { ok: false, error: 'No ranges specified.' };
   return {
     ok: true,
     parts: parsed.ranges.map((range, index) => ({
@@ -89,6 +89,6 @@ function selection(indices: number[], blockCount: number): SplitPlanResult {
   const usable = [...new Set(indices)]
     .filter((index) => Number.isInteger(index) && index >= 0 && index < blockCount)
     .sort((a, b) => a - b);
-  if (usable.length === 0) return { ok: false, error: 'Keine Seiten ausgewaehlt.' };
+  if (usable.length === 0) return { ok: false, error: 'No pages selected.' };
   return { ok: true, parts: [{ label: label(0), indices: usable }] };
 }

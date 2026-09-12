@@ -3,6 +3,9 @@ import type { SourceDocument, SourceId } from '../../domain/types';
 import { Menu } from '../common/Menu';
 import { cx } from '../common/cx';
 import { useDispatch, useWorkspace } from '../app/StoreProvider';
+import { useT } from '../i18n';
+
+type T = ReturnType<typeof useT>;
 
 export interface SourceListProps {
   activeSourceId: SourceId | null;
@@ -12,32 +15,34 @@ export interface SourceListProps {
   onRemove?(sourceId: SourceId): void;
 }
 
-function TypeGlyph({ source }: { source: SourceDocument }) {
+function TypeGlyph({ source, t }: { source: SourceDocument; t: T }) {
   if (source.status === 'encrypted')
-    return <Lock className="size-4 text-danger" aria-label="verschlüsselt" />;
+    return <Lock className="size-4 text-danger" aria-label={t('sources.list.encrypted')} />;
   if (source.status === 'error')
-    return <TriangleAlert className="size-4 text-danger" aria-label="fehlerhaft" />;
+    return <TriangleAlert className="size-4 text-danger" aria-label={t('sources.list.corrupted')} />;
   if (source.blockKind === 'image')
     return <Image className="size-4 text-text-tertiary" aria-hidden />;
   return <FileText className="size-4 text-text-tertiary" aria-hidden />;
 }
 
-function metaParts(source: SourceDocument): { count: string; format: string } {
+function metaParts(source: SourceDocument, t: T): { count: string; format: string } {
   const format = source.kind.toUpperCase();
-  if (source.status === 'encrypted') return { count: 'geschützt', format };
-  if (source.status === 'error') return { count: 'nicht lesbar', format };
-  if (source.blockKind === 'image') return { count: '1 Bild', format };
-  const count = source.blockCount === 1 ? '1 Seite' : `${source.blockCount} Seiten`;
+  if (source.status === 'encrypted') return { count: t('sources.list.protected'), format };
+  if (source.status === 'error') return { count: t('sources.list.notReadable'), format };
+  if (source.blockKind === 'image') return { count: t('sources.list.oneImage'), format };
+  const count =
+    source.blockCount === 1 ? `1 ${t('sources.page')}` : `${source.blockCount} ${t('sources.pages')}`;
   return { count, format };
 }
 
 export function SourceList({ activeSourceId, onSelect, onOpenPreview, onRemove }: SourceListProps) {
+  const t = useT();
   const workspace = useWorkspace();
   const dispatch = useDispatch();
   const sources = workspace.sourceOrder.map((id) => workspace.sources[id]).filter(Boolean);
 
   if (sources.length === 0) {
-    return <p className="t-meta px-5 py-4">Noch keine Dokumente importiert.</p>;
+    return <p className="t-meta px-5 py-4">{t('sources.list.empty')}</p>;
   }
 
   return (
@@ -45,7 +50,7 @@ export function SourceList({ activeSourceId, onSelect, onOpenPreview, onRemove }
       {sources.map((source) => {
         const usable = source.status === 'ready';
         const active = activeSourceId === source.id;
-        const meta = metaParts(source);
+        const meta = metaParts(source, t);
         return (
           <li key={source.id} className="group/row relative">
             <div
@@ -69,7 +74,7 @@ export function SourceList({ activeSourceId, onSelect, onOpenPreview, onRemove }
                 aria-current={active ? 'true' : undefined}
                 className="flex min-w-0 flex-1 items-center gap-2.5 text-left disabled:cursor-not-allowed"
               >
-                <TypeGlyph source={source} />
+                <TypeGlyph source={source} t={t} />
                 <span className="min-w-0 flex-1">
                   <span
                     className="block truncate text-[13px] text-text-primary"
@@ -87,7 +92,7 @@ export function SourceList({ activeSourceId, onSelect, onOpenPreview, onRemove }
                 type="button"
                 disabled={!usable}
                 onClick={() => onOpenPreview?.(source.id)}
-                aria-label={`Vorschau für ${source.name}`}
+                aria-label={t('sources.list.previewFor', { name: source.name })}
                 className={cx(
                   'inline-grid size-7 shrink-0 place-items-center rounded-md text-text-secondary transition-opacity hover:bg-surface-raised hover:text-text-primary focus-visible:opacity-100 group-hover/row:opacity-100 disabled:cursor-not-allowed',
                   'opacity-0',
@@ -101,7 +106,7 @@ export function SourceList({ activeSourceId, onSelect, onOpenPreview, onRemove }
                 items={[
                   {
                     id: 'remove',
-                    label: 'Entfernen',
+                    label: t('sources.list.remove'),
                     icon: Trash2,
                     danger: true,
                     onSelect: () => {
@@ -115,7 +120,7 @@ export function SourceList({ activeSourceId, onSelect, onOpenPreview, onRemove }
                     ref={ref}
                     type="button"
                     onClick={toggle}
-                    aria-label={`Aktionen für ${source.name}`}
+                    aria-label={t('sources.list.actionsFor', { name: source.name })}
                     className={cx(
                       'inline-grid size-7 shrink-0 place-items-center rounded-md text-text-secondary transition-opacity hover:bg-surface-raised hover:text-text-primary focus-visible:opacity-100 group-hover/row:opacity-100',
                       open ? 'opacity-100' : 'opacity-0',

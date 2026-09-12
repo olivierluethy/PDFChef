@@ -5,6 +5,7 @@ import type { CompositionItem } from '../../domain/types';
 import { Button } from '../common/Button';
 import { IconButton } from '../common/IconButton';
 import { overlayVariants, tween, useMotionPrefs } from '../common/motion';
+import { useT } from '../i18n';
 import { useDispatch, useSelection, useSelectionStore } from './StoreProvider';
 
 export interface ContextBarProps {
@@ -17,6 +18,7 @@ export interface ContextBarProps {
  * meldet die Auswahlgroesse an Screenreader.
  */
 export function ContextBar({ onRequestSplit }: ContextBarProps) {
+  const t = useT();
   const selection = useSelection();
   const selectionStore = useSelectionStore();
   const dispatch = useDispatch();
@@ -37,9 +39,9 @@ export function ContextBar({ onRequestSplit }: ContextBarProps) {
     }));
     dispatch({
       type: 'batch',
-      label: `${count} Seiten in ein neues Dokument`,
+      label: t('contextBar.newDocFromSelectionLabel', { count }),
       commands: [
-        { type: 'createOutput', node: { id: outputId, name: 'Neues Dokument', parentId: null } },
+        { type: 'createOutput', node: { id: outputId, name: t('app.defaultDocumentName'), parentId: null } },
         { type: 'addItems', outputId, index: 0, items },
       ],
     });
@@ -48,7 +50,9 @@ export function ContextBar({ onRequestSplit }: ContextBarProps) {
   return (
     <>
       <span className="sr-only" role="status" aria-live="polite">
-        {count > 0 ? `${count} ${count === 1 ? 'Seite' : 'Seiten'} ausgewählt` : ''}
+        {count > 0
+          ? `${count} ${count === 1 ? t('app.pageSingular') : t('app.pagePlural')} ${t('contextBar.selected')}`
+          : ''}
       </span>
       <AnimatePresence>
         {count > 0 && (
@@ -62,13 +66,16 @@ export function ContextBar({ onRequestSplit }: ContextBarProps) {
             className="fixed bottom-4 left-1/2 z-40 flex h-12 -translate-x-1/2 items-center gap-1 rounded-[10px] bg-surface-raised px-2 shadow-[var(--float-shadow)] ring-1 ring-line-structural"
           >
             <span className="px-2 font-mono text-[12.5px] tabular-nums text-text-primary">
-              {count} <span className="font-sans text-text-secondary">{count === 1 ? 'Seite' : 'Seiten'} ausgewählt</span>
+              {count}{' '}
+              <span className="font-sans text-text-secondary">
+                {count === 1 ? t('app.pageSingular') : t('app.pagePlural')} {t('contextBar.selected')}
+              </span>
             </span>
             <span aria-hidden className="mx-1 h-5 w-px bg-line-structural" />
 
             {inSource && (
               <Button variant="quiet" size="sm" icon={FilePlus2} onClick={newDocumentFromSelection}>
-                Neues Dokument aus Auswahl
+                {t('contextBar.newDocumentFromSelection')}
               </Button>
             )}
             {inOutput && (
@@ -78,11 +85,11 @@ export function ContextBar({ onRequestSplit }: ContextBarProps) {
                 icon={RotateCw}
                 onClick={() => dispatch({ type: 'rotateItems', itemIds: selection.ids, delta: 90 })}
               >
-                Drehen
+                {t('contextBar.rotate')}
               </Button>
             )}
             <Button variant="quiet" size="sm" icon={Scissors} onClick={onRequestSplit}>
-              Aufteilen
+              {t('contextBar.split')}
             </Button>
             {inOutput && (
               <Button
@@ -91,12 +98,16 @@ export function ContextBar({ onRequestSplit }: ContextBarProps) {
                 icon={Trash2}
                 onClick={() => dispatch({ type: 'removeItems', itemIds: selection.ids })}
               >
-                Entfernen
+                {t('contextBar.remove')}
               </Button>
             )}
 
             <span aria-hidden className="mx-1 h-5 w-px bg-line-structural" />
-            <IconButton icon={X} label="Auswahl aufheben" onClick={() => selectionStore.getState().clear()} />
+            <IconButton
+              icon={X}
+              label={t('contextBar.clearSelection')}
+              onClick={() => selectionStore.getState().clear()}
+            />
           </motion.div>
         )}
       </AnimatePresence>

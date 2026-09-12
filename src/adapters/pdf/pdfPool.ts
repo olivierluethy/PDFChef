@@ -40,7 +40,7 @@ export function createDocumentPool<T>({
       await destroy(await entry.value);
     } catch (error) {
       // Ein bereits kaputtes Dokument muss sich nicht sauber schliessen lassen.
-      console.warn('Dokument konnte nicht geschlossen werden', error);
+      console.warn('Could not close document', error);
     }
   }
 

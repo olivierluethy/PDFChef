@@ -69,7 +69,7 @@ export function usePrint(): PrintController {
         const outcome = printPdf(bytes, entry.fileName);
         setStatuses((prev) => ({ ...prev, [entry.outputId]: outcome === 'tab' ? 'tab' : 'sent' }));
       } catch (error) {
-        console.error('Drucken fehlgeschlagen', error);
+        console.error('Printing failed', error);
         setStatuses((prev) => ({ ...prev, [entry.outputId]: 'error' }));
       }
     },
@@ -106,7 +106,7 @@ export function usePrint(): PrintController {
       try {
         download(await assembleBytes(entry), entry.fileName);
       } catch (error) {
-        console.error('Herunterladen fehlgeschlagen', error);
+        console.error('Download failed', error);
       }
     },
     [scope, workspace, assembleBytes],

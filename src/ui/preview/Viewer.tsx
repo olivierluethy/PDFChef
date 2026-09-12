@@ -16,6 +16,7 @@ import type { DragOrigin } from '../workspace/dragLogic';
 import { IconButton } from '../common/IconButton';
 import { Menu } from '../common/Menu';
 import { cx } from '../common/cx';
+import { useT } from '../i18n';
 import { FillLayer } from './FillLayer';
 import { usePageImage } from './usePageImage';
 import { clampPageIndex, nextZoom, pagesSignature } from './viewerModel';
@@ -68,6 +69,7 @@ export function Viewer({
   onDetectFields,
   emptyLabel,
 }: ViewerProps) {
+  const t = useT();
   const [index, setIndex] = useState(0);
   const [zoom, setZoom] = useState(1);
   const [extraRotation, setExtraRotation] = useState<Rotation>(0);
@@ -134,7 +136,7 @@ export function Viewer({
   if (pages.length === 0) {
     return (
       <p className="grid h-full place-items-center px-8 text-center text-[13px] text-text-tertiary">
-        {emptyLabel ?? 'Nichts zum Anzeigen.'}
+        {emptyLabel ?? t('preview.empty')}
       </p>
     );
   }
@@ -171,7 +173,7 @@ export function Viewer({
         <IconButton
           size="sm"
           icon={ChevronLeft}
-          label="Vorige Seite"
+          label={t('preview.prevPage')}
           disabled={index === 0}
           onClick={() => scrollToPage(index - 1)}
         />
@@ -182,7 +184,7 @@ export function Viewer({
             max={pages.length}
             value={index + 1}
             onChange={(e) => scrollToPage(Number(e.target.value) - 1)}
-            aria-label="Seite"
+            aria-label={t('preview.pageInput')}
             className="h-7 w-12 rounded-md bg-surface-raised px-1.5 text-center font-mono text-[12.5px] tabular-nums text-text-primary ring-1 ring-line-structural [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
           />
           <span className="font-mono text-[12.5px] tabular-nums text-text-secondary">
@@ -192,7 +194,7 @@ export function Viewer({
         <IconButton
           size="sm"
           icon={ChevronRight}
-          label="Nächste Seite"
+          label={t('preview.nextPage')}
           disabled={index >= pages.length - 1}
           onClick={() => scrollToPage(index + 1)}
         />
@@ -203,7 +205,7 @@ export function Viewer({
           <IconButton
             size="sm"
             icon={ZoomOut}
-            label="Verkleinern"
+            label={t('preview.zoomOut')}
             onClick={() => setZoom((z) => clampZoom(nextZoom(z, -1)))}
           />
           <span className="w-14 text-center font-mono text-[12px] tabular-nums text-text-secondary">
@@ -212,7 +214,7 @@ export function Viewer({
           <IconButton
             size="sm"
             icon={ZoomIn}
-            label="Vergrössern"
+            label={t('preview.zoomIn')}
             onClick={() => setZoom((z) => clampZoom(nextZoom(z, 1)))}
           />
         </div>
@@ -221,9 +223,9 @@ export function Viewer({
           align="start"
           minWidth={180}
           items={[
-            { id: 'page', label: 'Seite einpassen', onSelect: fitPage },
-            { id: 'width', label: 'Breite einpassen', onSelect: fitWidth },
-            { id: 'actual', label: 'Originalgrösse', onSelect: actualSize },
+            { id: 'page', label: t('preview.fitPage'), onSelect: fitPage },
+            { id: 'width', label: t('preview.fitWidth'), onSelect: fitWidth },
+            { id: 'actual', label: t('preview.actualSize'), onSelect: actualSize },
           ]}
           renderTrigger={({ ref, toggle, ariaProps }) => (
             <button
@@ -233,7 +235,7 @@ export function Viewer({
               className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[12.5px] text-text-secondary hover:bg-surface-hover hover:text-text-primary"
               {...ariaProps}
             >
-              Einpassen <ChevronDown className="size-3.5" aria-hidden />
+              {t('preview.fit')} <ChevronDown className="size-3.5" aria-hidden />
             </button>
           )}
         />
@@ -251,7 +253,7 @@ export function Viewer({
                 : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary',
             )}
           >
-            <PenLine className="size-3.5" aria-hidden /> Ausfüllen
+            <PenLine className="size-3.5" aria-hidden /> {t('preview.fillMode')}
           </button>
         )}
 
@@ -260,15 +262,20 @@ export function Viewer({
             align="end"
             minWidth={160}
             items={[
-              { id: 'rotate', label: 'Drehen', icon: RotateCw, onSelect: rotate },
-              { id: 'fullscreen', label: 'Vollbild', icon: Maximize, onSelect: toggleFullscreen },
+              { id: 'rotate', label: t('preview.rotate'), icon: RotateCw, onSelect: rotate },
+              {
+                id: 'fullscreen',
+                label: t('preview.fullscreen'),
+                icon: Maximize,
+                onSelect: toggleFullscreen,
+              },
             ]}
             renderTrigger={({ ref, toggle, ariaProps }) => (
               <button
                 ref={ref}
                 type="button"
                 onClick={toggle}
-                aria-label="Weitere Ansichtsoptionen"
+                aria-label={t('preview.moreViewOptions')}
                 className="inline-grid size-7 place-items-center rounded-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"
                 {...ariaProps}
               >
@@ -278,8 +285,13 @@ export function Viewer({
           />
         ) : (
           <>
-            <IconButton size="sm" icon={RotateCw} label="Drehen" onClick={rotate} />
-            <IconButton size="sm" icon={Maximize} label="Vollbild" onClick={toggleFullscreen} />
+            <IconButton size="sm" icon={RotateCw} label={t('preview.rotate')} onClick={rotate} />
+            <IconButton
+              size="sm"
+              icon={Maximize}
+              label={t('preview.fullscreen')}
+              onClick={toggleFullscreen}
+            />
           </>
         )}
       </div>
@@ -361,6 +373,7 @@ function PageBlock({
   onDetectFields,
   blockRef,
 }: PageBlockProps) {
+  const t = useT();
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [visible, setVisible] = useState(false);
 
@@ -393,16 +406,19 @@ function PageBlock({
           {page.sourceName}
         </span>
         <span className="ml-auto shrink-0 font-mono text-[11.5px] tabular-nums text-text-secondary">
-          Seite {page.pageNumber}
+          {t('preview.page', { n: page.pageNumber })}
         </span>
         {onJumpToSource && (
           <button
             type="button"
             onClick={() => onJumpToSource(page.ref)}
             className="shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[11.5px] text-text-secondary opacity-0 transition-opacity hover:bg-surface-hover hover:text-text-primary focus-visible:opacity-100 group-hover:opacity-100 inline-flex"
-            aria-label={`Zur Quelle: ${page.sourceName}, Seite ${page.pageNumber}`}
+            aria-label={t('preview.jumpToSourceAria', {
+              name: page.sourceName,
+              n: page.pageNumber,
+            })}
           >
-            <ExternalLink className="size-3.5" aria-hidden /> Zur Quelle
+            <ExternalLink className="size-3.5" aria-hidden /> {t('preview.jumpToSource')}
           </button>
         )}
       </div>
@@ -418,7 +434,7 @@ function PageBlock({
             ref={page.ref}
             zoom={zoom}
             rotation={rotation}
-            alt={`${page.sourceName}, Seite ${page.pageNumber}`}
+            alt={t('preview.pageAlt', { name: page.sourceName, n: page.pageNumber })}
           >
             {page.fillable && page.itemId && (
               <FillLayer
@@ -438,7 +454,7 @@ function PageBlock({
       ) : (
         <div
           className="mx-auto h-[60vh] w-2/3 animate-pulse rounded-[2px] bg-surface-raised"
-          aria-label={`${page.sourceName} wird geladen`}
+          aria-label={t('preview.loading', { label: page.sourceName })}
         />
       )}
     </div>
@@ -458,11 +474,12 @@ function PageImage({
   alt: string;
   children?: React.ReactNode;
 }) {
+  const t = useT();
   const { url, status } = usePageImage(ref, VIEW_WIDTH);
   if (status === 'error') {
     return (
       <p className="grid h-40 place-items-center text-[13px] text-danger">
-        Diese Seite konnte nicht gerendert werden.
+        {t('preview.renderError')}
       </p>
     );
   }
@@ -470,7 +487,7 @@ function PageImage({
     return (
       <div
         className="mx-auto h-[60vh] w-2/3 animate-pulse rounded-[2px] bg-surface-raised"
-        aria-label={`${alt} wird geladen`}
+        aria-label={t('preview.loading', { label: alt })}
       />
     );
   }

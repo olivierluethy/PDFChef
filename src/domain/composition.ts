@@ -20,7 +20,7 @@ import { parentKey } from './types';
 
 export function requireOutput(ws: Workspace, outputId: NodeId): OutputDocument {
   const node = ws.nodes[outputId];
-  if (!node || node.type !== 'output') throw new Error(`Kein Output-Dokument: ${outputId}`);
+  if (!node || node.type !== 'output') throw new Error(`Not an output document: ${outputId}`);
   return node;
 }
 
@@ -35,7 +35,7 @@ export function buildItems(
   ids: ItemId[],
 ): CompositionItem[] {
   if (ids.length !== blockIndices.length) {
-    throw new Error('Zu jedem Block muss genau eine Item-Id vorliegen.');
+    throw new Error('Each block must have exactly one item id.');
   }
   return blockIndices.map((blockIndex, position) => ({
     id: ids[position],
@@ -55,7 +55,7 @@ export function insertItems(
   // Erst alle Ids pruefen, dann schreiben: ein Teil-Einfuegen waere schlimmer
   // als ein sauberer Abbruch.
   for (const item of items) {
-    if (ws.items[item.id]) throw new Error(`Item-Id bereits vergeben: ${item.id}`);
+    if (ws.items[item.id]) throw new Error(`Item id already in use: ${item.id}`);
   }
   for (const item of items) ws.items[item.id] = item;
   output.items.splice(clampIndex(index, output.items.length), 0, ...items.map((item) => item.id));
@@ -146,7 +146,7 @@ export function copyItems(
   newIds: ItemId[],
 ): void {
   if (newIds.length !== itemIds.length) {
-    throw new Error('Zu jeder Kopie muss genau eine neue Item-Id vorliegen.');
+    throw new Error('Each copy must have exactly one new item id.');
   }
   const copies: CompositionItem[] = [];
   itemIds.forEach((itemId, position) => {
@@ -177,12 +177,12 @@ export interface CreateNodeInput {
 
 function requireFolder(ws: Workspace, nodeId: NodeId): FolderNode {
   const node = ws.nodes[nodeId];
-  if (!node || node.type !== 'folder') throw new Error(`Ziel ist kein Ordner: ${nodeId}`);
+  if (!node || node.type !== 'folder') throw new Error(`Target is not a folder: ${nodeId}`);
   return node;
 }
 
 function assertFreeNodeId(ws: Workspace, nodeId: NodeId): void {
-  if (ws.nodes[nodeId]) throw new Error(`Node-Id bereits vergeben: ${nodeId}`);
+  if (ws.nodes[nodeId]) throw new Error(`Node id already in use: ${nodeId}`);
 }
 
 /** Kinderliste eines Elternteils, bei Bedarf angelegt. */
@@ -254,7 +254,7 @@ export function moveNode(
   index: number,
 ): void {
   if (!canMoveNode(ws, nodeId, newParentId)) {
-    throw new Error(`Verschieben nicht erlaubt: ${nodeId} -> ${String(newParentId)}`);
+    throw new Error(`Move not allowed: ${nodeId} -> ${String(newParentId)}`);
   }
   const node = ws.nodes[nodeId];
   if (!node) return;

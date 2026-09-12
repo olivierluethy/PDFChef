@@ -22,6 +22,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ShapeKind } from '../../../domain/types';
 import { SHAPE_SPECS } from '../../../domain/overlayShapes';
 import { cx } from '../../common/cx';
+import { useT } from '../../i18n';
 
 /** Das aktive Werkzeug: Auswahl, Text oder eine der Formen. */
 export type Tool = 'select' | 'text' | ShapeKind;
@@ -77,18 +78,19 @@ export function ToolPalette({
   onDetect,
   libraryOpen,
 }: ToolPaletteProps) {
+  const t = useT();
   const shapeActive = tool !== 'select' && tool !== 'text';
   return (
     <div className="pointer-events-auto absolute left-2 top-2 flex flex-wrap items-center gap-1 rounded-lg bg-surface-raised px-1.5 py-1 text-[11.5px] text-text-secondary shadow-[var(--float-shadow)] ring-1 ring-line-structural">
       <PaletteButton
         icon={MousePointer2}
-        label="Auswählen"
+        label={t('preview.fill.toolSelect')}
         active={tool === 'select'}
         onClick={() => onTool('select')}
       />
       <PaletteButton
         icon={Type}
-        label="Textfeld"
+        label={t('preview.fill.toolText')}
         active={tool === 'text'}
         onClick={() => onTool('text')}
       />
@@ -102,7 +104,7 @@ export function ToolPalette({
         onClick={onSignature}
         className="inline-flex items-center gap-1 rounded bg-surface-panel px-1.5 py-0.5 text-text-primary ring-1 ring-line-structural hover:bg-surface-hover"
       >
-        <PenLine className="size-3.5" aria-hidden /> Unterschrift
+        <PenLine className="size-3.5" aria-hidden /> {t('preview.fill.signature')}
       </button>
       <button
         type="button"
@@ -116,7 +118,7 @@ export function ToolPalette({
             : 'bg-surface-panel text-text-primary hover:bg-surface-hover',
         )}
       >
-        <BookMarked className="size-3.5" aria-hidden /> Bibliothek
+        <BookMarked className="size-3.5" aria-hidden /> {t('preview.fill.library')}
       </button>
       {onDetect && (
         <button
@@ -125,7 +127,7 @@ export function ToolPalette({
           onClick={onDetect}
           className="inline-flex items-center gap-1 rounded bg-surface-panel px-1.5 py-0.5 text-text-primary ring-1 ring-line-structural hover:bg-surface-hover"
         >
-          <ScanLine className="size-3.5" aria-hidden /> Felder erkennen
+          <ScanLine className="size-3.5" aria-hidden /> {t('preview.fill.detectFields')}
         </button>
       )}
     </div>
@@ -168,6 +170,7 @@ function ShapeMenu({
   current: ShapeKind | null;
   onPick(kind: ShapeKind): void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   const CurrentIcon = current ? SHAPE_ICONS[current] : Shapes;
@@ -192,7 +195,7 @@ function ShapeMenu({
     <div ref={ref} className="relative">
       <button
         type="button"
-        title="Formen"
+        title={t('preview.fill.shapes')}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-pressed={current !== null}
@@ -231,7 +234,7 @@ function ShapeMenu({
                     : 'text-text-primary hover:bg-surface-hover',
                 )}
               >
-                <Icon className="size-3.5 shrink-0" aria-hidden /> {spec.label}
+                <Icon className="size-3.5 shrink-0" aria-hidden /> {t('preview.shape.' + spec.kind)}
               </button>
             );
           })}

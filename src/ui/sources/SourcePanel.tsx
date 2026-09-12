@@ -10,6 +10,7 @@ import { OutlinePanel } from './OutlinePanel';
 import { RangeField } from './RangeField';
 import { SourceGrid } from './SourceGrid';
 import { computeSourceUsage } from './sourceUsage';
+import { useT } from '../i18n';
 
 export interface SourcePanelProps {
   source: SourceDocument;
@@ -20,6 +21,7 @@ export interface SourcePanelProps {
 }
 
 export function SourcePanel({ source, onCellPointerDown, onLatex, latexBusy, onOcr }: SourcePanelProps) {
+  const t = useT();
   const workspace = useWorkspace();
   const selection = useSelection();
   const selectionStore = useSelectionStore();
@@ -44,7 +46,7 @@ export function SourcePanel({ source, onCellPointerDown, onLatex, latexBusy, onO
           {source.name}
         </h2>
         <span className="shrink-0 font-mono text-[12px] tabular-nums text-text-secondary">
-          {source.blockCount} {source.blockCount === 1 ? 'Seite' : 'Seiten'}
+          {source.blockCount} {source.blockCount === 1 ? t('sources.page') : t('sources.pages')}
         </span>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           <Button variant="secondary" size="sm" icon={FileCode} disabled={latexBusy} onClick={() => onLatex(source.id)}>
@@ -53,13 +55,13 @@ export function SourcePanel({ source, onCellPointerDown, onLatex, latexBusy, onO
           <Menu
             align="end"
             minWidth={196}
-            items={[{ id: 'ocr', label: 'Text erkennen (OCR)', icon: ScanText, onSelect: () => onOcr(source) }]}
+            items={[{ id: 'ocr', label: t('sources.panel.ocr'), icon: ScanText, onSelect: () => onOcr(source) }]}
             renderTrigger={({ ref, toggle, ariaProps }) => (
               <button
                 ref={ref}
                 type="button"
                 onClick={toggle}
-                aria-label="Weitere Aktionen für dieses Dokument"
+                aria-label={t('sources.panel.moreActions')}
                 className="inline-grid size-8 place-items-center rounded-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"
                 {...ariaProps}
               >
@@ -90,12 +92,12 @@ export function SourcePanel({ source, onCellPointerDown, onLatex, latexBusy, onO
         <RangeField sourceId={source.id} blockCount={source.blockCount} />
         <div className="mt-3 flex items-center gap-3">
           <SegmentedControl
-            ariaLabel="Sichtbare Seiten"
+            ariaLabel={t('sources.panel.visiblePages')}
             value={onlyUnused ? 'unused' : 'all'}
             onChange={(v) => setOnlyUnused(v === 'unused')}
             options={[
-              { value: 'all', label: 'Alle Seiten' },
-              { value: 'unused', label: 'Nur unbenutzte', count: usedCount || undefined },
+              { value: 'all', label: t('sources.panel.allPages') },
+              { value: 'unused', label: t('sources.panel.onlyUnused'), count: usedCount || undefined },
             ]}
           />
           <button
@@ -104,7 +106,7 @@ export function SourcePanel({ source, onCellPointerDown, onLatex, latexBusy, onO
             onClick={() => selectionStore.getState().clear()}
             className="ml-auto text-[12.5px] font-medium text-text-secondary hover:text-text-primary disabled:opacity-40"
           >
-            Auswahl löschen
+            {t('sources.panel.clearSelection')}
           </button>
         </div>
       </div>

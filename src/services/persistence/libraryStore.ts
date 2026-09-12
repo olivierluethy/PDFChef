@@ -61,7 +61,7 @@ export function createLibraryStore(db: Database): LibraryStore {
     .getAll('library')
     .then((items) => store.setState({ items: items.sort(byNewest), ready: true }))
     .catch((error) => {
-      console.warn('Bibliothek konnte nicht geladen werden', error);
+      console.warn('Could not load library', error);
       store.setState({ ready: true });
     });
 

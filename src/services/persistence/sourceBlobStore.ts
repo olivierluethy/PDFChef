@@ -19,7 +19,7 @@ export function createSourceBlobStore(
   // uebergeben werden koennen, ohne ihren Empfaenger zu verlieren.
   async function read(contentHash: string): Promise<Blob> {
     const record = await db.get('sourceBlobs', contentHash);
-    if (!record) throw new Error(`Die Bytes zu ${contentHash} sind nicht gespeichert.`);
+    if (!record) throw new Error(`The bytes for ${contentHash} are not stored.`);
     return record.blob;
   }
 

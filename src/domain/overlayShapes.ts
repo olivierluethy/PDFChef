@@ -27,16 +27,16 @@ export interface ShapeSpec {
 }
 
 export const SHAPE_SPECS: ShapeSpec[] = [
-  { kind: 'rect', label: 'Rechteck', category: 'box', supportsFill: true, supportsText: true },
-  { kind: 'roundRect', label: 'Abgerundet', category: 'box', supportsFill: true, supportsText: true },
+  { kind: 'rect', label: 'Rectangle', category: 'box', supportsFill: true, supportsText: true },
+  { kind: 'roundRect', label: 'Rounded', category: 'box', supportsFill: true, supportsText: true },
   { kind: 'ellipse', label: 'Ellipse', category: 'box', supportsFill: true, supportsText: true },
-  { kind: 'line', label: 'Linie', category: 'line', supportsFill: false, supportsText: false },
-  { kind: 'arrow', label: 'Pfeil', category: 'line', supportsFill: false, supportsText: false },
+  { kind: 'line', label: 'Line', category: 'line', supportsFill: false, supportsText: false },
+  { kind: 'arrow', label: 'Arrow', category: 'line', supportsFill: false, supportsText: false },
   { kind: 'polygon', label: 'Polygon', category: 'line', supportsFill: true, supportsText: false },
-  { kind: 'freehand', label: 'Freihand', category: 'line', supportsFill: false, supportsText: false },
-  { kind: 'highlight', label: 'Textmarker', category: 'box', supportsFill: true, supportsText: false },
-  { kind: 'check', label: 'Haken', category: 'mark', supportsFill: false, supportsText: false },
-  { kind: 'cross', label: 'Kreuz', category: 'mark', supportsFill: false, supportsText: false },
+  { kind: 'freehand', label: 'Freehand', category: 'line', supportsFill: false, supportsText: false },
+  { kind: 'highlight', label: 'Highlighter', category: 'box', supportsFill: true, supportsText: false },
+  { kind: 'check', label: 'Check', category: 'mark', supportsFill: false, supportsText: false },
+  { kind: 'cross', label: 'Cross', category: 'mark', supportsFill: false, supportsText: false },
 ];
 
 const SHAPE_BY_KIND = new Map(SHAPE_SPECS.map((spec) => [spec.kind, spec]));

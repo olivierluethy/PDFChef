@@ -1,8 +1,8 @@
-// Handgeschriebener Service Worker fuer PDF-Master.
-// Cacht die App-Schale und liefert Assets offline aus. Kein Build-Plugin,
-// keine Abhaengigkeiten -- nur Standard-Service-Worker-APIs.
+// Hand-written service worker for PDFChef.
+// Caches the app shell and serves assets offline. No build plugin,
+// no dependencies -- just standard service worker APIs.
 
-const CACHE = 'pdf-master-v1';
+const CACHE = 'pdfchef-v1';
 const CORE = ['/', '/index.html', '/icon.svg', '/manifest.webmanifest'];
 
 // Beim Installieren die App-Schale vorab cachen und sofort aktivieren.
