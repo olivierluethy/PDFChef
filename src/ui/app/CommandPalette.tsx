@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react';
 import { useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useT } from '../i18n';
 import { filterActions, type PaletteAction } from './commandFilter';
 
 export interface CommandPaletteProps {
@@ -8,6 +9,7 @@ export interface CommandPaletteProps {
 }
 
 export function CommandPalette({ actions, onClose }: CommandPaletteProps) {
+  const t = useT();
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,7 +47,7 @@ export function CommandPalette({ actions, onClose }: CommandPaletteProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-start bg-black/50 pt-32" role="dialog" aria-label="Befehlspalette" onClick={onClose}>
+    <div className="fixed inset-0 z-50 grid place-items-start bg-black/50 pt-32" role="dialog" aria-label={t('palette.dialogLabel')} onClick={onClose}>
       <div
         className="mx-auto flex w-[32rem] flex-col rounded-[10px] bg-surface-raised shadow-[var(--float-shadow)] ring-1 ring-line-structural"
         onClick={(event) => event.stopPropagation()}
@@ -56,8 +58,8 @@ export function CommandPalette({ actions, onClose }: CommandPaletteProps) {
             ref={inputRef}
             type="text"
             autoFocus
-            aria-label="Aktion suchen"
-            placeholder="Aktion suchen…"
+            aria-label={t('palette.searchLabel')}
+            placeholder={t('palette.searchPlaceholder')}
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
@@ -69,7 +71,9 @@ export function CommandPalette({ actions, onClose }: CommandPaletteProps) {
         </div>
 
         <ul className="max-h-80 overflow-auto py-1 text-sm">
-          {filtered.length === 0 && <li className="px-3 py-2 text-text-tertiary">Keine Treffer</li>}
+          {filtered.length === 0 && (
+            <li className="px-3 py-2 text-text-tertiary">{t('palette.noResults')}</li>
+          )}
           {filtered.map((action, index) => (
             <li key={action.id}>
               <button

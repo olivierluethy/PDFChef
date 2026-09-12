@@ -10,7 +10,7 @@ import { wireStores, type StoreContextValue } from './StoreProvider';
  * trotzdem den Inhalt-Hash zu jeder Quelle.
  */
 export async function bootstrapWorkspace(): Promise<StoreContextValue> {
-  let currentWorkspace: Workspace = createEmptyWorkspace({ id: newId(), name: 'Neuer Arbeitsbereich' });
+  let currentWorkspace: Workspace = createEmptyWorkspace({ id: newId(), name: 'New workspace' });
 
   const services = await createAppServices({
     contentHashOf: (sourceId: SourceId) => currentWorkspace.sources[sourceId]?.contentHash,

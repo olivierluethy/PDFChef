@@ -1,5 +1,6 @@
 import type { Command } from '../../domain/commands';
 import type { NodeId, OutputDocument } from '../../domain/types';
+import type { Translate } from '../i18n/I18nProvider';
 
 export interface BuildSplitOutputParams {
   /** Das Dokument, das an einer Seite getrennt wird. */
@@ -8,6 +9,8 @@ export interface BuildSplitOutputParams {
   atIndex: number;
   parentId: NodeId | null;
   newOutputId: NodeId;
+  /** Uebersetzer fuer das Undo-Label des Batches. */
+  t: Translate;
 }
 
 /**
@@ -24,12 +27,13 @@ export function buildSplitOutputCommand({
   atIndex,
   parentId,
   newOutputId,
+  t,
 }: BuildSplitOutputParams): Command | null {
   const tail = output.items.slice(atIndex);
   if (atIndex <= 0 || tail.length === 0) return null;
   return {
     type: 'batch',
-    label: `"${output.name}" aufgeteilt`,
+    label: t('workspace.split.outputSplitLabel', { name: output.name }),
     commands: [
       { type: 'createOutput', node: { id: newOutputId, name: `${output.name} (2)`, parentId } },
       { type: 'moveItems', itemIds: tail, outputId: newOutputId, index: 0 },

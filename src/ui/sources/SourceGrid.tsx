@@ -8,6 +8,7 @@ import { Thumbnail } from '../common/Thumbnail';
 import { VirtualGrid } from '../common/VirtualGrid';
 import { cx } from '../common/cx';
 import { useSelection, useSelectionStore } from '../app/StoreProvider';
+import { useT } from '../i18n';
 
 export interface SourceGridProps {
   source: SourceDocument;
@@ -19,6 +20,7 @@ export interface SourceGridProps {
 }
 
 export function SourceGrid({ source, usage, onlyUnused, onCellPointerDown, scrollTo }: SourceGridProps) {
+  const t = useT();
   const selection = useSelection();
   const selectionStore = useSelectionStore();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -59,7 +61,7 @@ export function SourceGrid({ source, usage, onlyUnused, onCellPointerDown, scrol
   if (indices.length === 0) {
     return (
       <div className="grid h-full place-items-center p-8 text-center">
-        <p className="t-meta">Alle Seiten sind bereits einem Dokument zugeordnet.</p>
+        <p className="t-meta">{t('sources.grid.allAssigned')}</p>
       </div>
     );
   }
@@ -98,13 +100,13 @@ export function SourceGrid({ source, usage, onlyUnused, onCellPointerDown, scrol
               >
                 <Thumbnail
                   blockRef={{ sourceId: source.id, blockIndex }}
-                  alt={`${source.name} Seite ${blockIndex + 1}`}
+                  alt={t('sources.grid.pageAlt', { name: source.name, n: blockIndex + 1 })}
                 />
                 {selected && <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[2px] bg-accent-soft" />}
                 {count > 0 && (
                   <span
                     className="absolute right-1 top-1 rounded-full bg-info-soft px-1.5 py-px font-mono text-[11px] font-medium tabular-nums text-info"
-                    title={`In ${count} ${count === 1 ? 'Dokument' : 'Dokumenten'} verwendet`}
+                    title={count === 1 ? t('sources.grid.usedInSingular', { n: count }) : t('sources.grid.usedInPlural', { n: count })}
                   >
                     {count}
                   </span>

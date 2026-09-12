@@ -3,6 +3,7 @@ import type { CompositionItem, NodeId, Workspace } from '../../domain/types';
 import { isFolder, parentKey } from '../../domain/types';
 import { canMoveNode } from '../../domain/composition';
 import { resolveDropAction, type DragOrigin, type DropTarget } from './dragLogic';
+import type { Translate } from '../i18n/I18nProvider';
 
 export interface BuildDropParams {
   origin: DragOrigin;
@@ -10,10 +11,8 @@ export interface BuildDropParams {
   modifier: boolean;
   ws: Workspace;
   newId(): string;
-}
-
-function pagesLabel(count: number): string {
-  return count === 1 ? '1 Seite' : `${count} Seiten`;
+  /** Uebersetzer fuer Undo-Labels und den Standardnamen neuer Dokumente. */
+  t: Translate;
 }
 
 /** Neue Items aus Quellseiten; jede Instanz bekommt eine eigene Identitaet. */
@@ -41,9 +40,13 @@ function moveParentId(ws: Workspace, target: DropTarget): NodeId | null | undefi
  * einen Ordner erzeugt ein neues Output und fuellt es -- beides zusammen als ein
  * batch, damit es ein einziger Undo-Schritt ist.
  */
-export function buildDropCommand({ origin, target, modifier, ws, newId }: BuildDropParams): Command | null {
+export function buildDropCommand({ origin, target, modifier, ws, newId, t }: BuildDropParams): Command | null {
   if (itemCount(origin) === 0) return null;
   const action = resolveDropAction(origin, target, modifier);
+  const pagesIntoNewDoc = (count: number): string =>
+    count === 1
+      ? t('workspace.drop.pagesIntoNewDocOne', { n: count })
+      : t('workspace.drop.pagesIntoNewDocMany', { n: count });
 
   switch (action.kind) {
     case 'addFromSource': {
@@ -76,14 +79,14 @@ export function buildDropCommand({ origin, target, modifier, ws, newId }: BuildD
     case 'createOutputFromFolder': {
       if (target.kind !== 'folder') return null;
       const folder = ws.nodes[target.nodeId];
-      const name = folder && isFolder(folder) ? folder.name : 'Neues Dokument';
+      const name = folder && isFolder(folder) ? folder.name : t('workspace.drop.newDocument');
       const outputId = newId();
       const create: Command = { type: 'createOutput', node: { id: outputId, name, parentId: target.nodeId } };
       if (origin.kind === 'source') {
         const items = itemsFromSource(origin.sourceId, origin.blockIndices, newId);
         return {
           type: 'batch',
-          label: `${pagesLabel(items.length)} in ein neues Dokument`,
+          label: pagesIntoNewDoc(items.length),
           commands: [create, { type: 'addItems', outputId, index: 0, items }],
         };
       }
@@ -91,7 +94,7 @@ export function buildDropCommand({ origin, target, modifier, ws, newId }: BuildD
       if (origin.kind !== 'output') return null;
       return {
         type: 'batch',
-        label: `${pagesLabel(origin.itemIds.length)} in ein neues Dokument`,
+        label: pagesIntoNewDoc(origin.itemIds.length),
         commands: [create, { type: 'moveItems', itemIds: origin.itemIds, outputId, index: 0 }],
       };
     }

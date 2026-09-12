@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '../../common/Button';
+import { useT } from '../../i18n';
 
 export interface NameDialogProps {
   title: string;
@@ -16,10 +17,12 @@ export function NameDialog({
   title,
   label,
   defaultValue = '',
-  confirmLabel = 'Speichern',
+  confirmLabel,
   onCancel,
   onConfirm,
 }: NameDialogProps) {
+  const t = useT();
+  const confirmText = confirmLabel ?? t('preview.fill.save');
   const [value, setValue] = useState(defaultValue);
   return createPortal(
     <div
@@ -44,7 +47,7 @@ export function NameDialog({
         </label>
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="secondary" size="sm" onClick={onCancel}>
-            Abbrechen
+            {t('preview.fill.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -52,7 +55,7 @@ export function NameDialog({
             disabled={value.trim() === ''}
             onClick={() => onConfirm(value.trim())}
           >
-            {confirmLabel}
+            {confirmText}
           </Button>
         </div>
       </div>

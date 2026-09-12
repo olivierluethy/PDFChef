@@ -34,7 +34,7 @@ export async function detectBlankPages(
     try {
       const canvas = new OffscreenCanvas(img.width, img.height);
       const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Kein 2D-Kontext für die Erkennung verfügbar.');
+      if (!ctx) throw new Error('No 2D context available for detection.');
       ctx.drawImage(img, 0, 0);
       const { data } = ctx.getImageData(0, 0, img.width, img.height);
 

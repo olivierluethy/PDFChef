@@ -22,7 +22,7 @@ export function analyzeExport(plan: ExportPlan): ExportWarning[] {
       severity: 'warn',
       kind: 'empty',
       outputId: skipped.outputId,
-      message: `"${skipped.name}" ist leer und wird nicht exportiert.`,
+      message: `"${skipped.name}" is empty and will not be exported.`,
     });
   }
 
@@ -32,7 +32,7 @@ export function analyzeExport(plan: ExportPlan): ExportWarning[] {
       severity: 'info',
       kind: 'renamed',
       outputId: entry.outputId,
-      message: `"${entry.renamedFrom}" heisst wie ein anderes Dokument im selben Ordner und wird als "${entry.fileName}" exportiert.`,
+      message: `"${entry.renamedFrom}" has the same name as another document in the same folder and will be exported as "${entry.fileName}".`,
     });
   }
 

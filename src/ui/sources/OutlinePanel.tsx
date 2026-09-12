@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BookOpen, ChevronDown, ChevronRight } from 'lucide-react';
 import type { OutlineNode } from '../../domain/types';
+import { useT } from '../i18n';
 
 export interface OutlinePanelProps {
   outline: OutlineNode[];
@@ -13,6 +14,7 @@ export interface OutlinePanelProps {
  * Rein darstellend: kein Store-Zugriff, keine Persistenz.
  */
 export function OutlinePanel({ outline, blockCount, onNavigate }: OutlinePanelProps) {
+  const t = useT();
   const [expanded, setExpanded] = useState(true);
 
   function navigate(blockIndex: number) {
@@ -30,7 +32,7 @@ export function OutlinePanel({ outline, blockCount, onNavigate }: OutlinePanelPr
       >
         {expanded ? <ChevronDown className="size-3.5" aria-hidden /> : <ChevronRight className="size-3.5" aria-hidden />}
         <BookOpen className="size-4" aria-hidden />
-        Kapitel
+        {t('sources.outline.chapters')}
       </button>
       {expanded && (
         <ul className="max-h-48 overflow-auto px-1 pb-2">

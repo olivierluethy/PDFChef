@@ -49,7 +49,7 @@ describe('checkWorkspaceInvariants', () => {
     ws.nodes[IDS.tax].parentId = IDS.folderBank;
     ws.childOrder[IDS.folderBank] = [IDS.tax];
     ws.childOrder['root'] = [];
-    expect(checkWorkspaceInvariants(ws).join('\n')).toContain('Vorfahre');
+    expect(checkWorkspaceInvariants(ws).join('\n')).toContain('ancestor');
   });
 
   it('meldet eine Node, die in einem Output statt in einem Ordner liegt (Invariante 1)', () => {
@@ -57,7 +57,7 @@ describe('checkWorkspaceInvariants', () => {
     ws.nodes[IDS.folderBank].parentId = IDS.outInsurance;
     ws.childOrder[IDS.tax] = ws.childOrder[IDS.tax].filter((id) => id !== IDS.folderBank);
     ws.childOrder[IDS.outInsurance] = [IDS.folderBank];
-    expect(checkWorkspaceInvariants(ws).join('\n')).toContain('kein Ordner');
+    expect(checkWorkspaceInvariants(ws).join('\n')).toContain('is not a folder');
   });
 });
 
@@ -65,7 +65,7 @@ describe('assertWorkspaceInvariants', () => {
   it('wirft mit allen Verletzungen im Text', () => {
     const ws = makeWorkspace();
     ws.items['i-c4'].blockIndex = 999;
-    expect(() => assertWorkspaceInvariants(ws)).toThrow(/Workspace-Invarianten verletzt/);
+    expect(() => assertWorkspaceInvariants(ws)).toThrow(/Workspace invariants violated/);
   });
 
   it('wirft nicht fuer einen gesunden Workspace', () => {

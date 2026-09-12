@@ -83,7 +83,7 @@ export function wireStores({
 }: WireStoresDeps): StoreContextValue {
   const selectionStore = createSelectionStore();
   const workspaceStore = createWorkspaceStore({
-    initial: initialWorkspace ?? createEmptyWorkspace({ id: 'ws-1', name: 'Neuer Arbeitsbereich' }),
+    initial: initialWorkspace ?? createEmptyWorkspace({ id: 'ws-1', name: 'New workspace' }),
     now,
     captureSelection: () => selectionStore.getState().snapshot(),
     restoreSelection: (snapshot) => selectionStore.getState().restore(snapshot),

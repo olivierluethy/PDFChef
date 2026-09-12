@@ -76,7 +76,7 @@ export const OVERLAY_FONT_CATEGORIES: { category: OverlayFontCategory; label: st
   { category: 'sans', label: 'Sans-Serif' },
   { category: 'serif', label: 'Serif' },
   { category: 'mono', label: 'Monospace' },
-  { category: 'hand', label: 'Handschrift' },
+  { category: 'hand', label: 'Handwriting' },
 ];
 
 export const DEFAULT_OVERLAY_FONT: OverlayFontKey = 'helvetica';

@@ -15,7 +15,7 @@ export function createRegistry(): AdapterRegistry {
   return {
     register(adapter) {
       if (adapters.some((known) => known.kind === adapter.kind)) {
-        throw new Error(`Adapter fuer ${adapter.kind} ist bereits registriert.`);
+        throw new Error(`An adapter for ${adapter.kind} is already registered.`);
       }
       adapters.push(adapter);
     },

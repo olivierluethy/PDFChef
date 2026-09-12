@@ -6,14 +6,17 @@ import '@fontsource-variable/ibm-plex-sans';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
 import { App } from './ui/app/App';
+import { I18nProvider } from './ui/i18n';
 import './ui/styles.css';
 
 const container = document.getElementById('root');
-if (!container) throw new Error('#root fehlt in index.html');
+if (!container) throw new Error('#root is missing in index.html');
 
 createRoot(container).render(
   <StrictMode>
-    <App />
+    <I18nProvider>
+      <App />
+    </I18nProvider>
   </StrictMode>,
 );
 

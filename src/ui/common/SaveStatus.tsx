@@ -1,5 +1,6 @@
 import type { SaveStatus as SaveStatusValue } from '../../services/persistence/autosave';
 import { cx } from './cx';
+import { useT } from '../i18n';
 
 export interface SaveStatusProps {
   status: SaveStatusValue;
@@ -11,18 +12,18 @@ interface View {
   pulse?: boolean;
 }
 
-function view(status: SaveStatusValue): View | null {
+function view(status: SaveStatusValue, t: ReturnType<typeof useT>): View | null {
   switch (status.kind) {
     case 'idle':
       return null;
     case 'pending':
     case 'saving':
-      return { label: 'Speichern …', dot: 'bg-text-secondary', pulse: true };
+      return { label: t('common.saveStatus.saving'), dot: 'bg-text-secondary', pulse: true };
     case 'saved':
-      return { label: 'Lokal gespeichert', dot: 'bg-success' };
+      return { label: t('common.saveStatus.saved'), dot: 'bg-success' };
     case 'error':
       return {
-        label: status.reason === 'quota' ? 'Nicht gespeichert — Speicher voll' : 'Nicht gespeichert',
+        label: status.reason === 'quota' ? t('common.saveStatus.errorQuota') : t('common.saveStatus.error'),
         dot: 'bg-danger',
       };
   }
@@ -33,7 +34,8 @@ function view(status: SaveStatusValue): View | null {
  * des Textes nie den Header verschiebt.
  */
 export function SaveStatus({ status }: SaveStatusProps) {
-  const v = view(status);
+  const t = useT();
+  const v = view(status, t);
   return (
     <span role="status" aria-live="polite" className="inline-flex min-w-[184px] items-center gap-2 text-[12px]">
       {v && (

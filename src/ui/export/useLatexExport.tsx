@@ -32,7 +32,7 @@ async function buildStructuredDocxLatex(bytes: Uint8Array, title: string): Promi
     if (!body.trim()) return null;
     return buildLatexDocument(title, [], body);
   } catch (error) {
-    console.debug('Strukturierte DOCX-LaTeX-Konvertierung fehlgeschlagen', error);
+    console.debug('Structured DOCX-to-LaTeX conversion failed', error);
     return null;
   }
 }
@@ -77,12 +77,12 @@ export function useLatexExport(): { runForSource(sourceId: SourceId): Promise<vo
               continue;
             }
             try {
-              if (!services.adapter.extractText) throw new Error('keine Textextraktion');
+              if (!services.adapter.extractText) throw new Error('no text extraction available');
               const extracted = await services.adapter.extractText({ sourceId, blockIndex });
               await store.put(sourceId, extracted);
               pages.push(extracted.text);
             } catch (error) {
-              console.debug('Kein extrahierbarer Text auf Seite', blockIndex, error);
+              console.debug('No extractable text on page', blockIndex, error);
               pages.push('');
             }
           }
@@ -92,7 +92,7 @@ export function useLatexExport(): { runForSource(sourceId: SourceId): Promise<vo
         const blob = new Blob([tex], { type: 'application/x-tex' });
         download(blob, texFileName(source.name));
       } catch (error) {
-        console.error('LaTeX-Export fehlgeschlagen', error);
+        console.error('LaTeX export failed', error);
       } finally {
         setBusy(false);
       }

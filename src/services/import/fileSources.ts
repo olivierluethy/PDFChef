@@ -53,7 +53,7 @@ function readFile(entry: FileEntryLike): Promise<File | undefined> {
       (file) => resolve(file),
       (error) => {
         // Eine einzelne unlesbare Datei darf den ganzen Import nicht kippen.
-        console.warn(`Datei ${entry.name} konnte nicht gelesen werden`, error);
+        console.warn(`Could not read file ${entry.name}`, error);
         resolve(undefined);
       },
     );
@@ -66,7 +66,7 @@ function readBatch(reader: ReturnType<DirectoryEntryLike['createReader']>): Prom
     reader.readEntries(
       (entries) => resolve(entries),
       (error) => {
-        console.warn('Verzeichnis konnte nicht gelesen werden', error);
+        console.warn('Could not read directory', error);
         resolve([]);
       },
     );
@@ -81,7 +81,7 @@ export async function collectFromEntries(
 
   async function walk(entry: EntryLike, prefix: string[], depth: number): Promise<void> {
     if (depth > maxDepth) {
-      console.warn(`Verzeichnis ${entry.name} ist tiefer als ${maxDepth} Ebenen und wird uebersprungen.`);
+      console.warn(`Directory ${entry.name} is deeper than ${maxDepth} levels and is skipped.`);
       return;
     }
 
@@ -198,7 +198,7 @@ export async function collectFromZip(file: File): Promise<ImportCandidate[]> {
 
     return candidates;
   } catch (error) {
-    console.warn(`Archiv ${file.name} konnte nicht entpackt werden`, error);
+    console.warn(`Could not unpack archive ${file.name}`, error);
     return [];
   }
 }

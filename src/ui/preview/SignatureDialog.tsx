@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Eraser } from 'lucide-react';
 import { Button } from '../common/Button';
+import { useT } from '../i18n';
 
 const CANVAS_W = 600;
 const CANVAS_H = 200;
@@ -17,6 +18,7 @@ export interface SignatureDialogProps {
  * PNG uebergeben und spaeter als Bild-Overlay auf der Seite platziert.
  */
 export function SignatureDialog({ onCancel, onConfirm }: SignatureDialogProps) {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
@@ -79,9 +81,9 @@ export function SignatureDialog({ onCancel, onConfirm }: SignatureDialogProps) {
       }}
     >
       <div className="w-full max-w-lg rounded-xl bg-surface-panel p-5 shadow-[var(--float-shadow)] ring-1 ring-line-structural">
-        <h2 className="t-panel-title text-text-primary">Unterschrift</h2>
+        <h2 className="t-panel-title text-text-primary">{t('preview.signature.title')}</h2>
         <p className="mt-1 text-[12.5px] text-text-secondary">
-          Zeichne deine Unterschrift mit Maus, Trackpad oder Finger.
+          {t('preview.signature.hint')}
         </p>
         <canvas
           ref={canvasRef}
@@ -95,14 +97,14 @@ export function SignatureDialog({ onCancel, onConfirm }: SignatureDialogProps) {
         />
         <div className="mt-4 flex items-center gap-2">
           <Button variant="quiet" size="sm" icon={Eraser} onClick={clear}>
-            Löschen
+            {t('preview.signature.clear')}
           </Button>
           <div className="ml-auto flex gap-2">
             <Button variant="secondary" size="sm" onClick={onCancel}>
-              Abbrechen
+              {t('preview.signature.cancel')}
             </Button>
             <Button variant="primary" size="sm" disabled={!hasInk} onClick={confirm}>
-              Übernehmen
+              {t('preview.signature.apply')}
             </Button>
           </div>
         </div>

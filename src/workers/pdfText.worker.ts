@@ -35,7 +35,7 @@ self.onmessage = async (event: MessageEvent<ExtractRequest>) => {
     }
     post({ type: 'done', sourceId: request.sourceId });
   } catch (error) {
-    console.error('Textextraktion fehlgeschlagen', error);
-    post({ type: 'error', sourceId: request.sourceId, message: 'Der Text dieses Dokuments konnte nicht gelesen werden.' });
+    console.error('Text extraction failed', error);
+    post({ type: 'error', sourceId: request.sourceId, message: 'The text of this document could not be read.' });
   }
 };

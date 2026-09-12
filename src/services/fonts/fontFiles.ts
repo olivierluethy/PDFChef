@@ -7,6 +7,6 @@ const FONTS_URL = `${import.meta.env.BASE_URL}fonts/`;
 
 export async function loadFontBytes(file: string): Promise<Uint8Array> {
   const res = await fetch(`${FONTS_URL}${file}`);
-  if (!res.ok) throw new Error(`Schriftdatei ${file} konnte nicht geladen werden.`);
+  if (!res.ok) throw new Error(`Font file ${file} could not be loaded.`);
   return new Uint8Array(await res.arrayBuffer());
 }

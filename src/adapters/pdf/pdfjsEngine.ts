@@ -22,7 +22,7 @@ type RawOutline = Awaited<ReturnType<pdfjs.PDFDocumentProxy['getOutline']>>[numb
 export const createOffscreenSurface: CreateSurface = (width, height) => {
   const canvas = new OffscreenCanvas(width, height);
   const context = canvas.getContext('2d');
-  if (!context) throw new Error('Der Browser stellt keinen 2D-Kontext bereit.');
+  if (!context) throw new Error('The browser does not provide a 2D context.');
   return {
     width,
     height,
@@ -99,7 +99,7 @@ async function resolveDestination(
     return await doc.getPageIndex(target as Parameters<typeof doc.getPageIndex>[0]);
   } catch (error) {
     // Ein Bookmark ohne aufloesbares Ziel ist kein Grund, den Import abzubrechen.
-    console.warn('Bookmark-Ziel konnte nicht aufgeloest werden', error);
+    console.warn('Could not resolve bookmark target', error);
     return null;
   }
 }

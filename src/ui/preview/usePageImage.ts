@@ -26,7 +26,7 @@ export function usePageImage(ref: BlockRef, targetWidth: number): { url: string 
       })
       .catch((error) => {
         if (!active || controller.signal.aborted) return;
-        console.warn('Seite konnte nicht gerendert werden', error);
+        console.warn('Page could not be rendered', error);
         setStatus('error');
       });
     return () => {
