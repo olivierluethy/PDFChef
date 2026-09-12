@@ -94,11 +94,11 @@ export function createImageAdapter({
           status: 'ready',
         };
       } catch (error) {
-        console.warn('Bild konnte nicht gelesen werden', error);
+        console.warn('Could not read image', error);
         return {
           ...EMPTY_PROBE,
           status: 'error',
-          statusDetail: 'Dieses Bild konnte nicht gelesen werden. Es ist moeglicherweise beschaedigt.',
+          statusDetail: 'This image could not be read. It may be damaged.',
         };
       }
     },

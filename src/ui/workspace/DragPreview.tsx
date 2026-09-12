@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { spring, useMotionPrefs } from '../common/motion';
+import { useT } from '../i18n';
 
 export interface DragState {
   count: number;
@@ -9,11 +10,11 @@ export interface DragState {
   y: number;
 }
 
-const LABEL: Record<DragState['action'], string> = {
-  move: 'Verschieben',
-  copy: 'Kopieren',
-  add: 'Hinzufügen',
-  new: 'Neues Dokument',
+const LABEL_KEY: Record<DragState['action'], string> = {
+  move: 'workspace.drag.move',
+  copy: 'workspace.drag.copy',
+  add: 'workspace.drag.add',
+  new: 'workspace.drag.new',
 };
 
 const OFFSETS = [0, -2, 3]; // Rotationsversatz der bis zu drei Blaetter im Stapel.
@@ -25,6 +26,7 @@ const OFFSETS = [0, -2, 3]; // Rotationsversatz der bis zu drei Blaetter im Stap
  */
 export function DragPreview({ state }: { state: DragState }) {
   const prefs = useMotionPrefs();
+  const t = useT();
   const layers = Math.min(state.count, 3);
 
   return createPortal(
@@ -50,7 +52,7 @@ export function DragPreview({ state }: { state: DragState }) {
         </span>
       </div>
       <span className="mt-1.5 block w-max rounded bg-surface-raised px-1.5 py-0.5 text-[11px] font-medium text-text-primary shadow-[var(--float-shadow)]">
-        {LABEL[state.action]}
+        {t(LABEL_KEY[state.action])}
       </span>
     </motion.div>,
     document.body,

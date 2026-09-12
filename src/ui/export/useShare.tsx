@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { buildExportPlan, type ExportEntry, type ExportScope } from '../../domain/exportPlan';
 import type { NodeId } from '../../domain/types';
 import { useServices, useWorkspace } from '../app/StoreProvider';
+import { useT } from '../i18n';
 import { SharePanel } from './SharePanel';
 
 /**
@@ -41,18 +42,16 @@ function download(bytes: Uint8Array, fileName: string): void {
  * `mailto:` kann keinen Anhang tragen. Deshalb wird das PDF vorher heruntergeladen
  * und die Mail mit einem Hinweis vorbereitet, es anzuhaengen.
  */
-function openMail(fileName: string): void {
+function openMail(fileName: string, t: ReturnType<typeof useT>): void {
   const subject = encodeURIComponent(fileName);
-  const body = encodeURIComponent(
-    `Anbei das Dokument "${fileName}".\n\n` +
-      'Hinweis: Das PDF wurde soeben heruntergeladen -- bitte haenge es dieser E-Mail an.',
-  );
+  const body = encodeURIComponent(t('export.share.mailBody', { name: fileName }));
   window.location.href = `mailto:?subject=${subject}&body=${body}`;
 }
 
 export function useShare(): ShareController {
   const services = useServices();
   const workspace = useWorkspace();
+  const t = useT();
   const [scope, setScope] = useState<ExportScope | null>(null);
   const [statuses, setStatuses] = useState<Record<NodeId, ShareStatus>>({});
   const [busy, setBusy] = useState(false);
@@ -104,21 +103,21 @@ export function useShare(): ShareController {
         } else {
           // Ohne Datei-Teilen: herunterladen und Mail vorbereiten.
           download(bytes, entry.fileName);
-          openMail(entry.fileName);
+          openMail(entry.fileName, t);
           setStatuses((prev) => ({ ...prev, [outputId]: 'emailed' }));
         }
       } catch (error) {
         if ((error as Error)?.name === 'AbortError') {
           setStatuses((prev) => ({ ...prev, [outputId]: 'cancelled' }));
         } else {
-          console.error('Teilen fehlgeschlagen', error);
+          console.error('Share failed', error);
           setStatuses((prev) => ({ ...prev, [outputId]: 'error' }));
         }
       } finally {
         setBusy(false);
       }
     },
-    [entryFor, assembleBytes],
+    [entryFor, assembleBytes, t],
   );
 
   const emailOne = useCallback(
@@ -130,16 +129,16 @@ export function useShare(): ShareController {
       try {
         const bytes = await assembleBytes(entry);
         download(bytes, entry.fileName);
-        openMail(entry.fileName);
+        openMail(entry.fileName, t);
         setStatuses((prev) => ({ ...prev, [outputId]: 'emailed' }));
       } catch (error) {
-        console.error('E-Mail vorbereiten fehlgeschlagen', error);
+        console.error('Preparing email failed', error);
         setStatuses((prev) => ({ ...prev, [outputId]: 'error' }));
       } finally {
         setBusy(false);
       }
     },
-    [entryFor, assembleBytes],
+    [entryFor, assembleBytes, t],
   );
 
   return {

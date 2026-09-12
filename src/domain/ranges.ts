@@ -18,28 +18,29 @@ export type ParseRangesResult =
 export function parseRanges(input: string, blockCount: number): ParseRangesResult {
   const trimmed = input.trim();
   if (trimmed === '') return { ok: true, ranges: [], indices: [] };
-  if (blockCount <= 0) return { ok: false, error: 'Das Dokument hat keine Seiten.' };
+  if (blockCount <= 0) return { ok: false, error: 'The document has no pages.' };
 
   const parsed: RangeSpec[] = [];
   for (const part of trimmed.split(',')) {
     const token = part.trim();
-    if (token === '') return { ok: false, error: `Leerer Bereich in "${trimmed}".` };
+    if (token === '') return { ok: false, error: `Empty range in "${trimmed}".` };
 
     const segments = token.split('-').map((segment) => segment.trim());
     if (segments.length > 2 || segments.some((segment) => !/^\d+$/.test(segment))) {
       return {
         ok: false,
-        error: `"${token}" ist kein Seitenbereich. Erlaubt sind z. B. 7 oder 4-49.`,
+        error: `"${token}" is not a page range. Examples: 7 or 4-49.`,
       };
     }
 
     const first = Number(segments[0]);
     const second = segments.length === 2 ? Number(segments[1]) : first;
-    if (first === 0 || second === 0) return { ok: false, error: 'Seitenzahlen beginnen bei 1.' };
+    if (first === 0 || second === 0) return { ok: false, error: 'Page numbers start at 1.' };
 
     const start = Math.min(first, second);
     const end = Math.max(first, second);
-    if (start > blockCount) return { ok: false, error: `Das Dokument hat nur ${blockCount} Seiten.` };
+    if (start > blockCount)
+      return { ok: false, error: `The document has only ${blockCount} pages.` };
 
     parsed.push({ start, end: Math.min(end, blockCount) });
   }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { BlockRef } from '../../domain/types';
 import { THUMBNAIL_WIDTH } from '../../services/thumbnails/thumbnailService';
 import { useServices } from '../app/StoreProvider';
+import { useT } from '../i18n';
 
 export interface ThumbnailProps {
   blockRef: BlockRef;
@@ -19,6 +20,7 @@ export function Thumbnail({
   alt,
   onNaturalAspect,
 }: ThumbnailProps) {
+  const t = useT();
   const { thumbnails } = useServices();
   // Synchroner Blick in den Speicher-Cache: ein bereits gerendertes Thumbnail
   // erscheint ohne Flackern und ohne einen zweiten Renderauftrag.
@@ -38,7 +40,7 @@ export function Thumbnail({
       })
       .catch((error) => {
         // Ein abgebrochener Auftrag (Wegscrollen) ist kein Fehler fuer den Nutzer.
-        console.debug('Thumbnail nicht gerendert', error);
+        console.debug('Thumbnail not rendered', error);
       });
     return () => {
       active = false;
@@ -51,7 +53,7 @@ export function Thumbnail({
     return (
       <div
         className="h-full w-full animate-pulse rounded-[2px] bg-black/[0.06]"
-        aria-label={`${alt} wird geladen`}
+        aria-label={t('common.thumbnail.loading', { alt })}
       />
     );
   }

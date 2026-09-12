@@ -7,6 +7,7 @@ import {
   overlayFontSpec,
 } from '../../../domain/overlayFonts';
 import { cx } from '../../common/cx';
+import { useT } from '../../i18n';
 
 /**
  * Eigenes Schriftart-Dropdown statt eines nativen <select>: In einem Overlay
@@ -15,6 +16,7 @@ import { cx } from '../../common/cx';
  * in ihrer eigenen Familie -- und schliesst bei Aussenklick oder Escape.
  */
 export function FontPicker({ value, onChange }: { value: string; onChange(key: string): void }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   const current = overlayFontSpec(value);
@@ -41,7 +43,7 @@ export function FontPicker({ value, onChange }: { value: string; onChange(key: s
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
-        title="Schriftart"
+        title={t('preview.fill.fontFamily')}
         onClick={() => setOpen((o) => !o)}
         className="flex h-6 items-center gap-1 rounded-md bg-surface-panel px-1.5 text-[11.5px] text-text-primary outline-none ring-1 ring-line-structural hover:bg-surface-hover focus:ring-accent"
       >

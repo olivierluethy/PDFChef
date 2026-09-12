@@ -10,6 +10,7 @@ import {
 import { newId } from '../../domain/ids';
 import type { DetectedField } from '../../adapters/types';
 import { useDispatch, useServices, useWorkspace } from '../app/StoreProvider';
+import { useT } from '../i18n';
 import type { DragOrigin } from '../workspace/dragLogic';
 import { Viewer, type ViewerPage } from './Viewer';
 
@@ -49,6 +50,7 @@ export interface PreviewPaneProps {
 }
 
 export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: PreviewPaneProps) {
+  const t = useT();
   const workspace = useWorkspace();
   const dispatch = useDispatch();
   const services = useServices();
@@ -61,7 +63,7 @@ export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: Previ
     // Ein Batch, damit die Erkennung als ein einziger Undo-Schritt zaehlt.
     dispatch({
       type: 'batch',
-      label: 'Formularfelder erkannt',
+      label: t('preview.detectFieldsLabel'),
       commands: fields.map((field) => ({
         type: 'addOverlay',
         itemId,
@@ -80,7 +82,7 @@ export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: Previ
         .map(({ itemId, item }) => ({
           ref: { sourceId: item.sourceId, blockIndex: item.blockIndex },
           rotation: item.rotation,
-          sourceName: workspace.sources[item.sourceId]?.name ?? 'Quelle',
+          sourceName: workspace.sources[item.sourceId]?.name ?? t('preview.sourceFallback'),
           pageNumber: item.blockIndex + 1,
           // Eine Ausgabeseite wird beim Ziehen zwischen Dokumenten verschoben/kopiert.
           dragOrigin: { kind: 'output', outputId: target.id, itemIds: [itemId] },
@@ -115,7 +117,10 @@ export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: Previ
         if (list.length === 0) return;
         dispatch({
           type: 'batch',
-          label: list.length === 1 ? 'Element hinzugefügt' : `${list.length} Elemente hinzugefügt`,
+          label:
+            list.length === 1
+              ? t('preview.addedOne')
+              : t('preview.addedMany', { n: list.length }),
           commands: list.map((overlay) => ({ type: 'addOverlay', itemId, overlay })),
         });
       }}
@@ -126,7 +131,7 @@ export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: Previ
         if (updates.length === 0) return;
         dispatch({
           type: 'batch',
-          label: 'Elemente bearbeitet',
+          label: t('preview.edited'),
           commands: updates.map(({ id, patch }) => ({
             type: 'updateOverlay',
             itemId,
@@ -142,12 +147,13 @@ export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: Previ
         if (ids.length === 0) return;
         dispatch({
           type: 'batch',
-          label: ids.length === 1 ? 'Element entfernt' : `${ids.length} Elemente entfernt`,
+          label:
+            ids.length === 1 ? t('preview.removedOne') : t('preview.removedMany', { n: ids.length }),
           commands: ids.map((overlayId) => ({ type: 'removeOverlay', itemId, overlayId })),
         });
       }}
       onDetectFields={(itemId) => void detectFields(itemId)}
-      emptyLabel="Wähle eine Quelle oder ein Dokument für die Vorschau."
+      emptyLabel={t('preview.previewEmpty')}
     />
   );
 }

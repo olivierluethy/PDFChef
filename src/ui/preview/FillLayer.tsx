@@ -12,6 +12,7 @@ import type { Overlay, ShapeKind } from '../../domain/types';
 import type { LibraryItemKind, LibraryItemRecord } from '../../services/persistence/db';
 import { useLibraryStore } from '../app/StoreProvider';
 import { cx } from '../common/cx';
+import { useT } from '../i18n';
 import { ensureOverlayFontFaces } from '../text/overlayFontFaces';
 import { OverlayShape } from './OverlayShape';
 import { SignatureDialog } from './SignatureDialog';
@@ -105,6 +106,7 @@ export function FillLayer({
   onRemoveMany,
   onDetect,
 }: FillLayerProps) {
+  const t = useT();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const library = useLibraryStore();
   const [tool, setTool] = useState<Tool>('text');
@@ -673,8 +675,8 @@ export function FillLayer({
               {singleSelected && (
                 <span
                   onPointerDown={(e) => beginResize(e, overlay, 'free')}
-                  title="Größe ändern"
-                  aria-label="Größe ändern"
+                  title={t('preview.fill.resize')}
+                  aria-label={t('preview.fill.resize')}
                   className="absolute -bottom-1.5 -right-1.5 z-20 size-3 cursor-nwse-resize touch-none rounded-sm bg-accent ring-2 ring-surface-canvas"
                 />
               )}
@@ -690,7 +692,7 @@ export function FillLayer({
                 <img
                   key={overlay.id}
                   src={overlay.dataUrl}
-                  alt="Unterschrift"
+                  alt={t('preview.fill.signatureAlt')}
                   draggable={false}
                   className="absolute object-contain"
                   style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%` }}
@@ -714,7 +716,7 @@ export function FillLayer({
             >
               <img
                 src={overlay.dataUrl}
-                alt="Unterschrift"
+                alt={t('preview.fill.signatureAlt')}
                 className="h-full w-full object-contain"
                 draggable={false}
               />
@@ -722,7 +724,7 @@ export function FillLayer({
                 <span
                   onPointerDown={(e) => beginResize(e, overlay, 'aspect')}
                   className="absolute -bottom-1.5 -right-1.5 z-20 size-3 cursor-nwse-resize rounded-sm bg-accent ring-2 ring-surface-canvas"
-                  aria-label="Größe ändern"
+                  aria-label={t('preview.fill.resize')}
                 />
               )}
             </div>
@@ -756,8 +758,8 @@ export function FillLayer({
             {selected && (
               <span
                 onPointerDown={(e) => beginMove(e, overlay)}
-                title="Zum Verschieben ziehen"
-                aria-label="Feld verschieben"
+                title={t('preview.fill.moveDrag')}
+                aria-label={t('preview.fill.moveField')}
                 className="absolute left-0 top-0 z-20 flex h-full w-5 -translate-x-full cursor-grab touch-none items-center justify-center rounded-l-md bg-accent text-on-accent active:cursor-grabbing"
               >
                 <GripVertical className="size-3.5" aria-hidden />
@@ -819,8 +821,8 @@ export function FillLayer({
             {singleSelected && (
               <span
                 onPointerDown={(e) => beginResize(e, overlay, 'width')}
-                title="Breite ändern"
-                aria-label="Breite ändern"
+                title={t('preview.fill.resizeWidth')}
+                aria-label={t('preview.fill.resizeWidth')}
                 className="absolute right-0 top-1/2 z-20 size-3 -translate-y-1/2 translate-x-1/2 cursor-ew-resize touch-none rounded-full bg-accent ring-2 ring-surface-canvas"
               />
             )}
@@ -891,8 +893,8 @@ export function FillLayer({
 
       {saveDialog && (
         <NameDialog
-          title="In Bibliothek speichern"
-          label="Name des Bausteins"
+          title={t('preview.fill.saveToLibrary')}
+          label={t('preview.fill.blockNameLabel')}
           defaultValue=""
           onCancel={() => setSaveDialog(null)}
           onConfirm={(name) => {

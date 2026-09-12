@@ -91,7 +91,7 @@ export function useExport(): ExportController {
         if (artifact.kind === 'zip') download(artifact.blob, artifact.fileName);
         close();
       } catch (error) {
-        console.error('Export fehlgeschlagen oder abgebrochen', error);
+        console.error('Export failed or was cancelled', error);
         setProgress(null);
       }
     },
@@ -122,7 +122,7 @@ export function useExport(): ExportController {
         });
         setExported((prev) => new Set(prev).add(outputId));
       } catch (error) {
-        console.error('Einzel-Export fehlgeschlagen oder abgebrochen', error);
+        console.error('Single-document export failed or was cancelled', error);
       } finally {
         setProgress(null);
       }

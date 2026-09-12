@@ -5,6 +5,7 @@ import type { NodeId } from '../../domain/types';
 import { Button } from '../common/Button';
 import { IconButton } from '../common/IconButton';
 import { overlayVariants, tween, useMotionPrefs } from '../common/motion';
+import { useT } from '../i18n';
 import type { ShareStatus } from './useShare';
 
 export interface SharePanelProps {
@@ -18,40 +19,41 @@ export interface SharePanelProps {
   onClose(): void;
 }
 
-function pages(count: number): string {
-  return count === 1 ? '1 Seite' : `${count} Seiten`;
+function pages(count: number, t: ReturnType<typeof useT>): string {
+  return count === 1 ? t('export.pageOne') : t('export.pageCount', { count });
 }
 
 function StatusBadge({ status }: { status: ShareStatus }) {
+  const t = useT();
   switch (status) {
     case 'building':
       return (
         <span className="flex items-center gap-1 text-[12px] text-text-secondary">
-          <Loader2 className="size-3.5 animate-spin" /> wird vorbereitet …
+          <Loader2 className="size-3.5 animate-spin" /> {t('export.preparing')}
         </span>
       );
     case 'shared':
       return (
         <span className="flex items-center gap-1 text-[12px] text-success">
-          <Check className="size-3.5" /> geteilt
+          <Check className="size-3.5" /> {t('export.share.shared')}
         </span>
       );
     case 'emailed':
       return (
         <span className="flex items-center gap-1 text-[12px] text-info">
-          <Mail className="size-3.5" /> heruntergeladen — Mail geöffnet
+          <Mail className="size-3.5" /> {t('export.share.emailed')}
         </span>
       );
     case 'cancelled':
-      return <span className="text-[12px] text-text-tertiary">abgebrochen</span>;
+      return <span className="text-[12px] text-text-tertiary">{t('export.share.cancelled')}</span>;
     case 'error':
       return (
         <span className="flex items-center gap-1 text-[12px] text-danger">
-          <TriangleAlert className="size-3.5" /> Fehler
+          <TriangleAlert className="size-3.5" /> {t('export.error')}
         </span>
       );
     default:
-      return <span className="text-[12px] text-text-tertiary">bereit</span>;
+      return <span className="text-[12px] text-text-tertiary">{t('export.ready')}</span>;
   }
 }
 
@@ -64,6 +66,7 @@ export function SharePanel({
   onEmail,
   onClose,
 }: SharePanelProps) {
+  const t = useT();
   const prefs = useMotionPrefs();
   const nothing = plan.entries.length === 0;
 
@@ -71,7 +74,7 @@ export function SharePanel({
     <div
       className="fixed inset-0 z-40 grid place-items-center bg-black/60 p-4"
       role="dialog"
-      aria-label="Teilen"
+      aria-label={t('export.share.title')}
     >
       <motion.div
         initial="hidden"
@@ -82,22 +85,18 @@ export function SharePanel({
       >
         <div className="flex items-center justify-between border-b border-line-structural px-5 py-3.5">
           <h2 className="t-panel-title flex items-center gap-2 text-text-primary">
-            <Share2 className="size-4" aria-hidden /> Teilen &amp; E-Mail
+            <Share2 className="size-4" aria-hidden /> {t('export.share.heading')}
           </h2>
-          <IconButton icon={X} label="Schliessen" onClick={onClose} />
+          <IconButton icon={X} label={t('export.close')} onClick={onClose} />
         </div>
 
         <div className="min-h-0 flex-1 overflow-auto px-5 py-4 text-[13px]">
           {nothing ? (
-            <p className="text-text-secondary">
-              Es gibt noch keine gefüllten Dokumente zum Teilen. Zieh zuerst Seiten in ein Dokument.
-            </p>
+            <p className="text-text-secondary">{t('export.share.emptyState')}</p>
           ) : (
             <>
               <p className="mb-4 text-text-secondary">
-                {canShare
-                  ? 'Über „Teilen“ öffnet sich der Teilen-Dialog deines Geräts (inkl. Mail). „E-Mail“ lädt das PDF herunter und bereitet eine Mail vor, an die du es anhängst.'
-                  : 'Dein Browser kann Dateien nicht direkt teilen. „E-Mail“ lädt das PDF herunter und bereitet eine Mail vor, an die du es anhängst.'}
+                {canShare ? t('export.share.introCanShare') : t('export.share.introNoShare')}
               </p>
               <ul className="flex flex-col gap-1.5">
                 {plan.entries.map((entry) => {
@@ -115,7 +114,7 @@ export function SharePanel({
                           {entry.fileName}
                         </span>
                         <span className="font-mono text-[12px] tabular-nums text-text-secondary">
-                          {pages(entry.items.length)}
+                          {pages(entry.items.length, t)}
                         </span>
                       </div>
                       <StatusBadge status={status} />
@@ -126,7 +125,7 @@ export function SharePanel({
                         onClick={() => onEmail(entry.outputId)}
                         disabled={busy}
                       >
-                        E-Mail
+                        {t('export.share.email')}
                       </Button>
                       {canShare && (
                         <Button
@@ -136,7 +135,7 @@ export function SharePanel({
                           onClick={() => onShare(entry.outputId)}
                           disabled={busy}
                         >
-                          Teilen
+                          {t('export.share.share')}
                         </Button>
                       )}
                     </li>
@@ -145,9 +144,9 @@ export function SharePanel({
               </ul>
               {plan.skipped.length > 0 && (
                 <p className="mt-3 text-[12px] text-text-secondary">
-                  {plan.skipped.length} leere
-                  {plan.skipped.length === 1 ? 's Dokument wird' : ' Dokumente werden'}{' '}
-                  übersprungen.
+                  {plan.skipped.length === 1
+                    ? t('export.skippedOne', { count: plan.skipped.length })
+                    : t('export.skippedOther', { count: plan.skipped.length })}
                 </p>
               )}
             </>

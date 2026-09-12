@@ -26,7 +26,7 @@ interface Entry {
 }
 
 function abortError(): Error {
-  return new Error('Der Renderauftrag wurde abgebrochen.');
+  return new Error('The render job was aborted.');
 }
 
 export function createRenderQueue({ concurrency = 3 }: { concurrency?: number } = {}): RenderQueue {

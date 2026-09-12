@@ -7,6 +7,7 @@ import { Menu } from '../common/Menu';
 import { SaveStatus as SaveStatusView } from '../common/SaveStatus';
 import { Tooltip } from '../common/Tooltip';
 import { cx } from '../common/cx';
+import { useI18n, useT } from '../i18n';
 import { useDispatch, useServices, useWorkspace } from './StoreProvider';
 
 export interface HeaderProps {
@@ -21,6 +22,7 @@ export interface HeaderProps {
 const folderAttrs = { webkitdirectory: '', directory: '' } as Record<string, string>;
 
 export function Header({ onImportFiles, onExport, onPrint, onShare, saveStatus }: HeaderProps) {
+  const t = useT();
   const workspace = useWorkspace();
   const services = useServices();
   const fileInput = useRef<HTMLInputElement | null>(null);
@@ -36,7 +38,7 @@ export function Header({ onImportFiles, onExport, onPrint, onShare, saveStatus }
       role="banner"
       className="flex h-14 items-center gap-3 border-b border-line-structural bg-surface-panel px-4"
     >
-      <span className="t-panel-title select-none text-text-primary">PDF-Master</span>
+      <span className="t-panel-title select-none text-text-primary">PDFChef</span>
       <span aria-hidden className="h-5 w-px bg-line-structural" />
 
       <WorkspaceName />
@@ -87,7 +89,7 @@ export function Header({ onImportFiles, onExport, onPrint, onShare, saveStatus }
             onClick={() => pick(fileInput.current)}
             className="inline-flex h-8 items-center gap-1.5 px-3 text-[12.5px] font-medium text-text-primary hover:bg-surface-hover"
           >
-            <FolderUp className="size-4" aria-hidden /> Importieren
+            <FolderUp className="size-4" aria-hidden /> {t('header.import')}
           </button>
           <span aria-hidden className="my-1 w-px bg-line-structural" />
           <Menu
@@ -96,19 +98,19 @@ export function Header({ onImportFiles, onExport, onPrint, onShare, saveStatus }
             items={[
               {
                 id: 'files',
-                label: 'Dateien wählen …',
+                label: t('header.chooseFiles'),
                 icon: FileText,
                 onSelect: () => pick(fileInput.current),
               },
               {
                 id: 'folder',
-                label: 'Ordner wählen …',
+                label: t('header.chooseFolder'),
                 icon: FolderUp,
                 onSelect: () => pick(folderInput.current),
               },
               {
                 id: 'zip',
-                label: 'ZIP-Archiv wählen …',
+                label: t('header.chooseZip'),
                 icon: FileText,
                 onSelect: () => pick(zipInput.current),
               },
@@ -118,7 +120,7 @@ export function Header({ onImportFiles, onExport, onPrint, onShare, saveStatus }
                 ref={ref}
                 type="button"
                 onClick={toggle}
-                aria-label="Weitere Importoptionen"
+                aria-label={t('header.moreImportOptions')}
                 className="inline-grid h-8 w-8 place-items-center text-text-secondary hover:bg-surface-hover hover:text-text-primary"
                 {...ariaProps}
               >
@@ -129,14 +131,14 @@ export function Header({ onImportFiles, onExport, onPrint, onShare, saveStatus }
         </div>
 
         <Button variant="secondary" icon={Share2} onClick={onShare} disabled={!hasOutputs}>
-          Teilen
+          {t('header.share')}
         </Button>
 
         <Button variant="secondary" icon={Printer} onClick={onPrint}>
-          Drucken
+          {t('header.print')}
         </Button>
 
-        <Tooltip label={hasOutputs ? '' : 'Lege zuerst ein Ausgabedokument mit Seiten an.'}>
+        <Tooltip label={hasOutputs ? '' : t('header.exportDisabledHint')}>
           <Button
             variant="primary"
             size="lg"
@@ -144,9 +146,11 @@ export function Header({ onImportFiles, onExport, onPrint, onShare, saveStatus }
             onClick={onExport}
             disabled={!hasOutputs}
           >
-            Exportieren
+            {t('header.export')}
           </Button>
         </Tooltip>
+
+        <LanguageSwitcher />
       </div>
     </header>
   );
@@ -157,6 +161,7 @@ export function Header({ onImportFiles, onExport, onPrint, onShare, saveStatus }
  * Stift-Andeutung, per Klick oder F2 in ein Eingabefeld verwandelt.
  */
 function WorkspaceName() {
+  const t = useT();
   const workspace = useWorkspace();
   const dispatch = useDispatch();
   const [editing, setEditing] = useState(false);
@@ -186,7 +191,7 @@ function WorkspaceName() {
             setEditing(false);
           }
         }}
-        aria-label="Name des Arbeitsbereichs"
+        aria-label={t('header.workspaceNameLabel')}
         className="h-8 w-56 rounded-md bg-surface-raised px-2 text-[13.5px] text-text-primary ring-1 ring-line-structural"
       />
     );
@@ -203,7 +208,7 @@ function WorkspaceName() {
           setEditing(true);
         }
       }}
-      title="Umbenennen (F2)"
+      title={t('header.renameF2')}
       className={cx(
         'group inline-flex h-8 max-w-[16rem] items-center gap-1.5 rounded-md px-2 text-[13.5px] text-text-primary hover:bg-surface-hover',
       )}
@@ -214,5 +219,41 @@ function WorkspaceName() {
         aria-hidden
       />
     </button>
+  );
+}
+
+/**
+ * Compact language toggle (English / German). The choice is persisted by the
+ * I18nProvider, so it survives reloads.
+ */
+function LanguageSwitcher() {
+  const { locale, setLocale, t } = useI18n();
+  const options: { id: 'en' | 'de'; label: string }[] = [
+    { id: 'en', label: 'EN' },
+    { id: 'de', label: 'DE' },
+  ];
+  return (
+    <div
+      role="group"
+      aria-label={t('header.language')}
+      className="flex items-stretch overflow-hidden rounded-md border border-line-structural bg-surface-raised"
+    >
+      {options.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          onClick={() => setLocale(option.id)}
+          aria-pressed={locale === option.id}
+          className={cx(
+            'h-8 px-2.5 text-[12px] font-medium transition-colors',
+            locale === option.id
+              ? 'bg-surface-hover text-text-primary'
+              : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary',
+          )}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
   );
 }

@@ -100,7 +100,7 @@ async function extractDocxText(bytes: Uint8Array, entries: Unzipped): Promise<st
       const { text, hasBreaks } = docxXmlToText(new TextDecoder().decode(documentXml));
       if (hasBreaks) return text;
     } catch (error) {
-      console.warn('DOCX-Seitenumbrueche konnten nicht ausgewertet werden', error);
+      console.warn('Could not evaluate DOCX page breaks', error);
     }
   }
 
@@ -108,8 +108,8 @@ async function extractDocxText(bytes: Uint8Array, entries: Unzipped): Promise<st
     const { value } = await mammoth.extractRawText({ arrayBuffer: bytes.slice().buffer });
     return value;
   } catch (error) {
-    console.warn('DOCX konnte nicht gelesen werden', error);
-    throw new Error('Diese Datei konnte nicht als Text gelesen werden.');
+    console.warn('Could not read DOCX', error);
+    throw new Error('This file could not be read as text.');
   }
 }
 
@@ -120,8 +120,8 @@ function extractXlsxText(bytes: Uint8Array): string {
       (name) => `# ${name}\n` + XLSX.utils.sheet_to_csv(workbook.Sheets[name]),
     ).join('\n\n');
   } catch (error) {
-    console.warn('XLSX konnte nicht gelesen werden', error);
-    throw new Error('Diese Datei konnte nicht als Text gelesen werden.');
+    console.warn('Could not read XLSX', error);
+    throw new Error('This file could not be read as text.');
   }
 }
 
@@ -145,8 +145,8 @@ function extractPptxText(entries: Unzipped): string {
 
     return slideTexts.join('\n\n');
   } catch (error) {
-    console.warn('PPTX konnte nicht gelesen werden', error);
-    throw new Error('Diese Datei konnte nicht als Text gelesen werden.');
+    console.warn('Could not read PPTX', error);
+    throw new Error('This file could not be read as text.');
   }
 }
 
@@ -164,7 +164,7 @@ export async function extractTextContent(bytes: Uint8Array): Promise<string> {
   try {
     entries = unzipSync(bytes);
   } catch (error) {
-    console.warn('ZIP-Container konnte nicht gelesen werden', error);
+    console.warn('Could not read ZIP container', error);
     return new TextDecoder().decode(bytes);
   }
 

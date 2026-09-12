@@ -61,19 +61,19 @@ export function createPdfAdapter({
         document = await engine.open(bytes);
       } catch (error) {
         // Der Stacktrace gehoert in die Konsole, nicht in die Oberflaeche.
-        console.warn('PDF konnte nicht geoeffnet werden', error);
+        console.warn('Could not open PDF', error);
         if (engine.isPasswordError(error)) {
           return {
             ...EMPTY_PROBE,
             status: 'encrypted',
-            statusDetail: 'Diese PDF ist mit einem Passwort geschuetzt.',
+            statusDetail: 'This PDF is password protected.',
           };
         }
         return {
           ...EMPTY_PROBE,
           status: 'error',
           statusDetail:
-            'Diese PDF konnte nicht gelesen werden. Sie ist moeglicherweise beschaedigt oder verschluesselt.',
+            'This PDF could not be read. It may be damaged or encrypted.',
         };
       }
 

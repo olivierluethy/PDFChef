@@ -4,8 +4,10 @@ import type { Command } from '../../domain/commands';
 import { findDuplicateSourceGroups, removableDuplicateSourceIds } from '../../domain/duplicates';
 import { Button } from '../common/Button';
 import { useDispatch, useWorkspace } from '../app/StoreProvider';
+import { useT } from '../i18n';
 
 export function DuplicatesNotice() {
+  const t = useT();
   const workspace = useWorkspace();
   const dispatch = useDispatch();
   const [dismissed, setDismissed] = useState(false);
@@ -18,7 +20,7 @@ export function DuplicatesNotice() {
 
   function removeUnusedDuplicates() {
     const commands: Command[] = removable.map((sourceId) => ({ type: 'removeSource', sourceId }));
-    dispatch({ type: 'batch', label: `${removable.length} doppelte Quellen entfernt`, commands });
+    dispatch({ type: 'batch', label: t('sources.duplicates.removedLabel', { n: removable.length }), commands });
   }
 
   return (
@@ -26,12 +28,12 @@ export function DuplicatesNotice() {
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 font-medium text-info">
           <Copy className="size-4 shrink-0" aria-hidden />
-          <span>{groups.length} doppelt importierte Dateien.</span>
+          <span>{t('sources.duplicates.heading', { n: groups.length })}</span>
         </div>
         <button
           type="button"
           onClick={() => setDismissed(true)}
-          aria-label="Hinweis ausblenden"
+          aria-label={t('sources.duplicates.dismiss')}
           className="shrink-0 rounded p-0.5 text-info hover:bg-info/10"
         >
           <X className="size-4" aria-hidden />
@@ -46,11 +48,11 @@ export function DuplicatesNotice() {
           const usedExtras = extras.length - removableExtras.length;
           return (
             <li key={group.contentHash}>
-              <span className="font-medium text-text-primary">{canonical?.name ?? 'Unbekannte Quelle'}</span>
+              <span className="font-medium text-text-primary">{canonical?.name ?? t('sources.duplicates.unknownSource')}</span>
               {': '}
-              {extras.length} {extras.length === 1 ? 'Doppel' : 'Doppel-Kopien'}
+              {extras.length} {extras.length === 1 ? t('sources.duplicates.copySingular') : t('sources.duplicates.copyPlural')}
               {usedExtras > 0 && (
-                <span className="text-text-tertiary"> — wird verwendet, nicht automatisch entfernbar</span>
+                <span className="text-text-tertiary">{t('sources.duplicates.inUse')}</span>
               )}
             </li>
           );
@@ -60,7 +62,7 @@ export function DuplicatesNotice() {
       {removable.length > 0 && (
         <div className="mt-2.5">
           <Button variant="secondary" size="sm" icon={Copy} onClick={removeUnusedDuplicates}>
-            {removable.length} ungenutzte Doppel entfernen
+            {t('sources.duplicates.removeUnused', { n: removable.length })}
           </Button>
         </div>
       )}

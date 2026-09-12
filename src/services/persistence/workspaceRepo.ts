@@ -26,7 +26,7 @@ export interface WorkspaceRepo {
  */
 export function migrateWorkspaceRecord(raw: unknown): Workspace {
   if (typeof raw !== 'object' || raw === null) {
-    throw new Error('Dieser Eintrag ist kein Workspace.');
+    throw new Error('This entry is not a workspace.');
   }
   const record = raw as Partial<Workspace>;
   if (
@@ -35,11 +35,11 @@ export function migrateWorkspaceRecord(raw: unknown): Workspace {
     typeof record.sources !== 'object' ||
     typeof record.nodes !== 'object'
   ) {
-    throw new Error('Dieser Eintrag ist kein Workspace.');
+    throw new Error('This entry is not a workspace.');
   }
   if (record.schemaVersion > CURRENT_SCHEMA_VERSION) {
     throw new Error(
-      'Dieser Workspace wurde mit einer neueren Version von PDF-Master erstellt und kann hier nicht geoeffnet werden.',
+      'This workspace was created with a newer version of PDFChef and cannot be opened here.',
     );
   }
   return {

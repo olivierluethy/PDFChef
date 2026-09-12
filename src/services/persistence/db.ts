@@ -94,12 +94,12 @@ export function openWorkspaceDb(name: string = DB_NAME): Promise<Database> {
       }
     },
     blocked() {
-      console.warn('Eine andere Registerkarte blockiert die Aktualisierung der Datenbank.');
+      console.warn('Another tab is blocking the database upgrade.');
     },
     blocking(_currentVersion, _blockedVersion, event) {
       // Eine neuere Version will oeffnen; diese aeltere Verbindung schliessen,
       // sonst haengt das Upgrade, bis der alte Tab manuell geschlossen wird.
-      console.warn('Datenbank wird fuer ein Upgrade geschlossen (neuere Version geoeffnet).');
+      console.warn('Closing database for an upgrade (a newer version was opened).');
       (event.target as IDBDatabase | null)?.close();
     },
   });

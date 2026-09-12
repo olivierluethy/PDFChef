@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { BookMarked, Check, Group, PenLine, Pencil, Shapes, Trash2, Type, X } from 'lucide-react';
-import type { LibraryItemKind, LibraryItemRecord } from '../../../services/persistence/db';
+import type { LibraryItemRecord } from '../../../services/persistence/db';
 import { useLibraryItems, useLibraryStore } from '../../app/StoreProvider';
 import { cx } from '../../common/cx';
+import { useT } from '../../i18n';
 
 const KIND_ICON = {
   signature: PenLine,
@@ -10,13 +11,6 @@ const KIND_ICON = {
   shape: Shapes,
   group: Group,
 } as const;
-
-const KIND_LABEL: Record<LibraryItemKind, string> = {
-  signature: 'Unterschrift',
-  text: 'Textbaustein',
-  shape: 'Form',
-  group: 'Gruppe',
-};
 
 export interface LibraryPopoverProps {
   onInsert(item: LibraryItemRecord): void;
@@ -29,6 +23,7 @@ export interface LibraryPopoverProps {
  * Overlay ueber der Ausfuell-Schicht (Positionierung uebernimmt der Aufrufer).
  */
 export function LibraryPopover({ onInsert, onClose }: LibraryPopoverProps) {
+  const t = useT();
   const items = useLibraryItems();
   const store = useLibraryStore();
   const [editing, setEditing] = useState<string | null>(null);
@@ -38,10 +33,10 @@ export function LibraryPopover({ onInsert, onClose }: LibraryPopoverProps) {
     <div className="pointer-events-auto flex max-h-[min(60vh,420px)] w-64 flex-col rounded-lg bg-surface-panel shadow-[var(--float-shadow)] ring-1 ring-line-structural">
       <div className="flex items-center gap-2 border-b border-line-structural px-3 py-2">
         <BookMarked className="size-4 text-text-secondary" aria-hidden />
-        <span className="text-[12.5px] font-medium text-text-primary">Bibliothek</span>
+        <span className="text-[12.5px] font-medium text-text-primary">{t('preview.library.title')}</span>
         <button
           type="button"
-          aria-label="Schließen"
+          aria-label={t('preview.library.close')}
           onClick={onClose}
           className="ml-auto grid size-6 place-items-center rounded-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"
         >
@@ -51,7 +46,7 @@ export function LibraryPopover({ onInsert, onClose }: LibraryPopoverProps) {
 
       {items.length === 0 ? (
         <p className="px-3 py-6 text-center text-[12px] text-text-tertiary">
-          Noch keine Bausteine. Wähle ein Element aus und speichere es über das Disketten-Symbol.
+          {t('preview.library.empty')}
         </p>
       ) : (
         <ul className="min-h-0 flex-1 overflow-auto p-1.5">
@@ -66,7 +61,7 @@ export function LibraryPopover({ onInsert, onClose }: LibraryPopoverProps) {
                     type="button"
                     onClick={() => onInsert(item)}
                     className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                    title="Auf der Seite einfügen"
+                    title={t('preview.library.insert')}
                   >
                     <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded bg-surface-canvas ring-1 ring-line-hairline">
                       {signature?.dataUrl ? (
@@ -99,7 +94,7 @@ export function LibraryPopover({ onInsert, onClose }: LibraryPopoverProps) {
                           {item.name}
                         </span>
                         <span className="block text-[10.5px] text-text-tertiary">
-                          {KIND_LABEL[item.kind]}
+                          {t('preview.library.kind.' + item.kind)}
                         </span>
                       </span>
                     )}
@@ -113,7 +108,7 @@ export function LibraryPopover({ onInsert, onClose }: LibraryPopoverProps) {
                     {editing === item.id ? (
                       <button
                         type="button"
-                        aria-label="Name speichern"
+                        aria-label={t('preview.library.saveName')}
                         onClick={() => {
                           void store.getState().rename(item.id, draft);
                           setEditing(null);
@@ -125,7 +120,7 @@ export function LibraryPopover({ onInsert, onClose }: LibraryPopoverProps) {
                     ) : (
                       <button
                         type="button"
-                        aria-label="Umbenennen"
+                        aria-label={t('preview.library.rename')}
                         onClick={() => {
                           setEditing(item.id);
                           setDraft(item.name);
@@ -137,7 +132,7 @@ export function LibraryPopover({ onInsert, onClose }: LibraryPopoverProps) {
                     )}
                     <button
                       type="button"
-                      aria-label="Aus Bibliothek löschen"
+                      aria-label={t('preview.library.remove')}
                       onClick={() => void store.getState().remove(item.id)}
                       className="grid size-6 place-items-center rounded text-text-secondary hover:bg-danger/15 hover:text-danger"
                     >

@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { formatRanges, parseRanges, rangesToIndices } from '../../domain/ranges';
 import type { SourceId } from '../../domain/types';
 import { useSelection, useSelectionStore } from '../app/StoreProvider';
+import { useT } from '../i18n';
 
 export interface RangeFieldProps {
   sourceId: SourceId;
@@ -14,6 +15,7 @@ export interface RangeFieldProps {
  * faerbt den Rahmen und meldet inline, ohne die bestehende Auswahl zu zerstoeren.
  */
 export function RangeField({ sourceId, blockCount }: RangeFieldProps) {
+  const t = useT();
   const selectionStore = useSelectionStore();
   const selection = useSelection();
   const inputId = useId();
@@ -60,7 +62,7 @@ export function RangeField({ sourceId, blockCount }: RangeFieldProps) {
     <div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <label htmlFor={inputId} className="t-label shrink-0 text-text-secondary">
-          Seiten
+          {t('sources.rangeField.pagesLabel')}
         </label>
         <input
           id={inputId}
@@ -87,7 +89,7 @@ export function RangeField({ sourceId, blockCount }: RangeFieldProps) {
         </div>
         <span className="ml-auto shrink-0 font-mono text-[12.5px] tabular-nums">
           <span className="text-text-primary">{count}</span>
-          <span className="text-text-secondary"> von {blockCount}</span>
+          <span className="text-text-secondary">{t('sources.rangeField.ofCount', { total: blockCount })}</span>
         </span>
       </div>
       {error && (

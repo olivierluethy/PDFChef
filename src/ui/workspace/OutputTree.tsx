@@ -15,6 +15,7 @@ import { ROOT, isFolder, isOutput, type NodeId, type Workspace } from '../../dom
 import { Menu, type MenuItem } from '../common/Menu';
 import { cx } from '../common/cx';
 import { useDispatch, useWorkspace } from '../app/StoreProvider';
+import { useT } from '../i18n';
 import type { DragOrigin } from './dragLogic';
 import type { FlatNode } from './treeModel';
 
@@ -66,6 +67,7 @@ export function OutputTree({
 }: OutputTreeProps) {
   const workspace = useWorkspace();
   const dispatch = useDispatch();
+  const t = useT();
   const [renaming, setRenaming] = useState<NodeId | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const flat = useMemo(() => visibleNodes(workspace, collapsed), [workspace, collapsed]);
@@ -87,14 +89,12 @@ export function OutputTree({
 
   if (flat.length === 0) {
     return (
-      <p className="t-meta px-5 py-4">
-        Noch keine Ausgabestruktur. Lege oben einen Ordner oder ein Dokument an.
-      </p>
+      <p className="t-meta px-5 py-4">{t('workspace.tree.empty')}</p>
     );
   }
 
   return (
-    <ul role="tree" aria-label="Ausgabestruktur" className="flex flex-col px-2 py-1">
+    <ul role="tree" aria-label={t('workspace.tree.label')} className="flex flex-col px-2 py-1">
       {flat.map((node) => {
         const record = workspace.nodes[node.id];
         if (!record) return null;
@@ -108,12 +108,17 @@ export function OutputTree({
           node.type === 'folder' && (workspace.childOrder[node.id]?.length ?? 0) > 0;
 
         const menuItems: MenuItem[] = [
-          { id: 'rename', label: 'Umbenennen', icon: Pencil, onSelect: () => setRenaming(node.id) },
+          {
+            id: 'rename',
+            label: t('workspace.tree.rename'),
+            icon: Pencil,
+            onSelect: () => setRenaming(node.id),
+          },
           ...(isOut
             ? [
                 {
                   id: 'print',
-                  label: 'Drucken',
+                  label: t('workspace.tree.print'),
                   icon: Printer,
                   onSelect: () => onPrintNode?.(node.id),
                 },
@@ -121,7 +126,7 @@ export function OutputTree({
             : []),
           {
             id: 'export',
-            label: 'Exportieren',
+            label: t('workspace.tree.export'),
             icon: Download,
             onSelect: () => onExportNode?.(node.id),
           },
@@ -129,7 +134,7 @@ export function OutputTree({
             ? [
                 {
                   id: 'share',
-                  label: 'Teilen / E-Mail',
+                  label: t('workspace.tree.share'),
                   icon: Share2,
                   onSelect: () => onShareNode?.(node.id),
                 },
@@ -137,7 +142,7 @@ export function OutputTree({
             : []),
           {
             id: 'delete',
-            label: 'Löschen',
+            label: t('workspace.tree.delete'),
             icon: Trash2,
             danger: true,
             onSelect: () => onDeleteNode?.(node.id),
@@ -176,7 +181,7 @@ export function OutputTree({
                 <button
                   type="button"
                   onClick={() => toggle(node.id)}
-                  aria-label={expanded ? 'Einklappen' : 'Ausklappen'}
+                  aria-label={expanded ? t('workspace.tree.collapse') : t('workspace.tree.expand')}
                   className="grid size-5 shrink-0 place-items-center text-text-tertiary hover:text-text-secondary"
                 >
                   <ChevronRight
@@ -201,7 +206,7 @@ export function OutputTree({
                     if (e.key === 'Escape') setRenaming(null);
                   }}
                   className="h-6 min-w-0 flex-1 rounded bg-surface-canvas px-1.5 text-[13px] text-text-primary ring-1 ring-line-structural"
-                  aria-label="Name bearbeiten"
+                  aria-label={t('workspace.tree.editName')}
                 />
               ) : (
                 <>
@@ -231,7 +236,7 @@ export function OutputTree({
                     <button
                       type="button"
                       onClick={() => onOpenPreview?.(node.id)}
-                      aria-label={`Vorschau für ${record.name}`}
+                      aria-label={t('workspace.tree.previewFor', { name: record.name })}
                       className="inline-grid size-6 shrink-0 place-items-center rounded text-text-secondary opacity-0 transition-opacity hover:bg-surface-raised hover:text-text-primary focus-visible:opacity-100 group-hover/row:opacity-100"
                     >
                       <Eye className="size-4" aria-hidden />
@@ -247,7 +252,7 @@ export function OutputTree({
                         ref={ref}
                         type="button"
                         onClick={openMenu}
-                        aria-label={`Aktionen für ${record.name}`}
+                        aria-label={t('workspace.tree.actionsFor', { name: record.name })}
                         className={cx(
                           'inline-grid size-6 shrink-0 place-items-center rounded text-text-secondary transition-opacity hover:bg-surface-raised hover:text-text-primary focus-visible:opacity-100 group-hover/row:opacity-100',
                           open ? 'opacity-100' : 'opacity-0',
