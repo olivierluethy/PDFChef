@@ -2,7 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Overlay, Workspace } from '../../domain/types';
 import type { NodeSnapshot } from '../../domain/trash';
 
-export const DB_NAME = 'pdf-master';
+export const DB_NAME = 'pdfchef';
 export const DB_VERSION = 4;
 
 export interface SourceBlobRecord {
