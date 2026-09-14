@@ -722,6 +722,10 @@ export function FillLayer({
   return (
     <div
       ref={rootRef}
+      // `container-type: size` macht diese seitengrosse Schicht zum Bezug fuer
+      // die Container-Einheit `cqh` -- so skaliert der Text in Formen relativ
+      // zur Seite (wie beim Editieren), nicht zur kleinen Form-Box.
+      style={{ containerType: 'size' }}
       className={cx(
         'absolute inset-0 z-10',
         active ? 'pointer-events-auto' : 'pointer-events-none',
@@ -746,10 +750,15 @@ export function FillLayer({
         />
       )}
 
-      {overlays.map((overlay) => {
+      {overlays.map((overlay, index) => {
         const box = boxOf(overlay);
         const selected = active && selectedIds.includes(overlay.id);
         const singleSelected = selected && selectedIds.length === 1;
+        // Die Stapelreihenfolge folgt dem Array-Index (= Ebene), damit das
+        // Umsortieren sichtbar wird. Nur das gerade per Textarea editierte Element
+        // wird nach oben geholt, damit man hineintippen kann -- eine reine Auswahl
+        // hebt NICHT an, sonst liesse sich ein Element nie sichtbar nach hinten legen.
+        const baseZ = 10 + index;
         const rot = rotationOf(overlay);
         const rotateStyle: React.CSSProperties = rot
           ? { transform: `rotate(${rot}deg)`, transformOrigin: 'center' }
@@ -775,7 +784,7 @@ export function FillLayer({
               key={overlay.id}
               data-overlay-wrap
               className={cx('absolute', selected && 'outline outline-1 outline-accent/70')}
-              style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%`, ...rotateStyle, zIndex: selected ? 30 : 10 }}
+              style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%`, ...rotateStyle, zIndex: editingText ? 40 : baseZ }}
               onPointerDown={(e) => {
                 if (e.shiftKey || e.metaKey || e.ctrlKey) {
                   e.stopPropagation();
@@ -792,7 +801,7 @@ export function FillLayer({
                 }
               }}
             >
-              <OverlayShape overlay={overlay} />
+              <OverlayShape overlay={overlay} hideText={editingText} />
               {editingText && (
                 <textarea
                   autoFocus
@@ -836,7 +845,7 @@ export function FillLayer({
               key={overlay.id}
               data-overlay-wrap
               className={cx('absolute', selected && 'ring-1 ring-accent/70')}
-              style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%`, ...rotateStyle, zIndex: selected ? 30 : 10 }}
+              style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%`, ...rotateStyle, zIndex: baseZ }}
               onPointerDown={(e) => {
                 if (e.shiftKey || e.metaKey || e.ctrlKey) {
                   e.stopPropagation();
@@ -902,7 +911,7 @@ export function FillLayer({
             key={overlay.id}
             data-overlay-wrap
             className="absolute"
-            style={{ ...common, width: `${box.w * 100}%`, ...boxStyle, ...rotateStyle, zIndex: selected ? 30 : 10 }}
+            style={{ ...common, width: `${box.w * 100}%`, ...boxStyle, ...rotateStyle, zIndex: selected ? 40 : baseZ }}
           >
             {selected && (
               <span
