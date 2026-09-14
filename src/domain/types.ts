@@ -85,6 +85,21 @@ export interface Overlay {
   bold?: boolean;
   /** Text: kursiv (synthetische Neigung in Vorschau und Export). */
   italic?: boolean;
+  /**
+   * Drehung im Uhrzeigersinn in Grad, um den Mittelpunkt der Box. Gilt fuer
+   * Text, Bild und Form. undefined/0 = nicht gedreht.
+   */
+  rotation?: number;
+  /** Text: horizontal spiegeln (links/rechts, ergibt Spiegelschrift). */
+  flipX?: boolean;
+  /** Text: vertikal spiegeln (oben/unten gekippt). */
+  flipY?: boolean;
+  /**
+   * Text: vertikale Ausrichtung im Feld. Nur wirksam, wenn das Feld eine feste
+   * Hoehe hat (h > 0, per Eck-Griff aufgezogen); sonst waechst der Text von oben.
+   * undefined = 'top'.
+   */
+  valign?: 'top' | 'middle' | 'bottom';
   /** Text/Text-in-Form: Textfarbe als #RRGGBB (Standard: dunkles Grau). */
   color?: string;
   /**

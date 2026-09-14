@@ -1,11 +1,17 @@
 import {
+  AlignCenterHorizontal,
+  AlignEndHorizontal,
+  AlignStartHorizontal,
   Bold,
   Copy,
+  FlipHorizontal,
+  FlipVertical,
   Group,
   Highlighter,
   Italic,
   Minus,
   Plus,
+  RotateCw,
   Save,
   Trash2,
   Ungroup,
@@ -27,6 +33,7 @@ import {
   fractionToPt,
   MAX_FONT_SIZE,
   MIN_FONT_SIZE,
+  normalizeAngle,
   ptToFraction,
   ptToStroke,
   strokeToPt,
@@ -74,6 +81,11 @@ export function StyleBar({
   const boldActive = firstText?.bold ?? false;
   const italicActive = firstText?.italic ?? false;
   const interactiveActive = formable.length > 0 && formable.every((o) => o.interactive);
+  const valign = firstText?.valign ?? 'top';
+  const flipXActive = firstText?.flipX ?? false;
+  const flipYActive = firstText?.flipY ?? false;
+  const rotationDeg = normalizeAngle(overlays[0]?.rotation ?? 0);
+  const fontPt = fractionToPt(fontSize);
 
   return (
     <div
@@ -118,6 +130,17 @@ export function StyleBar({
               <Plus className="size-3.5" aria-hidden />
             </IconBtn>
           </div>
+          <input
+            type="range"
+            min={fractionToPt(MIN_FONT_SIZE)}
+            max={fractionToPt(MAX_FONT_SIZE)}
+            step={0.5}
+            value={fontPt}
+            aria-label={t('preview.fill.fontSize')}
+            title={t('preview.fill.fontSize')}
+            onChange={(e) => onPatch({ fontSize: ptToFraction(Number(e.currentTarget.value)) })}
+            className="h-1 w-16 cursor-pointer accent-accent"
+          />
           <IconBtn
             label={canBold ? t('preview.fill.bold') : t('preview.fill.boldUnavailable')}
             pressed={boldActive}
@@ -146,6 +169,46 @@ export function StyleBar({
               swatches={HIGHLIGHT_COLORS}
               onChange={(v) => onPatch({ textBg: v ?? 'none' })}
             />
+          )}
+          {formable.length > 0 && (
+            <>
+              <Divider />
+              <IconBtn
+                label={t('preview.fill.valignTop')}
+                pressed={valign === 'top'}
+                onClick={() => onPatch({ valign: 'top' })}
+              >
+                <AlignStartHorizontal className="size-3.5" aria-hidden />
+              </IconBtn>
+              <IconBtn
+                label={t('preview.fill.valignMiddle')}
+                pressed={valign === 'middle'}
+                onClick={() => onPatch({ valign: 'middle' })}
+              >
+                <AlignCenterHorizontal className="size-3.5" aria-hidden />
+              </IconBtn>
+              <IconBtn
+                label={t('preview.fill.valignBottom')}
+                pressed={valign === 'bottom'}
+                onClick={() => onPatch({ valign: 'bottom' })}
+              >
+                <AlignEndHorizontal className="size-3.5" aria-hidden />
+              </IconBtn>
+              <IconBtn
+                label={t('preview.fill.flipH')}
+                pressed={flipXActive}
+                onClick={() => onPatch({ flipX: !flipXActive })}
+              >
+                <FlipHorizontal className="size-3.5" aria-hidden />
+              </IconBtn>
+              <IconBtn
+                label={t('preview.fill.flipV')}
+                pressed={flipYActive}
+                onClick={() => onPatch({ flipY: !flipYActive })}
+              >
+                <FlipVertical className="size-3.5" aria-hidden />
+              </IconBtn>
+            </>
           )}
         </>
       )}
@@ -213,6 +276,31 @@ export function StyleBar({
           </label>
         </>
       )}
+
+      <Divider />
+
+      <div className="flex items-center gap-0.5" title={t('preview.fill.rotate')}>
+        <RotateCw className="size-3.5 text-text-tertiary" aria-hidden />
+        <input
+          key={rotationDeg}
+          type="number"
+          step={1}
+          defaultValue={rotationDeg}
+          aria-label={t('preview.fill.angle')}
+          title={t('preview.fill.angle')}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.currentTarget.blur();
+          }}
+          onBlur={(e) => {
+            const deg = Number(e.currentTarget.value);
+            if (Number.isFinite(deg)) onPatch({ rotation: normalizeAngle(deg) });
+          }}
+          className="h-6 w-10 rounded-md bg-surface-panel px-1 text-center text-[11.5px] tabular-nums text-text-primary outline-none ring-1 ring-line-structural focus:ring-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+        <span className="text-[11px] text-text-tertiary" aria-hidden>
+          °
+        </span>
+      </div>
 
       <Divider />
 
