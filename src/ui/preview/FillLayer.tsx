@@ -110,6 +110,16 @@ function flipTransform(o: Overlay): string | undefined {
   return `scale(${o.flipX ? -1 : 1}, ${o.flipY ? -1 : 1})`;
 }
 
+/**
+ * true, wenn der Winkel (nahezu) auf einer Ausrichtung liegt -- Vielfaches von
+ * 45 Grad (0/45/90/135/180 ...). Dann werden die Hilfslinien kraeftig statt dezent.
+ */
+const CARDINAL_TOL = 1.5;
+function nearCardinal(deg: number): boolean {
+  const m = ((deg % 45) + 45) % 45;
+  return m <= CARDINAL_TOL || m >= 45 - CARDINAL_TOL;
+}
+
 /** Erzeugt Klone einer Auswahl: frische Ids, versetzt, mit erhaltener (neu vergebener) Gruppierung. */
 export function cloneOverlays(source: Overlay[], dx: number, dy: number): Overlay[] {
   const groupRemap = new Map<string, string>();
@@ -158,8 +168,9 @@ export function FillLayer({
   const setSelectedIds = (next: string[] | ((prev: string[]) => string[])) =>
     onSelect(typeof next === 'function' ? next(selectedIds) : next);
   const [dragMap, setDragMap] = useState<Map<string, Box> | null>(null);
-  // Live-Drehung waehrend des Ziehens am Dreh-Griff (Grad, ein Overlay).
-  const [spin, setSpin] = useState<{ id: string; deg: number } | null>(null);
+  // Live-Drehung waehrend des Ziehens am Dreh-Griff: Grad plus Mittelpunkt der
+  // Auswahl (Bruchteile der Seite) fuer die eingeblendeten Ausrichtungslinien.
+  const [spin, setSpin] = useState<{ id: string; deg: number; cx: number; cy: number } | null>(null);
   const [signing, setSigning] = useState(false);
   const [height, setHeight] = useState(0);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -636,6 +647,10 @@ export function FillLayer({
     const b = wrapEl.getBoundingClientRect();
     const cx = b.left + b.width / 2;
     const cy = b.top + b.height / 2;
+    // Mittelpunkt in Seiten-Bruchteilen -- fixer Bezug fuer die Ausrichtungslinien.
+    const r0 = rect();
+    const centerX = r0 ? (cx - r0.left) / r0.width : 0.5;
+    const centerY = r0 ? (cy - r0.top) / r0.height : 0.5;
     const startAngle = (Math.atan2(event.clientY - cy, event.clientX - cx) * 180) / Math.PI;
     const startRotation = overlay.rotation ?? 0;
     let latest = normalizeAngle(startRotation);
@@ -644,7 +659,7 @@ export function FillLayer({
       let next = startRotation + (a - startAngle);
       if (e.shiftKey) next = Math.round(next / 15) * 15;
       latest = normalizeAngle(next);
-      setSpin({ id: overlay.id, deg: latest });
+      setSpin({ id: overlay.id, deg: latest, cx: centerX, cy: centerY });
       // Live-Winkel ans Eigenschaften-Panel melden, damit er waehrend des
       // Drehens sichtbar ist -- nicht erst nach dem Loslassen.
       onSpin?.(latest);
@@ -975,6 +990,34 @@ export function FillLayer({
           </div>
         );
       })}
+
+      {/* Ausrichtungslinien waehrend des Drehens: gestricheltes, seitenparalleles
+          Fadenkreuz durch den Objektmittelpunkt. Kraeftig, sobald der Winkel auf
+          einer Ausrichtung (Vielfaches von 45 Grad) liegt. */}
+      {spin && (
+        <div className="pointer-events-none absolute inset-0 z-30" aria-hidden>
+          {(() => {
+            const aligned = nearCardinal(spin.deg);
+            const line = cx('border-dashed', aligned ? 'border-accent' : 'border-accent/45');
+            return (
+              <>
+                <div
+                  className={cx('absolute bottom-0 top-0 border-l', line)}
+                  style={{ left: `${spin.cx * 100}%` }}
+                />
+                <div
+                  className={cx('absolute left-0 right-0 border-t', line)}
+                  style={{ top: `${spin.cy * 100}%` }}
+                />
+                <div
+                  className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent ring-2 ring-surface-canvas"
+                  style={{ left: `${spin.cx * 100}%`, top: `${spin.cy * 100}%` }}
+                />
+              </>
+            );
+          })()}
+        </div>
+      )}
 
       {/* Vorschau der gerade gezeichneten Form. */}
       {previewShape && (
