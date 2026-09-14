@@ -112,7 +112,9 @@ function Workspace() {
   const [trashOpen, setTrashOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(280);
-  const [previewWidth, setPreviewWidth] = useState(380);
+  // Etwas breiter als frueher, damit im Ausfuell-Modus Canvas und
+  // Eigenschaften-Panel nebeneinander Platz haben.
+  const [previewWidth, setPreviewWidth] = useState(460);
   const trash = useMemo(() => createTrashService(services.db), [services.db]);
 
   const drag = usePointerDrag();
@@ -428,8 +430,8 @@ function Workspace() {
             <ResizeHandle
               orientation="col"
               value={previewWidth}
-              min={320}
-              max={640}
+              min={400}
+              max={760}
               onChange={setPreviewWidth}
               ariaLabel={t('app.resizePreview')}
               invert

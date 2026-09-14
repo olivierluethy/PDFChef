@@ -107,6 +107,18 @@ export const preview: MessageFragment = {
     'preview.fill.detectFields': 'Detect fields',
     'preview.fill.shapes': 'Shapes',
 
+    // Properties panel
+    'preview.fill.panelTitle': 'Properties',
+    'preview.fill.panelEmpty': 'Select an element to edit its properties.',
+    'preview.fill.collapsePanel': 'Collapse panel',
+    'preview.fill.expandPanel': 'Expand panel',
+    'preview.fill.sectionText': 'Text',
+    'preview.fill.sectionColor': 'Color',
+    'preview.fill.sectionAlign': 'Alignment',
+    'preview.fill.sectionShape': 'Shape',
+    'preview.fill.sectionRotate': 'Rotation & flip',
+    'preview.fill.sectionActions': 'Actions',
+
     // Shape picker labels
     'preview.shape.rect': 'Rectangle',
     'preview.shape.roundRect': 'Rounded',
@@ -237,6 +249,18 @@ export const preview: MessageFragment = {
     'preview.fill.library': 'Bibliothek',
     'preview.fill.detectFields': 'Felder erkennen',
     'preview.fill.shapes': 'Formen',
+
+    // Properties panel
+    'preview.fill.panelTitle': 'Eigenschaften',
+    'preview.fill.panelEmpty': 'Wähle ein Element, um seine Eigenschaften zu bearbeiten.',
+    'preview.fill.collapsePanel': 'Leiste einklappen',
+    'preview.fill.expandPanel': 'Leiste ausklappen',
+    'preview.fill.sectionText': 'Text',
+    'preview.fill.sectionColor': 'Farbe',
+    'preview.fill.sectionAlign': 'Ausrichtung',
+    'preview.fill.sectionShape': 'Form',
+    'preview.fill.sectionRotate': 'Drehung & Spiegelung',
+    'preview.fill.sectionActions': 'Aktionen',
 
     // Shape picker labels
     'preview.shape.rect': 'Rechteck',
