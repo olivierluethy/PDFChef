@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { GripVertical, RotateCw } from 'lucide-react';
 import { newId } from '../../domain/ids';
-import {
-  DEFAULT_OVERLAY_FONT,
-  overlayCssFamily,
-  overlayFontSpec,
-} from '../../domain/overlayFonts';
+import { overlayCssFamily, overlayFontSpec } from '../../domain/overlayFonts';
 import {
   hasFill,
   isTransparentColor,
@@ -15,16 +11,13 @@ import {
 } from '../../domain/overlayShapes';
 import { instantiateOverlays } from '../../domain/overlayLibrary';
 import type { Overlay, ShapeKind } from '../../domain/types';
-import type { LibraryItemKind, LibraryItemRecord } from '../../services/persistence/db';
-import { useLibraryStore } from '../app/StoreProvider';
+import type { LibraryItemRecord } from '../../services/persistence/db';
 import { cx } from '../common/cx';
 import { useT } from '../i18n';
 import { ensureOverlayFontFaces } from '../text/overlayFontFaces';
 import { OverlayShape } from './OverlayShape';
 import { SignatureDialog } from './SignatureDialog';
 import { LibraryPopover } from './fill/LibraryPopover';
-import { NameDialog } from './fill/NameDialog';
-import { StyleBar } from './fill/StyleBar';
 import { ToolPalette, shapeDrawMode, type Tool } from './fill/tools';
 import { DEFAULT_FONT_SIZE, normalizeAngle } from './fill/units';
 
@@ -35,6 +28,17 @@ export interface FillLayerProps {
   overlays: Overlay[];
   /** true, wenn der Ausfuell-Modus aktiv ist -- dann ist die Schicht interaktiv. */
   active: boolean;
+  /**
+   * Die auf DIESER Seite ausgewaehlten Overlay-Ids. Die Auswahl liegt zentral im
+   * Viewer, damit ein einziges Eigenschaften-Panel sie seitenuebergreifend kennt.
+   */
+  selectedIds: string[];
+  /** Setzt die Auswahl dieser Seite (leer = nichts gewaehlt). */
+  onSelect(ids: string[]): void;
+  /** Meldet den Live-Drehwinkel waehrend des Ziehens am Griff (null nach dem Loslassen). */
+  onSpin?(deg: number | null): void;
+  /** Zuletzt gewaehlte Schrift -- neue Textfelder uebernehmen sie. */
+  lastFont: string;
   onAdd(overlay: Overlay): void;
   /** Mehrere Overlays in einem Schritt anfuegen (Einfuegen/Duplizieren/Bibliothek). */
   onAddMany(overlays: Overlay[]): void;
@@ -107,7 +111,7 @@ function flipTransform(o: Overlay): string | undefined {
 }
 
 /** Erzeugt Klone einer Auswahl: frische Ids, versetzt, mit erhaltener (neu vergebener) Gruppierung. */
-function cloneOverlays(source: Overlay[], dx: number, dy: number): Overlay[] {
+export function cloneOverlays(source: Overlay[], dx: number, dy: number): Overlay[] {
   const groupRemap = new Map<string, string>();
   return source.map((o) => {
     let groupId = o.groupId;
@@ -134,6 +138,10 @@ function cloneOverlays(source: Overlay[], dx: number, dy: number): Overlay[] {
 export function FillLayer({
   overlays,
   active,
+  selectedIds,
+  onSelect,
+  onSpin,
+  lastFont,
   onAdd,
   onAddMany,
   onUpdate,
@@ -144,9 +152,11 @@ export function FillLayer({
 }: FillLayerProps) {
   const t = useT();
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const library = useLibraryStore();
   const [tool, setTool] = useState<Tool>('text');
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // Adapter auf die zentral (im Viewer) gehaltene Auswahl: erlaubt sowohl das
+  // direkte Setzen einer Id-Liste als auch die vertrauten funktionalen Updates.
+  const setSelectedIds = (next: string[] | ((prev: string[]) => string[])) =>
+    onSelect(typeof next === 'function' ? next(selectedIds) : next);
   const [dragMap, setDragMap] = useState<Map<string, Box> | null>(null);
   // Live-Drehung waehrend des Ziehens am Dreh-Griff (Grad, ein Overlay).
   const [spin, setSpin] = useState<{ id: string; deg: number } | null>(null);
@@ -154,9 +164,7 @@ export function FillLayer({
   const [height, setHeight] = useState(0);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  const [saveDialog, setSaveDialog] = useState<{ kind: LibraryItemKind; overlays: Overlay[] } | null>(
-    null,
-  );
+  // `lastFont` (zuletzt gewaehlte Schrift fuer neue Felder) liegt zentral im Viewer.
   // Zeichnen einer Form (Box/Linie/Freihand) bzw. Polygon per Klick.
   const [draw, setDraw] = useState<
     | { mode: 'box' | 'line'; kind: ShapeKind; sx: number; sy: number; cx: number; cy: number }
@@ -165,7 +173,6 @@ export function FillLayer({
   >(null);
   const [polygon, setPolygon] = useState<number[] | null>(null);
   const draftIds = useRef<Set<string>>(new Set());
-  const [lastFont, setLastFont] = useState<string>(DEFAULT_OVERLAY_FONT);
 
   useEffect(() => {
     ensureOverlayFontFaces();
@@ -238,13 +245,10 @@ export function FillLayer({
   }, [active]);
 
   // --- Aktionen auf der Auswahl ----------------------------------------------
+  // Formatieren, Gruppieren und In-Bibliothek-Speichern laufen jetzt ueber das
+  // Eigenschaften-Panel (Viewer-Ebene). Hier bleiben nur die Aktionen, die auch
+  // per Tastenkuerzel ausgeloest werden.
 
-  const patchSelection = (patch: Partial<Overlay>) => {
-    if (selectedIds.length === 0) return;
-    // Neue Felder uebernehmen die zuletzt gewaehlte Schrift.
-    if (typeof patch.font === 'string') setLastFont(patch.font);
-    onUpdateMany(selectedIds.map((id) => ({ id, patch })));
-  };
   const duplicateSelection = () => {
     if (selectedOverlays.length === 0) return;
     const clones = cloneOverlays(selectedOverlays, 0.02, 0.02);
@@ -255,28 +259,6 @@ export function FillLayer({
     if (selectedIds.length === 0) return;
     onRemoveMany(selectedIds);
     setSelectedIds([]);
-  };
-  const groupSelection = () => {
-    if (selectedIds.length < 2) return;
-    const gid = newId();
-    onUpdateMany(selectedIds.map((id) => ({ id, patch: { groupId: gid } })));
-  };
-  const ungroupSelection = () => {
-    if (selectedIds.length === 0) return;
-    onUpdateMany(selectedIds.map((id) => ({ id, patch: { groupId: undefined } })));
-  };
-  const saveSelectionToLibrary = () => {
-    if (selectedOverlays.length === 0) return;
-    const kind: LibraryItemKind =
-      selectedOverlays.length > 1
-        ? 'group'
-        : selectedOverlays[0].kind === 'image'
-          ? 'signature'
-          : selectedOverlays[0].kind === 'shape'
-            ? 'shape'
-            : 'text';
-    setSaveDialog({ kind, overlays: selectedOverlays });
-    setLibraryOpen(false);
   };
   const insertLibraryItem = (item: LibraryItemRecord) => {
     const created = instantiateOverlays(item.overlays, { x: 0.28, y: 0.3 });
@@ -663,11 +645,15 @@ export function FillLayer({
       if (e.shiftKey) next = Math.round(next / 15) * 15;
       latest = normalizeAngle(next);
       setSpin({ id: overlay.id, deg: latest });
+      // Live-Winkel ans Eigenschaften-Panel melden, damit er waehrend des
+      // Drehens sichtbar ist -- nicht erst nach dem Loslassen.
+      onSpin?.(latest);
     };
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       setSpin(null);
+      onSpin?.(null);
       onUpdate(overlay.id, { rotation: latest });
     };
     window.addEventListener('pointermove', onMove);
@@ -711,19 +697,6 @@ export function FillLayer({
   const boxOf = (overlay: Overlay): Box =>
     dragMap?.get(overlay.id) ?? { x: overlay.x, y: overlay.y, w: overlay.w, h: overlay.h };
 
-  // --- Anker fuer die Stilleiste (Bounding-Box der Auswahl) -------------------
-  const selectionAnchor = (): { left: number; top: number; below: boolean } | null => {
-    if (selectedOverlays.length === 0) return null;
-    let minX = Infinity;
-    let minY = Infinity;
-    for (const o of selectedOverlays) {
-      const b = boxOf(o);
-      minX = Math.min(minX, b.x);
-      minY = Math.min(minY, b.y);
-    }
-    return { left: minX, top: minY, below: minY < 0.16 };
-  };
-  const anchor = selectionAnchor();
 
   const previewShape = (() => {
     if (!draw) return null;
@@ -1036,24 +1009,7 @@ export function FillLayer({
         </svg>
       )}
 
-      {/* Stilleiste fuer die aktuelle Auswahl. */}
-      {active && anchor && selectedOverlays.length > 0 && !editingTextId && (
-        <div className="absolute z-40" style={{ left: `${anchor.left * 100}%`, top: `${anchor.top * 100}%` }}>
-          <div className={cx('absolute left-0', anchor.below ? 'top-6' : 'bottom-2')}>
-            <StyleBar
-              overlays={selectedOverlays}
-              onPatch={patchSelection}
-              onDuplicate={duplicateSelection}
-              onDelete={deleteSelection}
-              onGroup={groupSelection}
-              onUngroup={ungroupSelection}
-              onSaveToLibrary={saveSelectionToLibrary}
-              canGroup={selectedIds.length >= 2}
-              canUngroup={selectedOverlays.some((o) => !!o.groupId)}
-            />
-          </div>
-        </div>
-      )}
+      {/* Die Formatierregler leben jetzt im Eigenschaften-Panel (Viewer-Ebene). */}
 
       {/* Bibliotheks-Panel. */}
       {active && libraryOpen && (
@@ -1063,19 +1019,6 @@ export function FillLayer({
       )}
 
       {signing && <SignatureDialog onCancel={() => setSigning(false)} onConfirm={addSignature} />}
-
-      {saveDialog && (
-        <NameDialog
-          title={t('preview.fill.saveToLibrary')}
-          label={t('preview.fill.blockNameLabel')}
-          defaultValue=""
-          onCancel={() => setSaveDialog(null)}
-          onConfirm={(name) => {
-            void library.getState().add(saveDialog.kind, name, saveDialog.overlays);
-            setSaveDialog(null);
-          }}
-        />
-      )}
     </div>
   );
 }
