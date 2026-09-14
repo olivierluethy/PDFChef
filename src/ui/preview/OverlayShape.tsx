@@ -96,6 +96,11 @@ export function OverlayShape({
 
   const text = overlay.text ?? '';
   const showText = !hideText && text.trim() !== '' && overlayShapeSupportsText(overlay);
+  // Vertikale Ausrichtung des Form-Texts. Formen zentrieren historisch, darum
+  // ist der Standard 'middle', bis der Nutzer im Panel etwas anderes waehlt.
+  const valign = overlay.valign ?? 'middle';
+  const alignItems =
+    valign === 'top' ? 'flex-start' : valign === 'bottom' ? 'flex-end' : 'center';
 
   return (
     <div ref={ref} style={{ position: 'absolute', inset: 0, opacity }}>
@@ -106,7 +111,7 @@ export function OverlayShape({
             position: 'absolute',
             inset: 0,
             display: 'flex',
-            alignItems: 'center',
+            alignItems,
             justifyContent: 'center',
             padding: '4%',
             textAlign: 'center',

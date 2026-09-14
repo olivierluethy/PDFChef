@@ -156,6 +156,9 @@ export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: Previ
         if (overlayIds.length === 0) return;
         dispatch({ type: 'reorderOverlays', itemId, overlayIds, mode });
       }}
+      onSetOverlayLayer={(itemId, overlayId, index) =>
+        dispatch({ type: 'moveOverlayLayer', itemId, overlayId, index })
+      }
       onDetectFields={(itemId) => void detectFields(itemId)}
       emptyLabel={t('preview.previewEmpty')}
     />

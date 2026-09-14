@@ -128,6 +128,8 @@ export const preview: MessageFragment = {
     'preview.fill.layerPosition': 'Layer {n} of {total}',
     'preview.fill.layerMultiple': '{n} elements selected',
     'preview.fill.layerBadge': 'Layer {n}',
+    'preview.fill.layerSet': 'Set layer',
+    'preview.fill.layerBadgesAlways': 'Always show layer numbers',
 
     // Shape picker labels
     'preview.shape.rect': 'Rectangle',
@@ -281,6 +283,8 @@ export const preview: MessageFragment = {
     'preview.fill.layerPosition': 'Ebene {n} von {total}',
     'preview.fill.layerMultiple': '{n} Elemente ausgewählt',
     'preview.fill.layerBadge': 'Ebene {n}',
+    'preview.fill.layerSet': 'Ebene setzen',
+    'preview.fill.layerBadgesAlways': 'Ebenen-Nummern immer zeigen',
 
     // Shape picker labels
     'preview.shape.rect': 'Rechteck',

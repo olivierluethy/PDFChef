@@ -182,6 +182,28 @@ export function reorderOverlays(
   }
 }
 
+/**
+ * Verschiebt ein einzelnes Overlay auf eine absolute Ebene (0-basierter Index in
+ * der Zeichenreihenfolge). Erlaubt das direkte Setzen der Ebene ueber ein Zahlen-
+ * feld/einen Regler, statt sie Schritt fuer Schritt vor/zurueck zu schieben.
+ */
+export function moveOverlayToIndex(
+  ws: Workspace,
+  itemId: ItemId,
+  overlayId: string,
+  index: number,
+): void {
+  const item = ws.items[itemId];
+  if (!item?.overlays) return;
+  const arr = item.overlays;
+  const from = arr.findIndex((o) => o.id === overlayId);
+  if (from < 0) return;
+  const to = Math.min(arr.length - 1, Math.max(0, Math.trunc(index)));
+  if (to === from) return;
+  const [moved] = arr.splice(from, 1);
+  arr.splice(to, 0, moved);
+}
+
 export function copyItems(
   ws: Workspace,
   itemIds: ItemId[],
