@@ -11,15 +11,25 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
+import { PanelRightOpen } from 'lucide-react';
 import type { BlockRef, ItemId, Overlay, Rotation } from '../../domain/types';
+import { newId } from '../../domain/ids';
+import { DEFAULT_OVERLAY_FONT } from '../../domain/overlayFonts';
 import type { DragOrigin } from '../workspace/dragLogic';
 import { IconButton } from '../common/IconButton';
 import { Menu } from '../common/Menu';
 import { cx } from '../common/cx';
 import { useT } from '../i18n';
-import { FillLayer } from './FillLayer';
+import { cloneOverlays, FillLayer } from './FillLayer';
+import { FillPropertiesPanel } from './fill/FillPropertiesPanel';
 import { usePageImage } from './usePageImage';
 import { clampPageIndex, nextZoom, pagesSignature } from './viewerModel';
+
+/** Zentral gehaltene Auswahl im Ausfuell-Modus: Seiteninstanz + Overlay-Ids. */
+interface FillSelection {
+  itemId: ItemId;
+  ids: string[];
+}
 
 export interface ViewerPage {
   ref: BlockRef;
@@ -76,6 +86,12 @@ export function Viewer({
   const [scrolling, setScrolling] = useState(false);
   const [compact, setCompact] = useState(false);
   const [fillMode, setFillMode] = useState(false);
+  // Zentrale Auswahl + Live-Drehwinkel fuer das Eigenschaften-Panel.
+  const [selection, setSelection] = useState<FillSelection | null>(null);
+  const [spinDeg, setSpinDeg] = useState<number | null>(null);
+  const [panelOpen, setPanelOpen] = useState(true);
+  // Zuletzt gewaehlte Schrift -- neue Textfelder uebernehmen sie.
+  const [lastFont, setLastFont] = useState<string>(DEFAULT_OVERLAY_FONT);
 
   const anyFillable = pages.some((page) => page.fillable);
   const filling = fillMode && anyFillable;
@@ -91,7 +107,18 @@ export function Viewer({
   useLayoutEffect(() => {
     setIndex(0);
     scrollRef.current?.scrollTo({ top: 0 });
+    // Anderes Dokument -> die alte Auswahl gilt nicht mehr.
+    setSelection(null);
+    setSpinDeg(null);
   }, [pagesKey]);
+
+  // Verlaesst man den Ausfuell-Modus, ist keine Auswahl mehr aktiv.
+  useEffect(() => {
+    if (!filling) {
+      setSelection(null);
+      setSpinDeg(null);
+    }
+  }, [filling]);
 
   // Panelbreite bestimmt, ob Drehen/Vollbild ins Ueberlaufmenue wandern.
   useLayoutEffect(() => {
@@ -166,6 +193,56 @@ export function Viewer({
     else void el.requestFullscreen?.();
   };
   const rotate = () => setExtraRotation((r) => ((r + 90) % 360) as Rotation);
+
+  // --- Ableitungen fuer das Eigenschaften-Panel ------------------------------
+  const selPage = selection ? pages.find((p) => p.itemId === selection.itemId) : undefined;
+  const selectedOverlays: Overlay[] =
+    selection && selPage
+      ? (selPage.overlays ?? []).filter((o) => selection.ids.includes(o.id))
+      : [];
+
+  /** Die Auswahl einer Seite setzen (leer -> keine Auswahl). */
+  const selectOnPage = (itemId: ItemId, ids: string[]) => {
+    setSpinDeg(null);
+    setSelection(ids.length > 0 ? { itemId, ids } : null);
+  };
+
+  /** Formatier-Patch auf die aktuelle Auswahl anwenden (ein Undo-Schritt). */
+  const patchSelection = (patch: Partial<Overlay>) => {
+    if (!selection || selection.ids.length === 0) return;
+    if (typeof patch.font === 'string') setLastFont(patch.font);
+    onUpdateOverlays?.(
+      selection.itemId,
+      selection.ids.map((id) => ({ id, patch })),
+    );
+  };
+  const duplicateSelection = () => {
+    if (!selection || selectedOverlays.length === 0) return;
+    const clones = cloneOverlays(selectedOverlays, 0.02, 0.02);
+    onAddOverlays?.(selection.itemId, clones);
+    setSelection({ itemId: selection.itemId, ids: clones.map((c) => c.id) });
+  };
+  const deleteSelection = () => {
+    if (!selection || selection.ids.length === 0) return;
+    onRemoveOverlays?.(selection.itemId, selection.ids);
+    setSelection(null);
+  };
+  const groupSelection = () => {
+    if (!selection || selection.ids.length < 2) return;
+    const gid = newId();
+    onUpdateOverlays?.(
+      selection.itemId,
+      selection.ids.map((id) => ({ id, patch: { groupId: gid } })),
+    );
+  };
+  const ungroupSelection = () => {
+    if (!selection || selection.ids.length === 0) return;
+    onUpdateOverlays?.(
+      selection.itemId,
+      selection.ids.map((id) => ({ id, patch: { groupId: undefined } })),
+    );
+  };
+  const showPanel = filling && panelOpen;
 
   return (
     <div ref={rootRef} className="flex h-full flex-col bg-surface-panel">
@@ -296,47 +373,92 @@ export function Viewer({
         )}
       </div>
 
-      <div
-        ref={scrollRef}
-        className="scroll-fade-y relative min-h-0 flex-1 overflow-auto bg-surface-canvas px-6 pb-10 pt-6"
-      >
-        <div className="mx-auto flex max-w-full flex-col gap-5">
-          {pages.map((page, i) => (
-            <PageBlock
-              key={`${page.ref.sourceId}:${page.ref.blockIndex}:${i}`}
-              page={page}
-              zoom={zoom}
-              extraRotation={extraRotation}
-              scrollRef={scrollRef}
-              filling={filling}
-              onJumpToSource={onJumpToSource}
-              onPagePointerDown={onPagePointerDown}
-              onAddOverlay={onAddOverlay}
-              onAddOverlays={onAddOverlays}
-              onUpdateOverlay={onUpdateOverlay}
-              onUpdateOverlays={onUpdateOverlays}
-              onRemoveOverlay={onRemoveOverlay}
-              onRemoveOverlays={onRemoveOverlays}
-              onDetectFields={onDetectFields}
-              blockRef={(el) => (pageRefs.current[i] = el)}
-            />
-          ))}
+      <div className="flex min-h-0 flex-1">
+        <div
+          ref={scrollRef}
+          className="scroll-fade-y relative min-h-0 min-w-0 flex-1 overflow-auto bg-surface-canvas px-6 pb-10 pt-6"
+        >
+          <div className="mx-auto flex max-w-full flex-col gap-5">
+            {pages.map((page, i) => (
+              <PageBlock
+                key={`${page.ref.sourceId}:${page.ref.blockIndex}:${i}`}
+                page={page}
+                zoom={zoom}
+                extraRotation={extraRotation}
+                scrollRef={scrollRef}
+                filling={filling}
+                selectedIds={
+                  selection && page.itemId === selection.itemId ? selection.ids : EMPTY_IDS
+                }
+                onSelect={(ids) => page.itemId && selectOnPage(page.itemId, ids)}
+                onSpin={setSpinDeg}
+                lastFont={lastFont}
+                onJumpToSource={onJumpToSource}
+                onPagePointerDown={onPagePointerDown}
+                onAddOverlay={onAddOverlay}
+                onAddOverlays={onAddOverlays}
+                onUpdateOverlay={onUpdateOverlay}
+                onUpdateOverlays={onUpdateOverlays}
+                onRemoveOverlay={onRemoveOverlay}
+                onRemoveOverlays={onRemoveOverlays}
+                onDetectFields={onDetectFields}
+                blockRef={(el) => (pageRefs.current[i] = el)}
+              />
+            ))}
+          </div>
+
+          {/* Sticky-Seitenanzeige, mittig unten, verschwindet nach dem Scrollen. */}
+          <div
+            aria-hidden
+            className={cx(
+              'pointer-events-none sticky bottom-3 left-1/2 z-10 mx-auto w-max -translate-x-0 rounded-full bg-surface-raised px-2.5 py-1 font-mono text-[11.5px] tabular-nums text-text-secondary shadow-[var(--float-shadow)] ring-1 ring-line-structural transition-opacity duration-300',
+              scrolling ? 'opacity-100' : 'opacity-0',
+            )}
+          >
+            {index + 1} / {pages.length}
+          </div>
         </div>
 
-        {/* Sticky-Seitenanzeige, mittig unten, verschwindet nach dem Scrollen. */}
-        <div
-          aria-hidden
-          className={cx(
-            'pointer-events-none sticky bottom-3 left-1/2 z-10 mx-auto w-max -translate-x-0 rounded-full bg-surface-raised px-2.5 py-1 font-mono text-[11.5px] tabular-nums text-text-secondary shadow-[var(--float-shadow)] ring-1 ring-line-structural transition-opacity duration-300',
-            scrolling ? 'opacity-100' : 'opacity-0',
-          )}
-        >
-          {index + 1} / {pages.length}
-        </div>
+        {/* Persistentes Eigenschaften-Panel rechts (nur im Ausfuell-Modus). */}
+        {showPanel && (
+          <aside className="w-56 shrink-0 border-l border-line-structural">
+            <FillPropertiesPanel
+              overlays={selectedOverlays}
+              spinDeg={spinDeg}
+              onPatch={patchSelection}
+              onDuplicate={duplicateSelection}
+              onDelete={deleteSelection}
+              onGroup={groupSelection}
+              onUngroup={ungroupSelection}
+              canGroup={selection ? selection.ids.length >= 2 : false}
+              canUngroup={selectedOverlays.some((o) => !!o.groupId)}
+              onCollapse={() => setPanelOpen(false)}
+            />
+          </aside>
+        )}
+
+        {/* Schmaler Streifen zum Wiederaufklappen des eingeklappten Panels. */}
+        {filling && !panelOpen && (
+          <button
+            type="button"
+            onClick={() => setPanelOpen(true)}
+            aria-label={t('preview.fill.expandPanel')}
+            title={t('preview.fill.panelTitle')}
+            className="flex w-9 shrink-0 flex-col items-center gap-2 border-l border-line-structural bg-surface-panel pt-3 text-text-secondary hover:text-text-primary"
+          >
+            <PanelRightOpen className="size-4" aria-hidden />
+            <span className="text-[11.5px] [writing-mode:vertical-rl]">
+              {t('preview.fill.panelTitle')}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );
 }
+
+/** Stabile leere Auswahl-Referenz -- vermeidet unnoetige Re-Renders je Seite. */
+const EMPTY_IDS: string[] = [];
 
 interface PageBlockProps {
   page: ViewerPage;
@@ -344,6 +466,10 @@ interface PageBlockProps {
   extraRotation: Rotation;
   scrollRef: RefObject<HTMLDivElement | null>;
   filling: boolean;
+  selectedIds: string[];
+  onSelect(ids: string[]): void;
+  onSpin(deg: number | null): void;
+  lastFont: string;
   onJumpToSource?(ref: BlockRef): void;
   onPagePointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
   onAddOverlay?(itemId: ItemId, overlay: Overlay): void;
@@ -362,6 +488,10 @@ function PageBlock({
   extraRotation,
   scrollRef,
   filling,
+  selectedIds,
+  onSelect,
+  onSpin,
+  lastFont,
   onJumpToSource,
   onPagePointerDown,
   onAddOverlay,
@@ -440,6 +570,10 @@ function PageBlock({
               <FillLayer
                 overlays={page.overlays ?? []}
                 active={filling}
+                selectedIds={selectedIds}
+                onSelect={onSelect}
+                onSpin={onSpin}
+                lastFont={lastFont}
                 onAdd={(overlay) => onAddOverlay?.(page.itemId!, overlay)}
                 onAddMany={(list) => onAddOverlays?.(page.itemId!, list)}
                 onUpdate={(overlayId, patch) => onUpdateOverlay?.(page.itemId!, overlayId, patch)}
