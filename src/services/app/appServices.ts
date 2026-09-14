@@ -5,6 +5,7 @@ import { createPdfAssembler } from '../../adapters/pdf/pdfAssembler';
 import { createDocumentPool } from '../../adapters/pdf/pdfPool';
 import type { PdfDocumentHandle } from '../../adapters/pdf/pdfEngine';
 import { createOffscreenSurface, createPdfjsEngine } from '../../adapters/pdf/pdfjsEngine';
+import { normalizePdfBoxes } from '../../adapters/pdf/pdfNormalize';
 import { createRegistry } from '../../adapters/registry';
 import { extractTextContent } from '../../adapters/text/extractText';
 import { createTextAdapter } from '../../adapters/text/textAdapter';
@@ -95,7 +96,11 @@ export async function createAppServices({
 
   const engine = createPdfjsEngine();
   const pool = createDocumentPool<PdfDocumentHandle>({
-    load: async (sourceId) => engine.open(await readBytesForSource(sourceId)),
+    // CropBox auf die MediaBox ziehen, bevor pdf.js die Seite parst -- sonst
+    // rendert die Vorschau nur die (evtl. engere) CropBox und schneidet Rand-
+    // inhalt weg. Beschnittene PDFs werden dafuer einmal je Oeffnung normalisiert;
+    // unbeschnittene liefern ihre Originalbytes unveraendert zurueck.
+    load: async (sourceId) => engine.open(await normalizePdfBoxes(await readBytesForSource(sourceId))),
     destroy: (document) => document.destroy(),
     maxOpen: 4,
   });

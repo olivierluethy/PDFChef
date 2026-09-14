@@ -163,6 +163,12 @@ export function createPdfAssembler(): BlockAssembler {
         } else {
           const page = copiedBySource.get(entry.sourceId)?.[entry.slot];
           if (!page) throw new Error(`Copied page missing: ${entry.sourceId}#${entry.slot}`);
+          // CropBox auf die MediaBox ziehen -- sonst schneidet eine engere CropBox
+          // der Quellseite den Rand im Export/Druck genauso weg wie in der Vorschau.
+          // Zugleich stimmt so die Overlay-Bezugsgroesse (getSize == MediaBox) mit
+          // der Vorschau ueberein.
+          const mb = page.getMediaBox();
+          page.setCropBox(mb.x, mb.y, mb.width, mb.height);
           if (entry.rotation !== 0) {
             // Additiv zur Rotation der Quellseite, die die Kopie schon mitbringt.
             page.setRotation(degrees((page.getRotation().angle + entry.rotation) % 360));
