@@ -174,6 +174,10 @@ export function FillLayer({
   const [signing, setSigning] = useState(false);
   const [height, setHeight] = useState(0);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  // Welches Textfeld gerade den Fokus hat. Nur DAS wird beim Tippen nach oben
+  // geholt (z 40); eine reine Auswahl hebt NICHT an, damit das Umsortieren auch
+  // bei Text live sichtbar bleibt.
+  const [focusedTextId, setFocusedTextId] = useState<string | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   // `lastFont` (zuletzt gewaehlte Schrift fuer neue Felder) liegt zentral im Viewer.
   // Zeichnen einer Form (Box/Linie/Freihand) bzw. Polygon per Klick.
@@ -911,7 +915,7 @@ export function FillLayer({
             key={overlay.id}
             data-overlay-wrap
             className="absolute"
-            style={{ ...common, width: `${box.w * 100}%`, ...boxStyle, ...rotateStyle, zIndex: selected ? 40 : baseZ }}
+            style={{ ...common, width: `${box.w * 100}%`, ...boxStyle, ...rotateStyle, zIndex: focusedTextId === overlay.id ? 40 : baseZ }}
           >
             {selected && (
               <span
@@ -931,7 +935,11 @@ export function FillLayer({
             {overlay.options ? (
               <select
                 value={overlay.text ?? ''}
-                onFocus={() => setSelectedIds([overlay.id])}
+                onFocus={() => {
+                  setSelectedIds([overlay.id]);
+                  setFocusedTextId(overlay.id);
+                }}
+                onBlur={() => setFocusedTextId(null)}
                 onPointerDown={(e) => e.stopPropagation()}
                 onChange={(e) => onUpdate(overlay.id, { text: e.currentTarget.value })}
                 className={cx(
@@ -959,6 +967,7 @@ export function FillLayer({
                 autoFocus={(overlay.text ?? '') === ''}
                 onFocus={() => {
                   setSelectedIds([overlay.id]);
+                  setFocusedTextId(overlay.id);
                   pruneEmptyDrafts(overlay.id);
                 }}
                 onPointerDown={(e) => {
@@ -971,6 +980,7 @@ export function FillLayer({
                   ta.style.height = `${ta.scrollHeight}px`;
                 }}
                 onBlur={(e) => {
+                  setFocusedTextId(null);
                   const val = e.currentTarget.value;
                   if (val.trim() !== '') onUpdate(overlay.id, { text: val });
                   else if ((overlay.text ?? '') !== '') onUpdate(overlay.id, { text: '' });
@@ -999,6 +1009,32 @@ export function FillLayer({
           </div>
         );
       })}
+
+      {/* Ebenen-Nummern auf jedem Element (1 = hinten). Als eigene, immer oben
+          liegende Schicht -- so bleiben sie sichtbar, egal welches Element vorne
+          ist, und man erkennt auf einen Blick, wie viele Ebenen zwei Elemente
+          trennen. Die Zahl aktualisiert sich beim Umsortieren live. */}
+      {active && overlays.length > 1 && (
+        <div className="pointer-events-none absolute inset-0 z-40" aria-hidden>
+          {overlays.map((overlay, index) => {
+            const b = boxOf(overlay);
+            const isSel = selectedIds.includes(overlay.id);
+            return (
+              <span
+                key={overlay.id}
+                className={cx(
+                  'absolute grid h-4 min-w-[16px] -translate-y-full place-items-center rounded px-1 text-[10px] font-semibold tabular-nums shadow-sm ring-1 ring-surface-canvas',
+                  isSel ? 'bg-accent text-on-accent' : 'bg-surface-raised text-text-secondary',
+                )}
+                style={{ left: `${b.x * 100}%`, top: `${b.y * 100}%` }}
+                title={t('preview.fill.layerBadge', { n: index + 1 })}
+              >
+                {index + 1}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {/* Ausrichtungslinien waehrend des Drehens: gestricheltes, seitenparalleles
           Fadenkreuz durch den Objektmittelpunkt. Kraeftig, sobald der Winkel auf

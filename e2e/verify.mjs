@@ -62,12 +62,29 @@ async function topAtOverlap() {
   );
 }
 
+// Text des Ebenen-Badges des Elements, dessen linke Kante bei ~fx (%) liegt.
+async function badgeAtLeft(fxPercent) {
+  return page.evaluate((target) => {
+    const spans = [...document.querySelectorAll('[title^="Ebene "]')];
+    let best = null;
+    for (const s of spans) {
+      const left = parseFloat(s.style.left);
+      if (best === null || Math.abs(left - target) < Math.abs(parseFloat(best.style.left) - target))
+        best = s;
+    }
+    return best ? best.textContent.trim() : null;
+  }, fxPercent);
+}
+
 console.log('\nBug 1+2 — Ebenen-Reihenfolge & Positionsanzeige:');
 await page.mouse.click(A_ONLY.x, A_ONLY.y); // A auswaehlen
 await page.waitForTimeout(150);
 check('Panel zeigt "Ebene 1 von 2"', (await page.getByText('Ebene 1 von 2').count()) === 1);
 const topBefore = await topAtOverlap();
 check('Vor dem Umsortieren liegt B oben (A dahinter)', topBefore === 'B', `oben=${topBefore}`);
+check('Zwei Ebenen-Badges auf den Elementen', (await page.locator('[title^="Ebene "]').count()) === 2);
+const aBadgeBefore = await badgeAtLeft(15);
+check('Badge von A zeigt "1" (hinten)', aBadgeBefore === '1', `badge=${aBadgeBefore}`);
 await page.screenshot({ path: 'e2e/shot-01-selected.png' });
 
 await page.getByRole('button', { name: 'In den Vordergrund' }).click();
@@ -75,6 +92,8 @@ await page.waitForTimeout(150);
 check('Panel zeigt jetzt "Ebene 2 von 2"', (await page.getByText('Ebene 2 von 2').count()) === 1);
 const topAfter = await topAtOverlap();
 check('Nach "In den Vordergrund" liegt A oben', topAfter === 'A', `oben=${topAfter}`);
+const aBadgeAfter = await badgeAtLeft(15);
+check('Badge von A springt live auf "2" (vorne)', aBadgeAfter === '2', `badge=${aBadgeAfter}`);
 await page.screenshot({ path: 'e2e/shot-02-front.png' });
 
 console.log('\nBug 3 — Text in Form bearbeiten (kein Geist/Duplikat):');
