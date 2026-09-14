@@ -4,6 +4,9 @@ import {
   AlignEndHorizontal,
   AlignStartHorizontal,
   Bold,
+  BringToFront,
+  ChevronDown,
+  ChevronUp,
   Copy,
   FlipHorizontal,
   FlipVertical,
@@ -12,14 +15,16 @@ import {
   Italic,
   Keyboard,
   Minus,
+  MousePointerSquareDashed,
   PanelRightClose,
   Plus,
   RotateCw,
   Save,
+  SendToBack,
   Trash2,
   Ungroup,
 } from 'lucide-react';
-import type { Overlay } from '../../../domain/types';
+import type { Overlay, OverlayLayerMode } from '../../../domain/types';
 import type { LibraryItemKind } from '../../../services/persistence/db';
 import { overlayFontSpec, overlayHasBold } from '../../../domain/overlayFonts';
 import {
@@ -54,6 +59,11 @@ export interface FillPropertiesPanelProps {
   onDelete(): void;
   onGroup(): void;
   onUngroup(): void;
+  onReorder(mode: OverlayLayerMode): void;
+  /** 1-basierte Ebene der Auswahl (nur bei genau einem Element), sonst null. */
+  layerIndex: number | null;
+  /** Gesamtzahl der Overlays auf der Seite. */
+  layerCount: number;
   canGroup: boolean;
   canUngroup: boolean;
   onCollapse(): void;
@@ -70,9 +80,10 @@ function libraryKindOf(overlays: Overlay[]): LibraryItemKind {
 
 /**
  * Persistentes, kontextsensitives Eigenschaften-Panel fuer die aktuelle Auswahl
- * (ein oder mehrere Overlays). Ersetzt die frueher ueber dem Blatt schwebende
- * Bearbeitungsleiste: die Regler stehen fest in einer eigenen Spalte, verdecken
- * so nie den Dreh-Griff und zeigen den Drehwinkel live waehrend des Drehens.
+ * (ein oder mehrere Overlays). Aufgebaut wie ein praezises Instrumentenpult:
+ * ruhige Flaechen, ein einziger Akzent fuer aktive Zustaende, segmentierte
+ * Regler-Gruppen und tabellarische Zahlen. Ersetzt die frueher schwebende
+ * Bearbeitungsleiste -- die Regler stehen fest in einer eigenen Spalte.
  */
 export function FillPropertiesPanel({
   overlays,
@@ -82,6 +93,9 @@ export function FillPropertiesPanel({
   onDelete,
   onGroup,
   onUngroup,
+  onReorder,
+  layerIndex,
+  layerCount,
   canGroup,
   canUngroup,
   onCollapse,
@@ -109,154 +123,134 @@ export function FillPropertiesPanel({
   // Live-Wert waehrend des Drehens hat Vorrang vor dem gespeicherten Winkel.
   const rotationDeg = spinDeg ?? normalizeAngle(overlays[0]?.rotation ?? 0);
   const fontPt = fractionToPt(fontSize);
+  const strokePt = strokeToPt(firstShape?.strokeWidth ?? 0.004);
 
   return (
     <div className="flex h-full w-full flex-col bg-surface-panel">
-      <header className="flex h-9 shrink-0 items-center gap-2 border-b border-line-structural px-3">
-        <span className="t-panel-title text-text-primary">{t('preview.fill.panelTitle')}</span>
+      <header className="flex h-9 shrink-0 items-center gap-2 border-b border-line-structural pl-3 pr-2">
+        <span className="t-label text-text-primary">{t('preview.fill.panelTitle')}</span>
         <button
           type="button"
           onClick={onCollapse}
           title={t('preview.fill.collapsePanel')}
           aria-label={t('preview.fill.collapsePanel')}
-          className="ml-auto grid size-6 place-items-center rounded-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+          className="ml-auto grid size-7 place-items-center rounded-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"
         >
           <PanelRightClose className="size-4" aria-hidden />
         </button>
       </header>
 
       {!hasSelection ? (
-        <p className="px-4 py-6 text-[12.5px] leading-relaxed text-text-tertiary">
-          {t('preview.fill.panelEmpty')}
-        </p>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
+          <MousePointerSquareDashed className="size-6 text-text-tertiary" aria-hidden />
+          <p className="t-meta max-w-[22ch]">{t('preview.fill.panelEmpty')}</p>
+        </div>
       ) : (
-        <div className="scroll-fade-y min-h-0 flex-1 space-y-4 overflow-auto px-3 py-3">
+        <div className="scroll-fade-y min-h-0 flex-1 overflow-auto px-3 pb-4">
           {textBearing.length > 0 && (
-            <Section title={t('preview.fill.sectionText')}>
+            <Section title={t('preview.fill.sectionText')} first>
               <FontPicker
                 value={firstText?.font ?? 'helvetica'}
                 onChange={(key) => onPatch({ font: key })}
               />
-              <div className="flex items-center gap-1">
-                <IconBtn
-                  label={t('preview.fill.fontSmaller')}
-                  onClick={() => onPatch({ fontSize: ptToFraction(fractionToPt(fontSize) - 0.5) })}
-                >
-                  <Minus className="size-3.5" aria-hidden />
-                </IconBtn>
-                <input
-                  key={fontSize}
-                  type="number"
-                  step={0.5}
-                  min={fractionToPt(MIN_FONT_SIZE)}
-                  max={fractionToPt(MAX_FONT_SIZE)}
-                  defaultValue={fractionToPt(fontSize)}
-                  aria-label={t('preview.fill.fontSizePt')}
-                  title={t('preview.fill.fontSizePt')}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') e.currentTarget.blur();
-                  }}
-                  onBlur={(e) => {
-                    const pt = Number(e.currentTarget.value);
-                    if (Number.isFinite(pt)) onPatch({ fontSize: ptToFraction(pt) });
-                  }}
-                  className="h-7 w-14 rounded-md bg-surface-panel px-1 text-center text-[12px] tabular-nums text-text-primary outline-none ring-1 ring-line-structural focus:ring-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                />
-                <IconBtn
-                  label={t('preview.fill.fontLarger')}
-                  onClick={() => onPatch({ fontSize: ptToFraction(fractionToPt(fontSize) + 0.5) })}
-                >
-                  <Plus className="size-3.5" aria-hidden />
-                </IconBtn>
-                <input
-                  type="range"
-                  min={fractionToPt(MIN_FONT_SIZE)}
-                  max={fractionToPt(MAX_FONT_SIZE)}
-                  step={0.5}
+              <Row label={t('preview.fill.fontSize')}>
+                <Stepper
                   value={fontPt}
-                  aria-label={t('preview.fill.fontSize')}
-                  title={t('preview.fill.fontSize')}
-                  onChange={(e) => onPatch({ fontSize: ptToFraction(Number(e.currentTarget.value)) })}
-                  className="ml-1 h-1 flex-1 cursor-pointer accent-accent"
+                  decLabel={t('preview.fill.fontSmaller')}
+                  incLabel={t('preview.fill.fontLarger')}
+                  fieldLabel={t('preview.fill.fontSizePt')}
+                  min={fractionToPt(MIN_FONT_SIZE)}
+                  max={fractionToPt(MAX_FONT_SIZE)}
+                  step={0.5}
+                  onStep={(d) => onPatch({ fontSize: ptToFraction(fontPt + d) })}
+                  onSet={(v) => onPatch({ fontSize: ptToFraction(v) })}
                 />
-              </div>
-              <div className="flex items-center gap-1">
-                <IconBtn
-                  label={canBold ? t('preview.fill.bold') : t('preview.fill.boldUnavailable')}
-                  pressed={boldActive}
-                  disabled={!canBold}
-                  onClick={() => onPatch({ bold: !boldActive })}
-                >
-                  <Bold className="size-3.5" aria-hidden />
-                </IconBtn>
-                <IconBtn
-                  label={t('preview.fill.italic')}
-                  pressed={italicActive}
-                  onClick={() => onPatch({ italic: !italicActive })}
-                >
-                  <Italic className="size-3.5" aria-hidden />
-                </IconBtn>
-              </div>
-            </Section>
-          )}
-
-          {textBearing.length > 0 && (
-            <Section title={t('preview.fill.sectionColor')}>
-              <div className="flex flex-wrap items-center gap-1">
-                <ColorPicker
-                  title={t('preview.fill.textColor')}
-                  glyph="A"
-                  allowNone
-                  value={firstText?.color ?? '#15181c'}
-                  swatches={OVERLAY_COLORS}
-                  onChange={(v) => onPatch({ color: v ?? 'none' })}
-                />
-                {formable.length > 0 && (
+              </Row>
+              <input
+                type="range"
+                min={fractionToPt(MIN_FONT_SIZE)}
+                max={fractionToPt(MAX_FONT_SIZE)}
+                step={0.5}
+                value={fontPt}
+                aria-label={t('preview.fill.fontSize')}
+                onChange={(e) => onPatch({ fontSize: ptToFraction(Number(e.currentTarget.value)) })}
+                className="h-1 w-full cursor-pointer accent-accent"
+              />
+              <Row label={t('preview.fill.styleLabel')}>
+                <Seg>
+                  <SegBtn
+                    label={canBold ? t('preview.fill.bold') : t('preview.fill.boldUnavailable')}
+                    pressed={boldActive}
+                    disabled={!canBold}
+                    onClick={() => onPatch({ bold: !boldActive })}
+                  >
+                    <Bold className="size-3.5" aria-hidden />
+                  </SegBtn>
+                  <SegBtn
+                    label={t('preview.fill.italic')}
+                    pressed={italicActive}
+                    onClick={() => onPatch({ italic: !italicActive })}
+                  >
+                    <Italic className="size-3.5" aria-hidden />
+                  </SegBtn>
+                </Seg>
+              </Row>
+              <Row label={t('preview.fill.sectionColor')}>
+                <div className="flex items-center gap-1">
                   <ColorPicker
-                    title={t('preview.fill.textBg')}
-                    glyph={<Highlighter className="size-3.5" aria-hidden />}
+                    title={t('preview.fill.textColor')}
+                    glyph="A"
                     allowNone
-                    value={firstText?.textBg}
-                    swatches={HIGHLIGHT_COLORS}
-                    onChange={(v) => onPatch({ textBg: v ?? 'none' })}
+                    value={firstText?.color ?? '#15181c'}
+                    swatches={OVERLAY_COLORS}
+                    onChange={(v) => onPatch({ color: v ?? 'none' })}
                   />
-                )}
-              </div>
-            </Section>
-          )}
-
-          {formable.length > 0 && (
-            <Section title={t('preview.fill.sectionAlign')}>
-              <div className="flex items-center gap-1">
-                <IconBtn
-                  label={t('preview.fill.valignTop')}
-                  pressed={valign === 'top'}
-                  onClick={() => onPatch({ valign: 'top' })}
-                >
-                  <AlignStartHorizontal className="size-3.5" aria-hidden />
-                </IconBtn>
-                <IconBtn
-                  label={t('preview.fill.valignMiddle')}
-                  pressed={valign === 'middle'}
-                  onClick={() => onPatch({ valign: 'middle' })}
-                >
-                  <AlignCenterHorizontal className="size-3.5" aria-hidden />
-                </IconBtn>
-                <IconBtn
-                  label={t('preview.fill.valignBottom')}
-                  pressed={valign === 'bottom'}
-                  onClick={() => onPatch({ valign: 'bottom' })}
-                >
-                  <AlignEndHorizontal className="size-3.5" aria-hidden />
-                </IconBtn>
-              </div>
+                  {formable.length > 0 && (
+                    <ColorPicker
+                      title={t('preview.fill.textBg')}
+                      glyph={<Highlighter className="size-3.5" aria-hidden />}
+                      allowNone
+                      value={firstText?.textBg}
+                      swatches={HIGHLIGHT_COLORS}
+                      onChange={(v) => onPatch({ textBg: v ?? 'none' })}
+                    />
+                  )}
+                </div>
+              </Row>
+              {formable.length > 0 && (
+                <Row label={t('preview.fill.sectionAlign')}>
+                  <Seg>
+                    <SegBtn
+                      label={t('preview.fill.valignTop')}
+                      pressed={valign === 'top'}
+                      onClick={() => onPatch({ valign: 'top' })}
+                    >
+                      <AlignStartHorizontal className="size-3.5" aria-hidden />
+                    </SegBtn>
+                    <SegBtn
+                      label={t('preview.fill.valignMiddle')}
+                      pressed={valign === 'middle'}
+                      onClick={() => onPatch({ valign: 'middle' })}
+                    >
+                      <AlignCenterHorizontal className="size-3.5" aria-hidden />
+                    </SegBtn>
+                    <SegBtn
+                      label={t('preview.fill.valignBottom')}
+                      pressed={valign === 'bottom'}
+                      onClick={() => onPatch({ valign: 'bottom' })}
+                    >
+                      <AlignEndHorizontal className="size-3.5" aria-hidden />
+                    </SegBtn>
+                  </Seg>
+                </Row>
+              )}
             </Section>
           )}
 
           {shapes.length > 0 && (
             <Section title={t('preview.fill.sectionShape')}>
-              <div className="flex flex-wrap items-center gap-1">
-                {!hasHighlight && (
+              {!hasHighlight && (
+                <Row label={t('preview.fill.borderColor')}>
                   <ColorPicker
                     title={t('preview.fill.borderColor')}
                     glyph="▢"
@@ -265,7 +259,9 @@ export function FillPropertiesPanel({
                     swatches={OVERLAY_COLORS}
                     onChange={(v) => onPatch({ stroke: v })}
                   />
-                )}
+                </Row>
+              )}
+              <Row label={t('preview.fill.fillColor')}>
                 <ColorPicker
                   title={t('preview.fill.fillColor')}
                   glyph="■"
@@ -274,111 +270,130 @@ export function FillPropertiesPanel({
                   swatches={hasHighlight ? HIGHLIGHT_COLORS : OVERLAY_COLORS}
                   onChange={(v) => onPatch({ fill: v ?? 'none' })}
                 />
-              </div>
+              </Row>
               {!hasHighlight && (
-                <div className="flex items-center gap-1" title={t('preview.fill.strokeWidth')}>
-                  <span className="w-16 text-[11.5px] text-text-secondary">
-                    {t('preview.fill.strokeWidth')}
-                  </span>
-                  <IconBtn
-                    label={t('preview.fill.borderThinner')}
-                    onClick={() =>
-                      onPatch({
-                        strokeWidth: ptToStroke(strokeToPt(firstShape?.strokeWidth ?? 0.004) - 0.5),
-                      })
-                    }
-                  >
-                    <Minus className="size-3.5" aria-hidden />
-                  </IconBtn>
-                  <span className="w-8 text-center text-[11.5px] tabular-nums text-text-secondary">
-                    {strokeToPt(firstShape?.strokeWidth ?? 0.004)}
-                  </span>
-                  <IconBtn
-                    label={t('preview.fill.borderThicker')}
-                    onClick={() =>
-                      onPatch({
-                        strokeWidth: ptToStroke(strokeToPt(firstShape?.strokeWidth ?? 0.004) + 0.5),
-                      })
-                    }
-                  >
-                    <Plus className="size-3.5" aria-hidden />
-                  </IconBtn>
-                </div>
+                <Row label={t('preview.fill.strokeWidth')}>
+                  <Stepper
+                    value={strokePt}
+                    decLabel={t('preview.fill.borderThinner')}
+                    incLabel={t('preview.fill.borderThicker')}
+                    fieldLabel={t('preview.fill.strokeWidth')}
+                    min={0}
+                    max={20}
+                    step={0.5}
+                    onStep={(d) => onPatch({ strokeWidth: ptToStroke(strokePt + d) })}
+                    onSet={(v) => onPatch({ strokeWidth: ptToStroke(v) })}
+                  />
+                </Row>
               )}
-              <label
-                className="flex items-center gap-2 text-[11.5px] text-text-secondary"
-                title={t('preview.fill.opacity')}
-              >
-                <span className="w-16">{t('preview.fill.opacity')}</span>
-                <input
-                  type="range"
-                  min={0.1}
-                  max={1}
-                  step={0.05}
-                  value={firstShape?.opacity ?? 1}
-                  onChange={(e) => onPatch({ opacity: Number(e.currentTarget.value) })}
-                  className="h-1 flex-1 cursor-pointer accent-accent"
-                />
-              </label>
+              <Row label={t('preview.fill.opacity')}>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="range"
+                    min={0.1}
+                    max={1}
+                    step={0.05}
+                    value={firstShape?.opacity ?? 1}
+                    aria-label={t('preview.fill.opacity')}
+                    onChange={(e) => onPatch({ opacity: Number(e.currentTarget.value) })}
+                    className="h-1 w-20 cursor-pointer accent-accent"
+                  />
+                  <span className="t-data w-8 text-right text-text-secondary">
+                    {Math.round((firstShape?.opacity ?? 1) * 100)}
+                  </span>
+                </div>
+              </Row>
             </Section>
           )}
 
           <Section title={t('preview.fill.sectionRotate')}>
-            <div className="flex items-center gap-2">
-              <RotateCw className="size-3.5 text-text-tertiary" aria-hidden />
-              <input
-                key={rotationDeg}
-                type="number"
-                step={1}
-                defaultValue={rotationDeg}
-                aria-label={t('preview.fill.angle')}
-                title={t('preview.fill.angle')}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                }}
-                onBlur={(e) => {
-                  const deg = Number(e.currentTarget.value);
-                  if (Number.isFinite(deg)) onPatch({ rotation: normalizeAngle(deg) });
-                }}
-                className="h-7 w-14 rounded-md bg-surface-panel px-1 text-center text-[12px] tabular-nums text-text-primary outline-none ring-1 ring-line-structural focus:ring-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-              />
-              <span className="text-[12px] text-text-tertiary" aria-hidden>
-                °
-              </span>
-              <input
-                type="range"
-                min={0}
-                max={359}
-                step={1}
-                value={rotationDeg}
-                aria-label={t('preview.fill.angle')}
-                onChange={(e) => onPatch({ rotation: normalizeAngle(Number(e.currentTarget.value)) })}
-                className="ml-1 h-1 flex-1 cursor-pointer accent-accent"
-              />
-            </div>
-            {formable.length > 0 && (
-              <div className="flex items-center gap-1">
-                <IconBtn
-                  label={t('preview.fill.flipH')}
-                  pressed={flipXActive}
-                  onClick={() => onPatch({ flipX: !flipXActive })}
-                >
-                  <FlipHorizontal className="size-3.5" aria-hidden />
-                </IconBtn>
-                <IconBtn
-                  label={t('preview.fill.flipV')}
-                  pressed={flipYActive}
-                  onClick={() => onPatch({ flipY: !flipYActive })}
-                >
-                  <FlipVertical className="size-3.5" aria-hidden />
-                </IconBtn>
+            <Row label={t('preview.fill.angle')}>
+              <div className="flex items-center gap-1.5">
+                <RotateCw className="size-3.5 text-text-tertiary" aria-hidden />
+                <NumberField
+                  key={rotationDeg}
+                  value={rotationDeg}
+                  label={t('preview.fill.angle')}
+                  suffix="°"
+                  onSet={(v) => onPatch({ rotation: normalizeAngle(v) })}
+                />
               </div>
+            </Row>
+            <input
+              type="range"
+              min={0}
+              max={359}
+              step={1}
+              value={rotationDeg}
+              aria-label={t('preview.fill.angle')}
+              onChange={(e) => onPatch({ rotation: normalizeAngle(Number(e.currentTarget.value)) })}
+              className="h-1 w-full cursor-pointer accent-accent"
+            />
+            {formable.length > 0 && (
+              <Row label={t('preview.fill.flipLabel')}>
+                <Seg>
+                  <SegBtn
+                    label={t('preview.fill.flipH')}
+                    pressed={flipXActive}
+                    onClick={() => onPatch({ flipX: !flipXActive })}
+                  >
+                    <FlipHorizontal className="size-3.5" aria-hidden />
+                  </SegBtn>
+                  <SegBtn
+                    label={t('preview.fill.flipV')}
+                    pressed={flipYActive}
+                    onClick={() => onPatch({ flipY: !flipYActive })}
+                  >
+                    <FlipVertical className="size-3.5" aria-hidden />
+                  </SegBtn>
+                </Seg>
+              </Row>
             )}
+          </Section>
+
+          <Section title={t('preview.fill.sectionLayer')}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="t-label text-text-secondary">
+                {layerIndex != null
+                  ? t('preview.fill.layerPosition', { n: layerIndex, total: layerCount })
+                  : t('preview.fill.layerMultiple', { n: overlays.length })}
+              </span>
+              <Seg>
+                <SegBtn
+                  label={t('preview.fill.layerBack')}
+                  disabled={layerIndex === 1}
+                  onClick={() => onReorder('back')}
+                >
+                  <SendToBack className="size-3.5" aria-hidden />
+                </SegBtn>
+                <SegBtn
+                  label={t('preview.fill.layerBackward')}
+                  disabled={layerIndex === 1}
+                  onClick={() => onReorder('backward')}
+                >
+                  <ChevronDown className="size-4" aria-hidden />
+                </SegBtn>
+                <SegBtn
+                  label={t('preview.fill.layerForward')}
+                  disabled={layerIndex === layerCount}
+                  onClick={() => onReorder('forward')}
+                >
+                  <ChevronUp className="size-4" aria-hidden />
+                </SegBtn>
+                <SegBtn
+                  label={t('preview.fill.layerFront')}
+                  disabled={layerIndex === layerCount}
+                  onClick={() => onReorder('front')}
+                >
+                  <BringToFront className="size-3.5" aria-hidden />
+                </SegBtn>
+              </Seg>
+            </div>
           </Section>
 
           <Section title={t('preview.fill.sectionActions')}>
             {formable.length > 0 && (
-              <ActionBtn
+              <ActionButton
                 label={
                   interactiveActive
                     ? t('preview.fill.interactiveOn')
@@ -389,31 +404,31 @@ export function FillPropertiesPanel({
                 icon={<Keyboard className="size-3.5" aria-hidden />}
               />
             )}
-            <ActionBtn
+            <ActionButton
               label={t('preview.fill.duplicate')}
               onClick={onDuplicate}
               icon={<Copy className="size-3.5" aria-hidden />}
             />
             {canGroup && (
-              <ActionBtn
+              <ActionButton
                 label={t('preview.fill.group')}
                 onClick={onGroup}
                 icon={<Group className="size-3.5" aria-hidden />}
               />
             )}
             {canUngroup && (
-              <ActionBtn
+              <ActionButton
                 label={t('preview.fill.ungroup')}
                 onClick={onUngroup}
                 icon={<Ungroup className="size-3.5" aria-hidden />}
               />
             )}
-            <ActionBtn
+            <ActionButton
               label={t('preview.fill.saveToLibrary')}
               onClick={() => setSaveOpen(true)}
               icon={<Save className="size-3.5" aria-hidden />}
             />
-            <ActionBtn
+            <ActionButton
               label={t('preview.fill.delete')}
               onClick={onDelete}
               danger
@@ -439,27 +454,62 @@ export function FillPropertiesPanel({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/** Ein thematischer Block; ausser dem ersten mit feiner Trennlinie darueber. */
+function Section({
+  title,
+  children,
+  first,
+}: {
+  title: string;
+  children: React.ReactNode;
+  first?: boolean;
+}) {
   return (
-    <section className="space-y-2">
-      <h3 className="text-[11px] font-medium uppercase tracking-wide text-text-tertiary">{title}</h3>
+    <section className={cx('space-y-2.5 py-3', !first && 'border-t border-line-hairline')}>
+      <h3 className="text-[11.5px] font-medium text-text-tertiary">{title}</h3>
       {children}
     </section>
   );
 }
 
-function IconBtn({
+/** Beschriftete Zeile: Label links, Regler rechts. */
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-h-7 items-center justify-between gap-2">
+      <span className="t-label truncate text-text-secondary">{label}</span>
+      <div className="flex shrink-0 items-center">{children}</div>
+    </div>
+  );
+}
+
+/** Segmentierte Regler-Gruppe auf erhabenem Grund. */
+function Seg({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div
+      className={cx(
+        'inline-flex items-center gap-0.5 rounded-lg bg-surface-raised p-0.5 ring-1 ring-line-structural',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+function SegBtn({
   label,
   onClick,
   children,
   pressed,
   disabled,
+  grow,
 }: {
   label: string;
   onClick(): void;
   children: React.ReactNode;
   pressed?: boolean;
   disabled?: boolean;
+  grow?: boolean;
 }) {
   return (
     <button
@@ -470,12 +520,13 @@ function IconBtn({
       disabled={disabled}
       onClick={onClick}
       className={cx(
-        'grid size-7 shrink-0 place-items-center rounded-md',
+        'grid h-6 place-items-center rounded-md transition-colors',
+        grow ? 'flex-1' : 'w-7',
         disabled
           ? 'cursor-not-allowed text-text-tertiary opacity-40'
           : pressed
             ? 'bg-accent text-on-accent'
-            : 'text-text-secondary ring-1 ring-line-structural hover:bg-surface-hover hover:text-text-primary',
+            : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary',
       )}
     >
       {children}
@@ -483,7 +534,109 @@ function IconBtn({
   );
 }
 
-function ActionBtn({
+/** Zahlenfeld mit −/+-Steppern auf erhabenem Grund. */
+function Stepper({
+  value,
+  onStep,
+  onSet,
+  decLabel,
+  incLabel,
+  fieldLabel,
+  min,
+  max,
+  step,
+}: {
+  value: number;
+  onStep(delta: number): void;
+  onSet(value: number): void;
+  decLabel: string;
+  incLabel: string;
+  fieldLabel: string;
+  min: number;
+  max: number;
+  step: number;
+}) {
+  return (
+    <div className="inline-flex items-center rounded-lg bg-surface-raised ring-1 ring-line-structural">
+      <button
+        type="button"
+        title={decLabel}
+        aria-label={decLabel}
+        onClick={() => onStep(-step)}
+        className="grid size-7 place-items-center rounded-l-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+      >
+        <Minus className="size-3.5" aria-hidden />
+      </button>
+      <input
+        key={value}
+        type="number"
+        step={step}
+        min={min}
+        max={max}
+        defaultValue={value}
+        aria-label={fieldLabel}
+        title={fieldLabel}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+        }}
+        onBlur={(e) => {
+          const n = Number(e.currentTarget.value);
+          if (Number.isFinite(n)) onSet(n);
+        }}
+        className="t-data h-7 w-10 border-x border-line-hairline bg-transparent text-center text-text-primary outline-none focus:bg-surface-hover [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+      <button
+        type="button"
+        title={incLabel}
+        aria-label={incLabel}
+        onClick={() => onStep(step)}
+        className="grid size-7 place-items-center rounded-r-lg text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+      >
+        <Plus className="size-3.5" aria-hidden />
+      </button>
+    </div>
+  );
+}
+
+/** Einfaches Zahlenfeld mit optionalem Suffix (z. B. Grad). */
+function NumberField({
+  value,
+  onSet,
+  label,
+  suffix,
+}: {
+  value: number;
+  onSet(value: number): void;
+  label: string;
+  suffix?: string;
+}) {
+  return (
+    <div className="inline-flex items-center rounded-lg bg-surface-raised px-1.5 ring-1 ring-line-structural focus-within:ring-accent">
+      <input
+        type="number"
+        step={1}
+        defaultValue={value}
+        aria-label={label}
+        title={label}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') e.currentTarget.blur();
+        }}
+        onBlur={(e) => {
+          const n = Number(e.currentTarget.value);
+          if (Number.isFinite(n)) onSet(n);
+        }}
+        className="t-data h-7 w-9 bg-transparent text-center text-text-primary outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+      />
+      {suffix && (
+        <span className="t-data pr-0.5 text-text-tertiary" aria-hidden>
+          {suffix}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ActionButton({
   label,
   onClick,
   icon,
@@ -504,7 +657,7 @@ function ActionBtn({
       aria-pressed={pressed}
       onClick={onClick}
       className={cx(
-        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px]',
+        'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] transition-colors',
         pressed
           ? 'bg-accent text-on-accent'
           : danger

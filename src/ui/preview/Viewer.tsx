@@ -12,7 +12,7 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import { PanelRightOpen } from 'lucide-react';
-import type { BlockRef, ItemId, Overlay, Rotation } from '../../domain/types';
+import type { BlockRef, ItemId, Overlay, OverlayLayerMode, Rotation } from '../../domain/types';
 import { newId } from '../../domain/ids';
 import { DEFAULT_OVERLAY_FONT } from '../../domain/overlayFonts';
 import type { DragOrigin } from '../workspace/dragLogic';
@@ -57,6 +57,8 @@ export interface ViewerProps {
   onUpdateOverlays?(itemId: ItemId, updates: { id: string; patch: Partial<Overlay> }[]): void;
   onRemoveOverlay?(itemId: ItemId, overlayId: string): void;
   onRemoveOverlays?(itemId: ItemId, overlayIds: string[]): void;
+  /** Verschiebt die Auswahl in der Zeichenreihenfolge (Ebenen). */
+  onReorderOverlays?(itemId: ItemId, overlayIds: string[], mode: OverlayLayerMode): void;
   /** Erkennt AcroForm-Felder der Seite und legt sie als Overlays an. */
   onDetectFields?(itemId: ItemId): void;
   emptyLabel?: string;
@@ -76,6 +78,7 @@ export function Viewer({
   onUpdateOverlays,
   onRemoveOverlay,
   onRemoveOverlays,
+  onReorderOverlays,
   onDetectFields,
   emptyLabel,
 }: ViewerProps) {
@@ -196,10 +199,15 @@ export function Viewer({
 
   // --- Ableitungen fuer das Eigenschaften-Panel ------------------------------
   const selPage = selection ? pages.find((p) => p.itemId === selection.itemId) : undefined;
+  const pageOverlays = selPage?.overlays ?? [];
   const selectedOverlays: Overlay[] =
-    selection && selPage
-      ? (selPage.overlays ?? []).filter((o) => selection.ids.includes(o.id))
-      : [];
+    selection && selPage ? pageOverlays.filter((o) => selection.ids.includes(o.id)) : [];
+  // Ebenen-Position der Auswahl (nur eindeutig bei genau einem Element).
+  const layerCount = pageOverlays.length;
+  const layerIndex =
+    selection && selection.ids.length === 1
+      ? pageOverlays.findIndex((o) => o.id === selection.ids[0]) + 1
+      : null;
 
   /** Die Auswahl einer Seite setzen (leer -> keine Auswahl). */
   const selectOnPage = (itemId: ItemId, ids: string[]) => {
@@ -241,6 +249,10 @@ export function Viewer({
       selection.itemId,
       selection.ids.map((id) => ({ id, patch: { groupId: undefined } })),
     );
+  };
+  const reorderSelection = (mode: OverlayLayerMode) => {
+    if (!selection || selection.ids.length === 0) return;
+    onReorderOverlays?.(selection.itemId, selection.ids, mode);
   };
   const showPanel = filling && panelOpen;
 
@@ -430,6 +442,9 @@ export function Viewer({
               onDelete={deleteSelection}
               onGroup={groupSelection}
               onUngroup={ungroupSelection}
+              onReorder={reorderSelection}
+              layerIndex={layerIndex}
+              layerCount={layerCount}
               canGroup={selection ? selection.ids.length >= 2 : false}
               canUngroup={selectedOverlays.some((o) => !!o.groupId)}
               onCollapse={() => setPanelOpen(false)}

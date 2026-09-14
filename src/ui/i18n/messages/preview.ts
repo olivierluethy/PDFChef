@@ -117,7 +117,16 @@ export const preview: MessageFragment = {
     'preview.fill.sectionAlign': 'Alignment',
     'preview.fill.sectionShape': 'Shape',
     'preview.fill.sectionRotate': 'Rotation & flip',
+    'preview.fill.sectionLayer': 'Layer',
     'preview.fill.sectionActions': 'Actions',
+    'preview.fill.styleLabel': 'Style',
+    'preview.fill.flipLabel': 'Flip',
+    'preview.fill.layerFront': 'Bring to front',
+    'preview.fill.layerForward': 'Bring forward',
+    'preview.fill.layerBackward': 'Send backward',
+    'preview.fill.layerBack': 'Send to back',
+    'preview.fill.layerPosition': 'Layer {n} of {total}',
+    'preview.fill.layerMultiple': '{n} elements selected',
 
     // Shape picker labels
     'preview.shape.rect': 'Rectangle',
@@ -260,7 +269,16 @@ export const preview: MessageFragment = {
     'preview.fill.sectionAlign': 'Ausrichtung',
     'preview.fill.sectionShape': 'Form',
     'preview.fill.sectionRotate': 'Drehung & Spiegelung',
+    'preview.fill.sectionLayer': 'Ebene',
     'preview.fill.sectionActions': 'Aktionen',
+    'preview.fill.styleLabel': 'Stil',
+    'preview.fill.flipLabel': 'Spiegeln',
+    'preview.fill.layerFront': 'In den Vordergrund',
+    'preview.fill.layerForward': 'Eine Ebene nach vorne',
+    'preview.fill.layerBackward': 'Eine Ebene nach hinten',
+    'preview.fill.layerBack': 'In den Hintergrund',
+    'preview.fill.layerPosition': 'Ebene {n} von {total}',
+    'preview.fill.layerMultiple': '{n} Elemente ausgewählt',
 
     // Shape picker labels
     'preview.shape.rect': 'Rechteck',

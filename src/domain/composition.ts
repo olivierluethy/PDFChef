@@ -5,6 +5,7 @@ import type {
   NodeId,
   OutputDocument,
   Overlay,
+  OverlayLayerMode,
   Rotation,
   SourceId,
   Workspace,
@@ -136,6 +137,49 @@ export function removeOverlay(ws: Workspace, itemId: ItemId, overlayId: string):
   const item = ws.items[itemId];
   if (!item?.overlays) return;
   item.overlays = item.overlays.filter((o) => o.id !== overlayId);
+}
+
+/**
+ * Verschiebt die ausgewaehlten Overlays in der Zeichenreihenfolge (Ebenen).
+ * Die Array-Reihenfolge ist zugleich die Z-Reihenfolge in Vorschau und Export:
+ * spaeter im Array = weiter vorne. `front`/`back` legen die Auswahl als Block
+ * ganz nach vorne/hinten, `forward`/`backward` um genau eine Ebene.
+ */
+export function reorderOverlays(
+  ws: Workspace,
+  itemId: ItemId,
+  overlayIds: string[],
+  mode: OverlayLayerMode,
+): void {
+  const item = ws.items[itemId];
+  if (!item?.overlays || overlayIds.length === 0) return;
+  const arr = item.overlays;
+  const sel = new Set(overlayIds);
+  if (!arr.some((o) => sel.has(o.id))) return;
+
+  if (mode === 'front') {
+    item.overlays = [...arr.filter((o) => !sel.has(o.id)), ...arr.filter((o) => sel.has(o.id))];
+    return;
+  }
+  if (mode === 'back') {
+    item.overlays = [...arr.filter((o) => sel.has(o.id)), ...arr.filter((o) => !sel.has(o.id))];
+    return;
+  }
+  if (mode === 'forward') {
+    // Von hinten nach vorne: jedes gewaehlte Element ueber seinen nicht
+    // gewaehlten Nachbarn schieben -- der Block wandert um eine Ebene nach vorne.
+    for (let i = arr.length - 2; i >= 0; i--) {
+      if (sel.has(arr[i].id) && !sel.has(arr[i + 1].id)) {
+        [arr[i], arr[i + 1]] = [arr[i + 1], arr[i]];
+      }
+    }
+  } else {
+    for (let i = 1; i < arr.length; i++) {
+      if (sel.has(arr[i].id) && !sel.has(arr[i - 1].id)) {
+        [arr[i], arr[i - 1]] = [arr[i - 1], arr[i]];
+      }
+    }
+  }
 }
 
 export function copyItems(

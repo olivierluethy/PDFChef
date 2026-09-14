@@ -18,7 +18,14 @@ import { overlayCssFamily, overlayFontSpec } from '../../domain/overlayFonts';
  * Vorfahren (Seiten-/Kachelflaeche) gelesen, damit duenne Formen nicht
  * verzerren. Dieselbe Komponente dient Editor, Kacheln und Bibliotheksvorschau.
  */
-export function OverlayShape({ overlay }: { overlay: Overlay }) {
+export function OverlayShape({
+  overlay,
+  hideText,
+}: {
+  overlay: Overlay;
+  /** Blendet den Formtext aus -- waehrend er gerade in einer Textarea editiert wird. */
+  hideText?: boolean;
+}) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ boxW: 0, boxH: 0, pageH: 0 });
 
@@ -88,7 +95,7 @@ export function OverlayShape({ overlay }: { overlay: Overlay }) {
   }
 
   const text = overlay.text ?? '';
-  const showText = text.trim() !== '' && overlayShapeSupportsText(overlay);
+  const showText = !hideText && text.trim() !== '' && overlayShapeSupportsText(overlay);
 
   return (
     <div ref={ref} style={{ position: 'absolute', inset: 0, opacity }}>
@@ -110,7 +117,12 @@ export function OverlayShape({ overlay }: { overlay: Overlay }) {
             fontFamily: overlayCssFamily(overlayFontSpec(overlay.font), overlay.bold ?? false),
             fontWeight: overlay.bold ? 700 : overlayFontSpec(overlay.font).cssWeight,
             fontStyle: overlay.italic ? 'italic' : 'normal',
-            fontSize: `${(overlay.fontSize ?? 0.024) * (pageH || boxH)}px`,
+            // Schriftgroesse ist ein Bruchteil der SEITENhoehe. Ueber die
+            // Container-Einheit `cqh` (relativ zum naechsten `container-type`-
+            // Vorfahren -- Seite im Editor, Kachel in der Miniatur) trifft die
+            // Anzeige exakt die Editiergroesse, statt faelschlich mit der viel
+            // kleineren Form-Box zu skalieren.
+            fontSize: `${(overlay.fontSize ?? 0.024) * 100}cqh`,
             color: overlayTextColorCss(overlay.color, DEFAULT_SHAPE_TEXT_COLOR),
           }}
         >

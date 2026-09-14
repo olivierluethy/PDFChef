@@ -152,6 +152,10 @@ export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: Previ
           commands: ids.map((overlayId) => ({ type: 'removeOverlay', itemId, overlayId })),
         });
       }}
+      onReorderOverlays={(itemId, overlayIds, mode) => {
+        if (overlayIds.length === 0) return;
+        dispatch({ type: 'reorderOverlays', itemId, overlayIds, mode });
+      }}
       onDetectFields={(itemId) => void detectFields(itemId)}
       emptyLabel={t('preview.previewEmpty')}
     />

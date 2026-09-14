@@ -42,6 +42,9 @@ export interface SourceDocument {
 
 export type OverlayKind = 'text' | 'image' | 'shape';
 
+/** Ebenen-Verschiebung eines Overlays in der Zeichenreihenfolge (Z-Order). */
+export type OverlayLayerMode = 'front' | 'forward' | 'backward' | 'back';
+
 /**
  * Die zeichenbaren Formen. `box`-Formen (Rechteck/Ellipse/Highlight) werden ueber
  * ein aufgezogenes Rechteck definiert; `line`-Formen (Linie/Pfeil/Polygon/Freihand)
