@@ -14,6 +14,19 @@ export default tseslint.config(
     },
   },
   {
+    // Playwright-Verifikationsskripte: laufen in Node, evaluieren aber Code im
+    // Browser-Kontext, brauchen also beide Global-Saetze.
+    files: ['e2e/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        localStorage: 'readonly',
+        document: 'readonly',
+      },
+    },
+  },
+  {
     files: ['**/*.{ts,tsx}'],
     plugins: { import: importPlugin },
     settings: {
