@@ -35,6 +35,12 @@ export interface FillLayerProps {
   selectedIds: string[];
   /** Setzt die Auswahl dieser Seite (leer = nichts gewaehlt). */
   onSelect(ids: string[]): void;
+  /**
+   * Alle Ebenen-Nummern einblenden. Sonst zeigt die Schicht nur die Nummer des
+   * gewaehlten Elements -- die vollstaendigen Nummern erscheinen erst, wenn der
+   * Nutzer sie fixiert oder gerade im Ebene-Bereich des Panels arbeitet.
+   */
+  showAllBadges: boolean;
   /** Meldet den Live-Drehwinkel waehrend des Ziehens am Griff (null nach dem Loslassen). */
   onSpin?(deg: number | null): void;
   /** Zuletzt gewaehlte Schrift -- neue Textfelder uebernehmen sie. */
@@ -150,6 +156,7 @@ export function FillLayer({
   active,
   selectedIds,
   onSelect,
+  showAllBadges,
   onSpin,
   lastFont,
   onAdd,
@@ -807,20 +814,35 @@ export function FillLayer({
             >
               <OverlayShape overlay={overlay} hideText={editingText} />
               {editingText && (
-                <textarea
-                  autoFocus
-                  defaultValue={overlay.text}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onBlur={(e) => {
-                    onUpdate(overlay.id, { text: e.currentTarget.value });
-                    setEditingTextId(null);
-                  }}
-                  className="absolute inset-0 resize-none bg-transparent text-center outline-none"
-                  style={{
-                    fontSize: `${(overlay.fontSize ?? DEFAULT_FONT_SIZE) * height}px`,
-                    ...overlayTextStyle(overlay),
-                  }}
-                />
+                // Deckungsgleich zur Anzeige in OverlayShape: gleiche vertikale
+                // Ausrichtung und gleiches Innenmass, damit der Text beim Wechsel
+                // in den Editiermodus nicht springt.
+                <div
+                  className="absolute inset-0 flex flex-col"
+                  style={{ justifyContent: valignJustify(overlay.valign ?? 'middle'), padding: '4%' }}
+                >
+                  <textarea
+                    autoFocus
+                    defaultValue={overlay.text}
+                    rows={1}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onInput={(e) => {
+                      const ta = e.currentTarget;
+                      ta.style.height = 'auto';
+                      ta.style.height = `${ta.scrollHeight}px`;
+                    }}
+                    onBlur={(e) => {
+                      onUpdate(overlay.id, { text: e.currentTarget.value });
+                      setEditingTextId(null);
+                    }}
+                    className="w-full resize-none overflow-hidden bg-transparent text-center outline-none"
+                    style={{
+                      fontSize: `${(overlay.fontSize ?? DEFAULT_FONT_SIZE) * height}px`,
+                      lineHeight: 1.25,
+                      ...overlayTextStyle(overlay),
+                    }}
+                  />
+                </div>
               )}
               {singleSelected && cornerHandles(overlay, false)}
               {singleSelected && rotateHandle(overlay)}
@@ -1010,15 +1032,17 @@ export function FillLayer({
         );
       })}
 
-      {/* Ebenen-Nummern auf jedem Element (1 = hinten). Als eigene, immer oben
-          liegende Schicht -- so bleiben sie sichtbar, egal welches Element vorne
-          ist, und man erkennt auf einen Blick, wie viele Ebenen zwei Elemente
-          trennen. Die Zahl aktualisiert sich beim Umsortieren live. */}
+      {/* Ebenen-Nummern (1 = hinten). Als eigene, immer oben liegende Schicht --
+          so bleiben sie sichtbar, egal welches Element vorne ist. Standardmaessig
+          erscheint nur die Nummer des gewaehlten Elements; alle Nummern werden
+          erst gezeigt, wenn der Nutzer sie fixiert oder gerade im Ebene-Bereich
+          arbeitet. Die Zahl aktualisiert sich beim Umsortieren live. */}
       {active && overlays.length > 1 && (
         <div className="pointer-events-none absolute inset-0 z-40" aria-hidden>
           {overlays.map((overlay, index) => {
             const b = boxOf(overlay);
             const isSel = selectedIds.includes(overlay.id);
+            if (!showAllBadges && !isSel) return null;
             return (
               <span
                 key={overlay.id}

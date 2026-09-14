@@ -59,6 +59,8 @@ export interface ViewerProps {
   onRemoveOverlays?(itemId: ItemId, overlayIds: string[]): void;
   /** Verschiebt die Auswahl in der Zeichenreihenfolge (Ebenen). */
   onReorderOverlays?(itemId: ItemId, overlayIds: string[], mode: OverlayLayerMode): void;
+  /** Setzt ein einzelnes Overlay auf eine absolute Ebene (0-basierter Index). */
+  onSetOverlayLayer?(itemId: ItemId, overlayId: string, index: number): void;
   /** Erkennt AcroForm-Felder der Seite und legt sie als Overlays an. */
   onDetectFields?(itemId: ItemId): void;
   emptyLabel?: string;
@@ -79,6 +81,7 @@ export function Viewer({
   onRemoveOverlay,
   onRemoveOverlays,
   onReorderOverlays,
+  onSetOverlayLayer,
   onDetectFields,
   emptyLabel,
 }: ViewerProps) {
@@ -93,6 +96,11 @@ export function Viewer({
   const [selection, setSelection] = useState<FillSelection | null>(null);
   const [spinDeg, setSpinDeg] = useState<number | null>(null);
   const [panelOpen, setPanelOpen] = useState(true);
+  // Ebenen-Nummern: dauerhaft eingeblendet (Nutzer-Schalter) und/oder waehrend
+  // der Interaktion mit dem Ebene-Bereich (Hover/Regler ziehen). Nur dann werden
+  // alle Nummern gezeigt -- sonst ausschliesslich die des gewaehlten Elements.
+  const [layerBadgesAlways, setLayerBadgesAlways] = useState(false);
+  const [layerHover, setLayerHover] = useState(false);
   // Zuletzt gewaehlte Schrift -- neue Textfelder uebernehmen sie.
   const [lastFont, setLastFont] = useState<string>(DEFAULT_OVERLAY_FONT);
 
@@ -120,8 +128,15 @@ export function Viewer({
     if (!filling) {
       setSelection(null);
       setSpinDeg(null);
+      setLayerHover(false);
     }
   }, [filling]);
+
+  // Faellt die Auswahl weg, verschwindet der Ebene-Bereich womoeglich ohne
+  // Pointer-Leave -- den Hover-Zustand darum sicher zuruecksetzen.
+  useEffect(() => {
+    if (!selection) setLayerHover(false);
+  }, [selection]);
 
   // Panelbreite bestimmt, ob Drehen/Vollbild ins Ueberlaufmenue wandern.
   useLayoutEffect(() => {
@@ -254,7 +269,15 @@ export function Viewer({
     if (!selection || selection.ids.length === 0) return;
     onReorderOverlays?.(selection.itemId, selection.ids, mode);
   };
+  /** Das einzeln gewaehlte Overlay auf eine absolute Ebene (1-basiert) setzen. */
+  const setSelectionLayer = (position: number) => {
+    if (!selection || selection.ids.length !== 1) return;
+    onSetOverlayLayer?.(selection.itemId, selection.ids[0], position - 1);
+  };
   const showPanel = filling && panelOpen;
+  // Alle Ebenen-Nummern zeigen, wenn der Nutzer sie fixiert hat oder gerade im
+  // Ebene-Bereich arbeitet. Sonst blendet FillLayer nur die Auswahl-Nummer ein.
+  const showAllBadges = filling && (layerBadgesAlways || layerHover);
 
   return (
     <div ref={rootRef} className="flex h-full flex-col bg-surface-panel">
@@ -404,6 +427,7 @@ export function Viewer({
                 }
                 onSelect={(ids) => page.itemId && selectOnPage(page.itemId, ids)}
                 onSpin={setSpinDeg}
+                showAllBadges={showAllBadges}
                 lastFont={lastFont}
                 onJumpToSource={onJumpToSource}
                 onPagePointerDown={onPagePointerDown}
@@ -443,11 +467,18 @@ export function Viewer({
               onGroup={groupSelection}
               onUngroup={ungroupSelection}
               onReorder={reorderSelection}
+              onSetLayer={setSelectionLayer}
               layerIndex={layerIndex}
               layerCount={layerCount}
+              layerBadgesAlways={layerBadgesAlways}
+              onToggleLayerBadges={() => setLayerBadgesAlways((v) => !v)}
+              onLayerHoverChange={setLayerHover}
               canGroup={selection ? selection.ids.length >= 2 : false}
               canUngroup={selectedOverlays.some((o) => !!o.groupId)}
-              onCollapse={() => setPanelOpen(false)}
+              onCollapse={() => {
+                setLayerHover(false);
+                setPanelOpen(false);
+              }}
             />
           </aside>
         )}
@@ -484,6 +515,8 @@ interface PageBlockProps {
   selectedIds: string[];
   onSelect(ids: string[]): void;
   onSpin(deg: number | null): void;
+  /** Alle Ebenen-Nummern einblenden (Nutzer-Schalter oder Ebene-Interaktion). */
+  showAllBadges: boolean;
   lastFont: string;
   onJumpToSource?(ref: BlockRef): void;
   onPagePointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
@@ -506,6 +539,7 @@ function PageBlock({
   selectedIds,
   onSelect,
   onSpin,
+  showAllBadges,
   lastFont,
   onJumpToSource,
   onPagePointerDown,
@@ -588,6 +622,7 @@ function PageBlock({
                 selectedIds={selectedIds}
                 onSelect={onSelect}
                 onSpin={onSpin}
+                showAllBadges={showAllBadges}
                 lastFont={lastFont}
                 onAdd={(overlay) => onAddOverlay?.(page.itemId!, overlay)}
                 onAddMany={(list) => onAddOverlays?.(page.itemId!, list)}
