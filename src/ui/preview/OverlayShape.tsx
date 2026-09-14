@@ -5,6 +5,7 @@ import {
   DEFAULT_STROKE_WIDTH,
   hasFill,
   overlayShapeSupportsText,
+  overlayTextColorCss,
   shapeSpec,
 } from '../../domain/overlayShapes';
 import { overlayCssFamily, overlayFontSpec } from '../../domain/overlayFonts';
@@ -110,7 +111,7 @@ export function OverlayShape({ overlay }: { overlay: Overlay }) {
             fontWeight: overlay.bold ? 700 : overlayFontSpec(overlay.font).cssWeight,
             fontStyle: overlay.italic ? 'italic' : 'normal',
             fontSize: `${(overlay.fontSize ?? 0.024) * (pageH || boxH)}px`,
-            color: overlay.color ?? DEFAULT_SHAPE_TEXT_COLOR,
+            color: overlayTextColorCss(overlay.color, DEFAULT_SHAPE_TEXT_COLOR),
           }}
         >
           {text}
