@@ -11,6 +11,7 @@ import {
   FlipHorizontal,
   FlipVertical,
   Group,
+  Hash,
   Highlighter,
   Italic,
   Keyboard,
@@ -60,10 +61,18 @@ export interface FillPropertiesPanelProps {
   onGroup(): void;
   onUngroup(): void;
   onReorder(mode: OverlayLayerMode): void;
+  /** Setzt das einzeln gewaehlte Overlay auf eine absolute Ebene (1-basiert). */
+  onSetLayer(position: number): void;
   /** 1-basierte Ebene der Auswahl (nur bei genau einem Element), sonst null. */
   layerIndex: number | null;
   /** Gesamtzahl der Overlays auf der Seite. */
   layerCount: number;
+  /** true, wenn die Ebenen-Nummern dauerhaft eingeblendet sind. */
+  layerBadgesAlways: boolean;
+  /** Schaltet das dauerhafte Einblenden der Ebenen-Nummern um. */
+  onToggleLayerBadges(): void;
+  /** Meldet, ob der Nutzer gerade im Ebene-Bereich arbeitet (Nummern zeigen). */
+  onLayerHoverChange(active: boolean): void;
   canGroup: boolean;
   canUngroup: boolean;
   onCollapse(): void;
@@ -94,8 +103,12 @@ export function FillPropertiesPanel({
   onGroup,
   onUngroup,
   onReorder,
+  onSetLayer,
   layerIndex,
   layerCount,
+  layerBadgesAlways,
+  onToggleLayerBadges,
+  onLayerHoverChange,
   canGroup,
   canUngroup,
   onCollapse,
@@ -117,7 +130,9 @@ export function FillPropertiesPanel({
   const boldActive = firstText?.bold ?? false;
   const italicActive = firstText?.italic ?? false;
   const interactiveActive = formable.length > 0 && formable.every((o) => o.interactive);
-  const valign = firstText?.valign ?? 'top';
+  // Formen mit Text zentrieren standardmaessig, reine Textfelder richten oben aus.
+  const valignDefault = firstText?.kind === 'shape' ? 'middle' : 'top';
+  const valign = firstText?.valign ?? valignDefault;
   const flipXActive = firstText?.flipX ?? false;
   const flipYActive = firstText?.flipY ?? false;
   // Live-Wert waehrend des Drehens hat Vorrang vor dem gespeicherten Winkel.
@@ -217,7 +232,7 @@ export function FillPropertiesPanel({
                   )}
                 </div>
               </Row>
-              {formable.length > 0 && (
+              {textBearing.length > 0 && (
                 <Row label={t('preview.fill.sectionAlign')}>
                   <Seg>
                     <SegBtn
@@ -352,42 +367,81 @@ export function FillPropertiesPanel({
           </Section>
 
           <Section title={t('preview.fill.sectionLayer')}>
-            <div className="flex items-center justify-between gap-2">
-              <span className="t-label text-text-secondary">
-                {layerIndex != null
-                  ? t('preview.fill.layerPosition', { n: layerIndex, total: layerCount })
-                  : t('preview.fill.layerMultiple', { n: overlays.length })}
-              </span>
-              <Seg>
-                <SegBtn
-                  label={t('preview.fill.layerBack')}
-                  disabled={layerIndex === 1}
-                  onClick={() => onReorder('back')}
-                >
-                  <SendToBack className="size-3.5" aria-hidden />
-                </SegBtn>
-                <SegBtn
-                  label={t('preview.fill.layerBackward')}
-                  disabled={layerIndex === 1}
-                  onClick={() => onReorder('backward')}
-                >
-                  <ChevronDown className="size-4" aria-hidden />
-                </SegBtn>
-                <SegBtn
-                  label={t('preview.fill.layerForward')}
-                  disabled={layerIndex === layerCount}
-                  onClick={() => onReorder('forward')}
-                >
-                  <ChevronUp className="size-4" aria-hidden />
-                </SegBtn>
-                <SegBtn
-                  label={t('preview.fill.layerFront')}
-                  disabled={layerIndex === layerCount}
-                  onClick={() => onReorder('front')}
-                >
-                  <BringToFront className="size-3.5" aria-hidden />
-                </SegBtn>
-              </Seg>
+            {/* Solange der Zeiger in diesem Bereich ist (oder der Regler gezogen
+                wird), blendet der Betrachter alle Ebenen-Nummern ein -- so sieht
+                man beim Einordnen, welche Nummer die anderen Elemente haben. */}
+            <div
+              className="space-y-2.5"
+              onPointerEnter={() => onLayerHoverChange(true)}
+              onPointerLeave={() => onLayerHoverChange(false)}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="t-label text-text-secondary">
+                  {layerIndex != null
+                    ? t('preview.fill.layerPosition', { n: layerIndex, total: layerCount })
+                    : t('preview.fill.layerMultiple', { n: overlays.length })}
+                </span>
+                <Seg>
+                  <SegBtn
+                    label={t('preview.fill.layerBack')}
+                    disabled={layerIndex === 1}
+                    onClick={() => onReorder('back')}
+                  >
+                    <SendToBack className="size-3.5" aria-hidden />
+                  </SegBtn>
+                  <SegBtn
+                    label={t('preview.fill.layerBackward')}
+                    disabled={layerIndex === 1}
+                    onClick={() => onReorder('backward')}
+                  >
+                    <ChevronDown className="size-4" aria-hidden />
+                  </SegBtn>
+                  <SegBtn
+                    label={t('preview.fill.layerForward')}
+                    disabled={layerIndex === layerCount}
+                    onClick={() => onReorder('forward')}
+                  >
+                    <ChevronUp className="size-4" aria-hidden />
+                  </SegBtn>
+                  <SegBtn
+                    label={t('preview.fill.layerFront')}
+                    disabled={layerIndex === layerCount}
+                    onClick={() => onReorder('front')}
+                  >
+                    <BringToFront className="size-3.5" aria-hidden />
+                  </SegBtn>
+                </Seg>
+              </div>
+
+              {layerIndex != null && layerCount > 1 && (
+                <Row label={t('preview.fill.layerSet')}>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="range"
+                      min={1}
+                      max={layerCount}
+                      step={1}
+                      value={layerIndex}
+                      aria-label={t('preview.fill.layerSet')}
+                      onChange={(e) => onSetLayer(Number(e.currentTarget.value))}
+                      className="h-1 w-16 cursor-pointer accent-accent"
+                    />
+                    <NumberField
+                      key={layerIndex}
+                      value={layerIndex}
+                      label={t('preview.fill.layerSet')}
+                      onSet={onSetLayer}
+                    />
+                  </div>
+                </Row>
+              )}
+
+              <ActionButton
+                label={t('preview.fill.layerBadgesAlways')}
+                pressed={layerBadgesAlways}
+                onClick={onToggleLayerBadges}
+                icon={<Hash className="size-3.5" aria-hidden />}
+              />
             </div>
           </Section>
 

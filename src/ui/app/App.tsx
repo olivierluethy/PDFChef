@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Carrot,
+  CookingPot,
   FilePlus2,
   FolderPlus,
   FolderUp,
@@ -309,9 +311,15 @@ function Workspace() {
             top={
               /* Quellen -- keine Ablageziele, also treten sie beim Drag zurueck. */
               <section data-dim-on-drag className="flex h-full min-h-0 flex-col">
-                <div className="flex items-center gap-2 px-5 pb-2 pt-4">
-                  <h2 className="t-panel-title text-text-primary">{t('app.sources')}</h2>
-                  <Pill>{workspace.sourceOrder.length}</Pill>
+                <div className="px-5 pb-2 pt-4">
+                  <div className="flex items-center gap-2">
+                    <Carrot className="size-4 shrink-0 text-text-tertiary" aria-hidden />
+                    <h2 className="t-panel-title text-text-primary">{t('app.sources')}</h2>
+                    <Pill>{workspace.sourceOrder.length}</Pill>
+                  </div>
+                  <p className="mt-0.5 pl-6 text-[11.5px] text-text-tertiary">
+                    {t('app.sourcesSubtitle')}
+                  </p>
                 </div>
                 <DuplicatesNotice />
                 <div className="scroll-fade-y min-h-0 flex-1 overflow-auto pb-4">
@@ -330,10 +338,12 @@ function Workspace() {
             bottom={
               /* Ausgabestruktur -- Ordner und Dokumente sind Ablageziele. */
               <section className="flex h-full min-h-0 flex-col">
-                <div className="flex items-center gap-2 px-5 pb-2 pt-4">
-                  <h2 className="t-panel-title text-text-primary">{t('app.outputStructure')}</h2>
-                  <Pill>{Object.keys(workspace.nodes).length}</Pill>
-                  <div className="ml-auto">
+                <div className="px-5 pb-2 pt-4">
+                  <div className="flex items-center gap-2">
+                    <CookingPot className="size-4 shrink-0 text-text-tertiary" aria-hidden />
+                    <h2 className="t-panel-title text-text-primary">{t('app.outputStructure')}</h2>
+                    <Pill>{Object.keys(workspace.nodes).length}</Pill>
+                    <div className="ml-auto">
                     <Menu
                       align="end"
                       minWidth={176}
@@ -371,7 +381,11 @@ function Workspace() {
                         </button>
                       )}
                     />
+                    </div>
                   </div>
+                  <p className="mt-0.5 pl-6 text-[11.5px] text-text-tertiary">
+                    {t('app.outputSubtitle')}
+                  </p>
                 </div>
                 <div className="scroll-fade-y min-h-0 flex-1 overflow-auto pb-4" data-tree-root>
                   <OutputTree
