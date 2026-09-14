@@ -1,4 +1,13 @@
-import { BlendMode, PDFDocument, StandardFonts, degrees, rgb } from 'pdf-lib';
+import {
+  BlendMode,
+  PDFDocument,
+  StandardFonts,
+  concatTransformationMatrix,
+  degrees,
+  popGraphicsState,
+  pushGraphicsState,
+  rgb,
+} from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import type { PDFDocument as PDFDoc, PDFFont, PDFForm, PDFImage, PDFPage } from 'pdf-lib';
 import type { Overlay, SourceId } from '../../domain/types';
@@ -194,6 +203,43 @@ async function drawOverlays(
 ): Promise<void> {
   if (!overlays || overlays.length === 0) return;
   const { width: w, height: h } = page.getSize();
+
+  // Dreht/spiegelt das Zeichnen eines Overlays um seinen Mittelpunkt -- deckungs-
+  // gleich zur CSS-Vorschau (erst drehen, dann spiegeln). boxHpx ist die Boxhoehe
+  // in PDF-Punkten (bei Text ggf. aus der Zeilenzahl geschaetzt). Ohne Drehung und
+  // ohne Spiegelung wird direkt gezeichnet.
+  const drawWithTransform = async (
+    overlay: Overlay,
+    boxHpx: number,
+    sx: number,
+    sy: number,
+    drawFn: () => Promise<void> | void,
+  ): Promise<void> => {
+    const rotation = overlay.rotation ?? 0;
+    const flipped = sx !== 1 || sy !== 1;
+    if (!rotation && !flipped) {
+      await drawFn();
+      return;
+    }
+    const boxW = overlay.w * w;
+    const cx = overlay.x * w + boxW / 2;
+    const cy = h - overlay.y * h - boxHpx / 2;
+    // CSS dreht im Uhrzeigersinn (y nach unten); in PDF (y nach oben) ist das -Winkel.
+    const phi = (-rotation * Math.PI) / 180;
+    const cos = Math.cos(phi);
+    const sin = Math.sin(phi);
+    // CTM = T(c) * R(phi) * S(sx,sy) * T(-c).
+    const a = cos * sx;
+    const b = sin * sx;
+    const c = -sin * sy;
+    const d = cos * sy;
+    const e = cx - (a * cx + c * cy);
+    const f = cy - (b * cx + d * cy);
+    page.pushOperators(pushGraphicsState(), concatTransformationMatrix(a, b, c, d, e, f));
+    await drawFn();
+    page.pushOperators(popGraphicsState());
+  };
+
   for (const overlay of overlays) {
     // Interaktive Felder werden als echte AcroForm-Felder gebaut, nicht gezeichnet.
     if (overlay.kind === 'text' && overlay.interactive) {
@@ -205,48 +251,68 @@ async function drawOverlays(
       if (text.trim() === '') continue;
       const font = await ctx.getFont(overlay.font, overlay.bold ?? false);
       const size = (overlay.fontSize ?? 0.02) * h;
-      // Zeilenweise Hintergrund-/Hervorhebungsfarbe (wie Words Texthervorhebung),
-      // vor dem Text gezeichnet, damit der Text darueber liegt.
-      if (hasFill(overlay.textBg)) {
-        const { r, g, b } = hexToRgb01(overlay.textBg!);
-        const lineHeight = size * 1.25;
-        const baseY0 = h - overlay.y * h - size;
-        const padX = size * 0.15;
-        const lines = text.split(/\r?\n/);
-        lines.forEach((line, i) => {
-          if (line.trim() === '') return;
-          const lineW = font.widthOfTextAtSize(line, size);
-          page.drawRectangle({
-            x: overlay.x * w - padX,
-            y: baseY0 - i * lineHeight - size * 0.24,
-            width: lineW + 2 * padX,
-            height: size * 1.14,
-            color: rgb(r, g, b),
-          });
-        });
+      const lineHeight = size * 1.25;
+      const lines = text.split(/\r?\n/);
+      // Vertikale Ausrichtung nur bei fester Feldhoehe; sonst waechst Text von oben.
+      const blockH = lines.length * lineHeight;
+      const boxH = overlay.h > 0 ? overlay.h * h : blockH;
+      let vOffset = 0;
+      if (overlay.h > 0 && boxH > blockH) {
+        vOffset =
+          overlay.valign === 'middle'
+            ? (boxH - blockH) / 2
+            : overlay.valign === 'bottom'
+              ? boxH - blockH
+              : 0;
       }
-      page.drawText(text, {
-        x: overlay.x * w,
-        // y ist die Grundlinie der ersten Zeile: obere Kante minus eine Zeilenhoehe.
-        y: h - overlay.y * h - size,
-        size,
-        font,
-        color: colorOf(overlay.color, rgb(0.09, 0.11, 0.13)),
-        // Ausdruecklich transparente Textfarbe: unsichtbar zeichnen.
-        ...(isTransparentColor(overlay.color) ? { opacity: 0 } : {}),
-        lineHeight: size * 1.25,
-        // Kursiv: synthetische Neigung (dieselbe wie in der Vorschau).
-        ...(overlay.italic ? { ySkew: degrees(OVERLAY_ITALIC_SKEW_DEG) } : {}),
+      const sx = overlay.flipX ? -1 : 1;
+      const sy = overlay.flipY ? -1 : 1;
+      await drawWithTransform(overlay, boxH, sx, sy, () => {
+        // Zeilenweise Hintergrund-/Hervorhebungsfarbe (wie Words Texthervorhebung),
+        // vor dem Text gezeichnet, damit der Text darueber liegt.
+        if (hasFill(overlay.textBg)) {
+          const { r, g, b } = hexToRgb01(overlay.textBg!);
+          const baseY0 = h - overlay.y * h - size - vOffset;
+          const padX = size * 0.15;
+          lines.forEach((line, i) => {
+            if (line.trim() === '') return;
+            const lineW = font.widthOfTextAtSize(line, size);
+            page.drawRectangle({
+              x: overlay.x * w - padX,
+              y: baseY0 - i * lineHeight - size * 0.24,
+              width: lineW + 2 * padX,
+              height: size * 1.14,
+              color: rgb(r, g, b),
+            });
+          });
+        }
+        page.drawText(text, {
+          x: overlay.x * w,
+          // y ist die Grundlinie der ersten Zeile: obere Kante minus eine Zeilenhoehe.
+          y: h - overlay.y * h - size - vOffset,
+          size,
+          font,
+          color: colorOf(overlay.color, rgb(0.09, 0.11, 0.13)),
+          // Ausdruecklich transparente Textfarbe: unsichtbar zeichnen.
+          ...(isTransparentColor(overlay.color) ? { opacity: 0 } : {}),
+          lineHeight,
+          // Kursiv: synthetische Neigung (dieselbe wie in der Vorschau).
+          ...(overlay.italic ? { ySkew: degrees(OVERLAY_ITALIC_SKEW_DEG) } : {}),
+        });
       });
     } else if (overlay.kind === 'shape') {
-      await drawShape(page, overlay, ctx, w, h);
+      await drawWithTransform(overlay, overlay.h * h, 1, 1, () =>
+        drawShape(page, overlay, ctx, w, h),
+      );
     } else if (overlay.kind === 'image' && overlay.dataUrl) {
       const image = await ctx.out.embedPng(dataUrlToBytes(overlay.dataUrl));
-      page.drawImage(image, {
-        x: overlay.x * w,
-        y: h - overlay.y * h - overlay.h * h,
-        width: overlay.w * w,
-        height: overlay.h * h,
+      await drawWithTransform(overlay, overlay.h * h, 1, 1, () => {
+        page.drawImage(image, {
+          x: overlay.x * w,
+          y: h - overlay.y * h - overlay.h * h,
+          width: overlay.w * w,
+          height: overlay.h * h,
+        });
       });
     }
   }
