@@ -8,6 +8,7 @@ import {
   itemsOfSource,
   moveItems,
   moveNode,
+  moveOverlayToIndex,
   removeItems,
   removeOverlay,
   removeSourceAndItems,
@@ -56,6 +57,7 @@ export type Command =
   | { type: 'updateOverlay'; itemId: ItemId; overlayId: string; patch: Partial<Overlay> }
   | { type: 'removeOverlay'; itemId: ItemId; overlayId: string }
   | { type: 'reorderOverlays'; itemId: ItemId; overlayIds: string[]; mode: OverlayLayerMode }
+  | { type: 'moveOverlayLayer'; itemId: ItemId; overlayId: string; index: number }
   | { type: 'splitSource'; sourceId: SourceId; parentId: NodeId | null; parts: SplitOutputSpec[] }
   | { type: 'renameWorkspace'; name: string }
   | { type: 'batch'; label: string; commands: Command[] };
@@ -137,6 +139,9 @@ export function applyCommand(ws: Workspace, command: Command, ctx: CommandCtx): 
       break;
     case 'reorderOverlays':
       reorderOverlays(ws, command.itemId, command.overlayIds, command.mode);
+      break;
+    case 'moveOverlayLayer':
+      moveOverlayToIndex(ws, command.itemId, command.overlayId, command.index);
       break;
     case 'splitSource':
       for (const part of command.parts) {
@@ -225,6 +230,8 @@ export function describeCommand(command: Command, before: Workspace): string {
       return 'Removed field';
     case 'reorderOverlays':
       return 'Reordered layers';
+    case 'moveOverlayLayer':
+      return 'Changed layer';
     case 'splitSource': {
       const source = before.sources[command.sourceId];
       const name = source ? source.name : 'Source';
