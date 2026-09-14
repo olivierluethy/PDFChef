@@ -10,6 +10,9 @@ export const clampFontSize = (n: number) => Math.min(MAX_FONT_SIZE, Math.max(MIN
 export const fractionToPt = (fraction: number) => Math.round(fraction * PT_BASIS * 10) / 10;
 export const ptToFraction = (pt: number) => clampFontSize(pt / PT_BASIS);
 
+// Drehwinkel stets als 0..359 Grad normalisieren (negatives modulo einbezogen).
+export const normalizeAngle = (deg: number) => (((Math.round(deg) % 360) + 360) % 360);
+
 // Randstaerke in der Leiste ebenfalls in Punkt anzeigen.
 export const strokeToPt = (fraction: number) => Math.round(fraction * PT_BASIS * 10) / 10;
 export const ptToStroke = (pt: number) => Math.min(0.02, Math.max(0.0005, pt / PT_BASIS));
