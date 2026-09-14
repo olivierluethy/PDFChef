@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
 import type { Overlay } from '../../domain/types';
 import { overlayCssFamily, overlayFontSpec } from '../../domain/overlayFonts';
+import { overlayTextColorCss } from '../../domain/overlayShapes';
 import { ensureOverlayFontFaces } from '../text/overlayFontFaces';
 import { OverlayShape } from './OverlayShape';
+import { overlayTextBgStyle } from './FillLayer';
 
 /**
  * Nur-Anzeige-Overlay ueber einer Kachel: zeigt live, welche Felder/Unterschriften
@@ -52,6 +54,7 @@ export function OverlayThumb({ overlays }: { overlays: Overlay[] }) {
         if (text.trim() === '') return null;
         const spec = overlayFontSpec(overlay.font);
         const bold = overlay.bold ?? false;
+        const bgStyle = overlayTextBgStyle(overlay.textBg);
         return (
           <div
             key={overlay.id}
@@ -62,13 +65,13 @@ export function OverlayThumb({ overlays }: { overlays: Overlay[] }) {
               fontStyle: overlay.italic ? 'italic' : 'normal',
               fontSize: `${(overlay.fontSize ?? 0.024) * 100}cqh`,
               lineHeight: 1.25,
-              color: '#171c21',
+              color: overlayTextColorCss(overlay.color, '#171c21'),
               whiteSpace: 'pre-wrap',
               overflowWrap: 'break-word',
               wordBreak: 'break-word',
             }}
           >
-            {text}
+            {bgStyle ? <span style={bgStyle}>{text}</span> : text}
           </div>
         );
       })}

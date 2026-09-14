@@ -87,6 +87,12 @@ export interface Overlay {
   italic?: boolean;
   /** Text/Text-in-Form: Textfarbe als #RRGGBB (Standard: dunkles Grau). */
   color?: string;
+  /**
+   * Textfeld: Hintergrund-/Hervorhebungsfarbe als #RRGGBB (wie Words
+   * Texthervorhebung). undefined/'none' = kein Hintergrund. Umschliesst den
+   * Text zeilenweise in Vorschau, Thumbnail und Export.
+   */
+  textBg?: string;
   /** Bild/Unterschrift: PNG als data-URL. */
   dataUrl?: string;
   /**
