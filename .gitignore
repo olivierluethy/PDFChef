@@ -7,3 +7,6 @@ coverage/
 public/pdfjs/
 public/tesseract/
 public/fonts/
+
+# Playwright-Verifikations-Screenshots (Artefakte, nicht versionieren)
+e2e/*.png
