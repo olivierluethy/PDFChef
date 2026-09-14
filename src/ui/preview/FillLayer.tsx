@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, RotateCw } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import {
   DEFAULT_OVERLAY_FONT,
@@ -26,7 +26,10 @@ import { LibraryPopover } from './fill/LibraryPopover';
 import { NameDialog } from './fill/NameDialog';
 import { StyleBar } from './fill/StyleBar';
 import { ToolPalette, shapeDrawMode, type Tool } from './fill/tools';
-import { DEFAULT_FONT_SIZE } from './fill/units';
+import { DEFAULT_FONT_SIZE, normalizeAngle } from './fill/units';
+
+/** Ecke eines Auswahlrahmens fuer die Groessenaenderung. */
+type Corner = 'nw' | 'ne' | 'sw' | 'se';
 
 export interface FillLayerProps {
   overlays: Overlay[];
@@ -92,6 +95,17 @@ export function overlayTextBgStyle(textBg: string | undefined): React.CSSPropert
   };
 }
 
+/** CSS-`justify-content` fuer die vertikale Ausrichtung des Texts im Feld. */
+function valignJustify(v: Overlay['valign']): 'flex-start' | 'center' | 'flex-end' {
+  return v === 'middle' ? 'center' : v === 'bottom' ? 'flex-end' : 'flex-start';
+}
+
+/** CSS-`transform` fuer das Spiegeln eines Textinhalts (undefined, wenn ungespiegelt). */
+function flipTransform(o: Overlay): string | undefined {
+  if (!o.flipX && !o.flipY) return undefined;
+  return `scale(${o.flipX ? -1 : 1}, ${o.flipY ? -1 : 1})`;
+}
+
 /** Erzeugt Klone einer Auswahl: frische Ids, versetzt, mit erhaltener (neu vergebener) Gruppierung. */
 function cloneOverlays(source: Overlay[], dx: number, dy: number): Overlay[] {
   const groupRemap = new Map<string, string>();
@@ -134,6 +148,8 @@ export function FillLayer({
   const [tool, setTool] = useState<Tool>('text');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [dragMap, setDragMap] = useState<Map<string, Box> | null>(null);
+  // Live-Drehung waehrend des Ziehens am Dreh-Griff (Grad, ein Overlay).
+  const [spin, setSpin] = useState<{ id: string; deg: number } | null>(null);
   const [signing, setSigning] = useState(false);
   const [height, setHeight] = useState(0);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
@@ -548,32 +564,70 @@ export function FillLayer({
     window.addEventListener('pointerup', onUp);
   };
 
+  // Groessenaenderung ueber eine Ecke: die gegenueberliegende Ecke bleibt im
+  // Bildschirm fix, w/h (und dadurch x/y) folgen dem Zeiger. Bei gedrehten
+  // Overlays wird der Zeigervektor in die lokale Box-Achse zurueckgedreht, damit
+  // die Ecke gerade zieht. `aspect` erhaelt das Seitenverhaeltnis (Bilder).
   const beginResize = (
     event: React.PointerEvent,
     overlay: Overlay,
-    mode: 'aspect' | 'free' | 'width',
+    corner: Corner,
+    aspect: boolean,
   ) => {
     event.preventDefault();
     event.stopPropagation();
     setSelectedIds([overlay.id]);
     const r = rect();
     if (!r) return;
-    const startX = event.clientX;
-    const startY = event.clientY;
-    const o0: Box = { x: overlay.x, y: overlay.y, w: overlay.w, h: overlay.h };
-    let latest = o0;
+    const W = r.width;
+    const H = r.height;
+    const wrapEl = (event.currentTarget as HTMLElement).closest(
+      '[data-overlay-wrap]',
+    ) as HTMLElement | null;
+    // Startmasse in Pixeln. Textfelder ohne feste Hoehe (h === 0) nehmen die
+    // gemessene Layout-Hoehe als Ausgangswert -- ab jetzt haben sie eine Hoehe.
+    const pw0 = overlay.w * W;
+    const ph0 = overlay.h > 0 ? overlay.h * H : (wrapEl?.offsetHeight ?? overlay.w * W);
+    const cx0 = overlay.x * W + pw0 / 2;
+    const cy0 = overlay.y * H + ph0 / 2;
+    const theta = ((overlay.rotation ?? 0) * Math.PI) / 180;
+    const cos = Math.cos(theta);
+    const sin = Math.sin(theta);
+    const ratio = pw0 > 0 ? ph0 / pw0 : 1;
+    // Vorzeichen der gezogenen Ecke relativ zur Mitte.
+    const sx = corner === 'ne' || corner === 'se' ? 1 : -1;
+    const sy = corner === 'sw' || corner === 'se' ? 1 : -1;
+    // Bildschirmposition der fixen Ankerecke (gegenueberliegend, im Ausgangszustand).
+    const ax = (-sx * pw0) / 2;
+    const ay = (-sy * ph0) / 2;
+    const anchorX = cx0 + (cos * ax - sin * ay);
+    const anchorY = cy0 + (sin * ax + cos * ay);
+    const minWFrac = overlay.kind === 'text' ? 0.06 : 0.02;
+    const minHFrac = 0.02;
+    let latest: Box = { x: overlay.x, y: overlay.y, w: overlay.w, h: ph0 / H };
     const onMove = (e: PointerEvent) => {
-      const dx = (e.clientX - startX) / r.width;
-      const dy = (e.clientY - startY) / r.height;
-      if (mode === 'width') {
-        latest = { ...o0, w: Math.max(0.06, Math.min(1, o0.w + dx)) };
-      } else if (mode === 'free') {
-        latest = { ...o0, w: Math.max(0.02, o0.w + dx), h: Math.max(0.02, o0.h + dy) };
-      } else {
-        const nextW = Math.max(0.05, o0.w + dx);
-        const ratio = o0.w > 0 ? o0.h / o0.w : 1;
-        latest = { ...o0, w: nextW, h: nextW * ratio };
+      const vx = e.clientX - r.left - anchorX;
+      const vy = e.clientY - r.top - anchorY;
+      // R(-theta) * v, danach Vorzeichen der Ecke -> lokale Breite/Hoehe.
+      let localW = (cos * vx + sin * vy) * sx;
+      let localH = (-sin * vx + cos * vy) * sy;
+      localW = Math.max(minWFrac * W, localW);
+      localH = Math.max(minHFrac * H, localH);
+      if (aspect && ratio > 0) {
+        localW = Math.max(localW, localH / ratio);
+        localH = localW * ratio;
       }
+      // neue Mitte aus fixem Anker plus halber lokaler Diagonale (mitgedreht).
+      const halfX = (sx * localW) / 2;
+      const halfY = (sy * localH) / 2;
+      const ncx = anchorX + (cos * halfX - sin * halfY);
+      const ncy = anchorY + (sin * halfX + cos * halfY);
+      latest = {
+        x: (ncx - localW / 2) / W,
+        y: (ncy - localH / 2) / H,
+        w: localW / W,
+        h: localH / H,
+      };
       setDragMap(new Map([[overlay.id, latest]]));
     };
     const onUp = () => {
@@ -585,6 +639,74 @@ export function FillLayer({
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
   };
+
+  // Freies Drehen ueber den Griff: Winkel = Startwinkel + Zeigerwinkel-Differenz
+  // um den Box-Mittelpunkt. Shift rastet in 15-Grad-Schritten.
+  const beginRotate = (event: React.PointerEvent, overlay: Overlay) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedIds([overlay.id]);
+    const wrapEl = (event.currentTarget as HTMLElement).closest(
+      '[data-overlay-wrap]',
+    ) as HTMLElement | null;
+    if (!wrapEl) return;
+    // Drehung erfolgt um die Mitte -- die bleibt bei getBoundingClientRect erhalten.
+    const b = wrapEl.getBoundingClientRect();
+    const cx = b.left + b.width / 2;
+    const cy = b.top + b.height / 2;
+    const startAngle = (Math.atan2(event.clientY - cy, event.clientX - cx) * 180) / Math.PI;
+    const startRotation = overlay.rotation ?? 0;
+    let latest = normalizeAngle(startRotation);
+    const onMove = (e: PointerEvent) => {
+      const a = (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI;
+      let next = startRotation + (a - startAngle);
+      if (e.shiftKey) next = Math.round(next / 15) * 15;
+      latest = normalizeAngle(next);
+      setSpin({ id: overlay.id, deg: latest });
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      setSpin(null);
+      onUpdate(overlay.id, { rotation: latest });
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
+  /** Aktueller Drehwinkel eines Overlays -- live waehrend des Drehens, sonst gespeichert. */
+  const rotationOf = (overlay: Overlay): number =>
+    spin?.id === overlay.id ? spin.deg : (overlay.rotation ?? 0);
+
+  /** Vier Eck-Griffe fuer die Groessenaenderung eines einzeln gewaehlten Overlays. */
+  const cornerHandles = (overlay: Overlay, aspect: boolean) =>
+    (['nw', 'ne', 'sw', 'se'] as const).map((corner) => (
+      <span
+        key={corner}
+        onPointerDown={(e) => beginResize(e, overlay, corner, aspect)}
+        title={t('preview.fill.resizeBox')}
+        aria-label={t('preview.fill.resizeBox')}
+        className={cx(
+          'absolute z-20 size-3 touch-none rounded-sm bg-accent ring-2 ring-surface-canvas',
+          corner === 'nw' && '-left-1.5 -top-1.5 cursor-nwse-resize',
+          corner === 'ne' && '-right-1.5 -top-1.5 cursor-nesw-resize',
+          corner === 'sw' && '-bottom-1.5 -left-1.5 cursor-nesw-resize',
+          corner === 'se' && '-bottom-1.5 -right-1.5 cursor-nwse-resize',
+        )}
+      />
+    ));
+
+  /** Dreh-Griff oberhalb der Oberkante eines einzeln gewaehlten Overlays. */
+  const rotateHandle = (overlay: Overlay) => (
+    <span
+      onPointerDown={(e) => beginRotate(e, overlay)}
+      title={t('preview.fill.rotate')}
+      aria-label={t('preview.fill.rotate')}
+      className="absolute -top-6 left-1/2 z-20 grid size-4 -translate-x-1/2 cursor-grab touch-none place-items-center rounded-full bg-accent text-on-accent ring-2 ring-surface-canvas active:cursor-grabbing"
+    >
+      <RotateCw className="size-2.5" aria-hidden />
+    </span>
+  );
 
   const boxOf = (overlay: Overlay): Box =>
     dragMap?.get(overlay.id) ?? { x: overlay.x, y: overlay.y, w: overlay.w, h: overlay.h };
@@ -640,6 +762,10 @@ export function FillLayer({
         const box = boxOf(overlay);
         const selected = active && selectedIds.includes(overlay.id);
         const singleSelected = selected && selectedIds.length === 1;
+        const rot = rotationOf(overlay);
+        const rotateStyle: React.CSSProperties = rot
+          ? { transform: `rotate(${rot}deg)`, transformOrigin: 'center' }
+          : {};
         const common: React.CSSProperties = { left: `${box.x * 100}%`, top: `${box.y * 100}%` };
 
         // --- Formen ---
@@ -649,7 +775,7 @@ export function FillLayer({
               <div
                 key={overlay.id}
                 className="absolute"
-                style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%` }}
+                style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%`, ...rotateStyle }}
               >
                 <OverlayShape overlay={overlay} />
               </div>
@@ -659,8 +785,9 @@ export function FillLayer({
           return (
             <div
               key={overlay.id}
+              data-overlay-wrap
               className={cx('absolute', selected && 'outline outline-1 outline-accent/70')}
-              style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%`, zIndex: selected ? 30 : 10 }}
+              style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%`, ...rotateStyle, zIndex: selected ? 30 : 10 }}
               onPointerDown={(e) => {
                 if (e.shiftKey || e.metaKey || e.ctrlKey) {
                   e.stopPropagation();
@@ -694,14 +821,8 @@ export function FillLayer({
                   }}
                 />
               )}
-              {singleSelected && (
-                <span
-                  onPointerDown={(e) => beginResize(e, overlay, 'free')}
-                  title={t('preview.fill.resize')}
-                  aria-label={t('preview.fill.resize')}
-                  className="absolute -bottom-1.5 -right-1.5 z-20 size-3 cursor-nwse-resize touch-none rounded-sm bg-accent ring-2 ring-surface-canvas"
-                />
-              )}
+              {singleSelected && cornerHandles(overlay, false)}
+              {singleSelected && rotateHandle(overlay)}
             </div>
           );
         }
@@ -717,7 +838,7 @@ export function FillLayer({
                   alt={t('preview.fill.signatureAlt')}
                   draggable={false}
                   className="absolute object-contain"
-                  style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%` }}
+                  style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%`, ...rotateStyle }}
                 />
               )
             );
@@ -725,8 +846,9 @@ export function FillLayer({
           return (
             <div
               key={overlay.id}
+              data-overlay-wrap
               className={cx('absolute', selected && 'ring-1 ring-accent/70')}
-              style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%`, zIndex: selected ? 30 : 10 }}
+              style={{ ...common, width: `${box.w * 100}%`, height: `${box.h * 100}%`, ...rotateStyle, zIndex: selected ? 30 : 10 }}
               onPointerDown={(e) => {
                 if (e.shiftKey || e.metaKey || e.ctrlKey) {
                   e.stopPropagation();
@@ -742,13 +864,8 @@ export function FillLayer({
                 className="h-full w-full object-contain"
                 draggable={false}
               />
-              {singleSelected && (
-                <span
-                  onPointerDown={(e) => beginResize(e, overlay, 'aspect')}
-                  className="absolute -bottom-1.5 -right-1.5 z-20 size-3 cursor-nwse-resize rounded-sm bg-accent ring-2 ring-surface-canvas"
-                  aria-label={t('preview.fill.resize')}
-                />
-              )}
+              {singleSelected && cornerHandles(overlay, true)}
+              {singleSelected && rotateHandle(overlay)}
             </div>
           );
         }
@@ -757,16 +874,36 @@ export function FillLayer({
         const fontPx = (overlay.fontSize ?? DEFAULT_FONT_SIZE) * height;
         const textStyle = overlayTextStyle(overlay);
 
+        const hasBox = box.h > 0;
+        const boxStyle: React.CSSProperties = hasBox
+          ? {
+              minHeight: `${box.h * 100}%`,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: valignJustify(overlay.valign),
+            }
+          : {};
+        const flip = flipTransform(overlay);
+
         if (!active) {
           const bgStyle = overlayTextBgStyle(overlay.textBg);
           return (
             overlay.text?.trim() && (
               <div
                 key={overlay.id}
-                className="absolute whitespace-pre-wrap px-1 leading-tight"
-                style={{ ...common, width: `${box.w * 100}%`, fontSize: `${fontPx}px`, ...textStyle }}
+                className="absolute"
+                style={{ ...common, width: `${box.w * 100}%`, ...boxStyle, ...rotateStyle }}
               >
-                {bgStyle ? <span style={bgStyle}>{overlay.text}</span> : overlay.text}
+                <div
+                  className="w-full whitespace-pre-wrap px-1 leading-tight"
+                  style={{
+                    fontSize: `${fontPx}px`,
+                    ...textStyle,
+                    ...(flip ? { transform: flip, transformOrigin: 'center' } : {}),
+                  }}
+                >
+                  {bgStyle ? <span style={bgStyle}>{overlay.text}</span> : overlay.text}
+                </div>
               </div>
             )
           );
@@ -775,8 +912,9 @@ export function FillLayer({
         return (
           <div
             key={overlay.id}
+            data-overlay-wrap
             className="absolute"
-            style={{ ...common, width: `${box.w * 100}%`, zIndex: selected ? 30 : 10 }}
+            style={{ ...common, width: `${box.w * 100}%`, ...boxStyle, ...rotateStyle, zIndex: selected ? 30 : 10 }}
           >
             {selected && (
               <span
@@ -789,6 +927,10 @@ export function FillLayer({
               </span>
             )}
 
+            <div
+              className="w-full"
+              style={flip ? { transform: flip, transformOrigin: 'center' } : undefined}
+            >
             {overlay.options ? (
               <select
                 value={overlay.text ?? ''}
@@ -853,15 +995,10 @@ export function FillLayer({
                 rows={1}
               />
             )}
+            </div>
 
-            {singleSelected && (
-              <span
-                onPointerDown={(e) => beginResize(e, overlay, 'width')}
-                title={t('preview.fill.resizeWidth')}
-                aria-label={t('preview.fill.resizeWidth')}
-                className="absolute right-0 top-1/2 z-20 size-3 -translate-y-1/2 translate-x-1/2 cursor-ew-resize touch-none rounded-full bg-accent ring-2 ring-surface-canvas"
-              />
-            )}
+            {singleSelected && cornerHandles(overlay, false)}
+            {singleSelected && rotateHandle(overlay)}
           </div>
         );
       })}
