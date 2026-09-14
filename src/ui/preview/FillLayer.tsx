@@ -6,7 +6,13 @@ import {
   overlayCssFamily,
   overlayFontSpec,
 } from '../../domain/overlayFonts';
-import { makeShapeOverlay, overlayShapeSupportsText } from '../../domain/overlayShapes';
+import {
+  hasFill,
+  isTransparentColor,
+  makeShapeOverlay,
+  overlayShapeSupportsText,
+  overlayTextColorCss,
+} from '../../domain/overlayShapes';
 import { instantiateOverlays } from '../../domain/overlayLibrary';
 import type { Overlay, ShapeKind } from '../../domain/types';
 import type { LibraryItemKind, LibraryItemRecord } from '../../services/persistence/db';
@@ -66,7 +72,23 @@ function overlayTextStyle(overlay: Overlay): React.CSSProperties {
     fontFamily: overlayCssFamily(spec, bold),
     fontWeight: bold ? 700 : spec.cssWeight,
     fontStyle: overlay.italic ? 'italic' : 'normal',
-    color: overlay.color ?? '#15181c',
+    color: overlayTextColorCss(overlay.color, '#15181c'),
+  };
+}
+
+/**
+ * Style fuer die zeilenweise Hintergrund-/Hervorhebungsfarbe eines Textfelds
+ * (wie Words Texthervorhebung). Als Inline-Span mit `box-decoration-break: clone`
+ * umschliesst die Farbe jede Zeile eng statt den ganzen Kasten zu fuellen.
+ */
+export function overlayTextBgStyle(textBg: string | undefined): React.CSSProperties | undefined {
+  if (!hasFill(textBg)) return undefined;
+  return {
+    background: textBg,
+    boxDecorationBreak: 'clone',
+    WebkitBoxDecorationBreak: 'clone',
+    padding: '0.02em 0.15em',
+    borderRadius: '0.1em',
   };
 }
 
@@ -736,6 +758,7 @@ export function FillLayer({
         const textStyle = overlayTextStyle(overlay);
 
         if (!active) {
+          const bgStyle = overlayTextBgStyle(overlay.textBg);
           return (
             overlay.text?.trim() && (
               <div
@@ -743,7 +766,7 @@ export function FillLayer({
                 className="absolute whitespace-pre-wrap px-1 leading-tight"
                 style={{ ...common, width: `${box.w * 100}%`, fontSize: `${fontPx}px`, ...textStyle }}
               >
-                {overlay.text}
+                {bgStyle ? <span style={bgStyle}>{overlay.text}</span> : overlay.text}
               </div>
             )
           );
@@ -773,10 +796,16 @@ export function FillLayer({
                 onPointerDown={(e) => e.stopPropagation()}
                 onChange={(e) => onUpdate(overlay.id, { text: e.currentTarget.value })}
                 className={cx(
-                  'block w-full rounded-md px-1.5 py-0.5 leading-tight outline-none',
-                  selected ? 'bg-white ring-2 ring-accent' : 'bg-white/70 ring-1 ring-accent/40',
+                  'block w-full rounded-md bg-transparent px-1.5 py-0.5 leading-tight outline-none',
+                  selected ? 'ring-2 ring-accent' : 'ring-1 ring-accent/40',
                 )}
-                style={{ fontSize: `${fontPx}px`, ...textStyle }}
+                style={{
+                  fontSize: `${fontPx}px`,
+                  ...textStyle,
+                  // Beim Editieren transparenten Text gedaempft zeigen, damit man tippen kann.
+                  ...(isTransparentColor(overlay.color) ? { color: 'rgba(120,130,140,0.75)' } : {}),
+                  ...(hasFill(overlay.textBg) ? { background: overlay.textBg } : {}),
+                }}
               >
                 {overlay.options.map((option, i) => (
                   <option key={i} value={option}>
@@ -808,12 +837,19 @@ export function FillLayer({
                   else if ((overlay.text ?? '') !== '') onUpdate(overlay.id, { text: '' });
                 }}
                 className={cx(
-                  'block w-full resize-none rounded-md px-1.5 py-0.5 leading-tight outline-none transition-colors',
+                  'block w-full resize-none rounded-md bg-transparent px-1.5 py-0.5 leading-tight outline-none transition-colors',
                   selected
-                    ? 'bg-white ring-2 ring-accent'
-                    : 'bg-white/60 ring-1 ring-accent/30 hover:bg-white/80',
+                    ? 'ring-2 ring-accent'
+                    : 'ring-1 ring-accent/30 hover:ring-accent/50',
                 )}
-                style={{ fontSize: `${fontPx}px`, minHeight: `${fontPx * 1.4}px`, ...textStyle }}
+                style={{
+                  fontSize: `${fontPx}px`,
+                  minHeight: `${fontPx * 1.4}px`,
+                  ...textStyle,
+                  // Beim Editieren transparenten Text gedaempft zeigen, damit man tippen kann.
+                  ...(isTransparentColor(overlay.color) ? { color: 'rgba(120,130,140,0.75)' } : {}),
+                  ...(hasFill(overlay.textBg) ? { background: overlay.textBg } : {}),
+                }}
                 rows={1}
               />
             )}

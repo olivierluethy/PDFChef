@@ -165,3 +165,17 @@ export function hexToRgb01(hex: string | undefined): { r: number; g: number; b: 
 export function hasFill(fill: string | undefined): boolean {
   return !!fill && fill !== 'none' && fill !== 'transparent';
 }
+
+/** true, wenn eine Textfarbe ausdruecklich auf transparent gesetzt wurde. */
+export function isTransparentColor(color: string | undefined): boolean {
+  return color === 'none' || color === 'transparent';
+}
+
+/**
+ * CSS-Farbe fuer Overlay-Text: undefined = `fallback` (Standardfarbe),
+ * ausdruecklich transparent = 'transparent', sonst der Hex-Wert.
+ */
+export function overlayTextColorCss(color: string | undefined, fallback: string): string {
+  if (isTransparentColor(color)) return 'transparent';
+  return color ?? fallback;
+}

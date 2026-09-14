@@ -7,6 +7,7 @@ import {
   DEFAULT_STROKE_WIDTH,
   hasFill,
   hexToRgb01,
+  isTransparentColor,
   overlayShapeSupportsText,
   pointsToPath,
 } from '../../domain/overlayShapes';
@@ -204,6 +205,26 @@ async function drawOverlays(
       if (text.trim() === '') continue;
       const font = await ctx.getFont(overlay.font, overlay.bold ?? false);
       const size = (overlay.fontSize ?? 0.02) * h;
+      // Zeilenweise Hintergrund-/Hervorhebungsfarbe (wie Words Texthervorhebung),
+      // vor dem Text gezeichnet, damit der Text darueber liegt.
+      if (hasFill(overlay.textBg)) {
+        const { r, g, b } = hexToRgb01(overlay.textBg!);
+        const lineHeight = size * 1.25;
+        const baseY0 = h - overlay.y * h - size;
+        const padX = size * 0.15;
+        const lines = text.split(/\r?\n/);
+        lines.forEach((line, i) => {
+          if (line.trim() === '') return;
+          const lineW = font.widthOfTextAtSize(line, size);
+          page.drawRectangle({
+            x: overlay.x * w - padX,
+            y: baseY0 - i * lineHeight - size * 0.24,
+            width: lineW + 2 * padX,
+            height: size * 1.14,
+            color: rgb(r, g, b),
+          });
+        });
+      }
       page.drawText(text, {
         x: overlay.x * w,
         // y ist die Grundlinie der ersten Zeile: obere Kante minus eine Zeilenhoehe.
@@ -211,6 +232,8 @@ async function drawOverlays(
         size,
         font,
         color: colorOf(overlay.color, rgb(0.09, 0.11, 0.13)),
+        // Ausdruecklich transparente Textfarbe: unsichtbar zeichnen.
+        ...(isTransparentColor(overlay.color) ? { opacity: 0 } : {}),
         lineHeight: size * 1.25,
         // Kursiv: synthetische Neigung (dieselbe wie in der Vorschau).
         ...(overlay.italic ? { ySkew: degrees(OVERLAY_ITALIC_SKEW_DEG) } : {}),
@@ -395,6 +418,7 @@ async function drawShape(
         size,
         font,
         color: colorOf(overlay.color, rgb(0.09, 0.11, 0.13)),
+        ...(isTransparentColor(overlay.color) ? { opacity: 0 } : {}),
         ...(overlay.italic ? { ySkew: degrees(OVERLAY_ITALIC_SKEW_DEG) } : {}),
       });
       baseline -= lineH;

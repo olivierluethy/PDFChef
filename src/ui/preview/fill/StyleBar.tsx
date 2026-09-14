@@ -2,6 +2,7 @@ import {
   Bold,
   Copy,
   Group,
+  Highlighter,
   Italic,
   Minus,
   Plus,
@@ -131,10 +132,21 @@ export function StyleBar({
           <ColorPicker
             title={t('preview.fill.textColor')}
             glyph="A"
+            allowNone
             value={firstText?.color ?? '#15181c'}
             swatches={OVERLAY_COLORS}
-            onChange={(v) => onPatch({ color: v ?? '#15181c' })}
+            onChange={(v) => onPatch({ color: v ?? 'none' })}
           />
+          {formable.length > 0 && (
+            <ColorPicker
+              title={t('preview.fill.textBg')}
+              glyph={<Highlighter className="size-3.5" aria-hidden />}
+              allowNone
+              value={firstText?.textBg}
+              swatches={HIGHLIGHT_COLORS}
+              onChange={(v) => onPatch({ textBg: v ?? 'none' })}
+            />
+          )}
         </>
       )}
 
