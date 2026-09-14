@@ -127,6 +127,7 @@ export const preview: MessageFragment = {
     'preview.fill.layerBack': 'Send to back',
     'preview.fill.layerPosition': 'Layer {n} of {total}',
     'preview.fill.layerMultiple': '{n} elements selected',
+    'preview.fill.layerBadge': 'Layer {n}',
 
     // Shape picker labels
     'preview.shape.rect': 'Rectangle',
@@ -279,6 +280,7 @@ export const preview: MessageFragment = {
     'preview.fill.layerBack': 'In den Hintergrund',
     'preview.fill.layerPosition': 'Ebene {n} von {total}',
     'preview.fill.layerMultiple': '{n} Elemente ausgewählt',
+    'preview.fill.layerBadge': 'Ebene {n}',
 
     // Shape picker labels
     'preview.shape.rect': 'Rechteck',
