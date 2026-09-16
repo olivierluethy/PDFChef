@@ -8,6 +8,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Plus,
+  Save,
 } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import { buildNodeSnapshot } from '../../domain/trash';
@@ -311,6 +312,18 @@ function Workspace() {
             {activeOutput.items.length === 1 ? t('app.pageSingular') : t('app.pagePlural')}
           </span>
         )}
+        {activeOutputId && activeOutput && isOutput(activeOutput) && exportUi.canSaveFile && (
+          <Button
+            variant="primary"
+            size="sm"
+            icon={Save}
+            className="ml-auto"
+            disabled={activeOutput.items.length === 0}
+            onClick={() => exportUi.saveFile(activeOutputId)}
+          >
+            {t('app.saveAsPdf')}
+          </Button>
+        )}
       </header>
       <div className="min-h-0 flex-1 px-5 pb-2">
         {activeOutputId ? (
@@ -443,6 +456,7 @@ function Workspace() {
                     onOpenPreview={(id) => openInPreview({ kind: 'output', id })}
                     onCellPointerDown={drag.onCellPointerDown}
                     onExportNode={(nodeId) => exportUi.open({ kind: 'node', nodeId })}
+                    onSaveNode={exportUi.canSaveFile ? (nodeId) => exportUi.saveFile(nodeId) : undefined}
                     onPrintNode={(nodeId) => printUi.open({ kind: 'node', nodeId })}
                     onShareNode={(nodeId) => shareUi.open({ kind: 'node', nodeId })}
                     onDeleteNode={(nodeId) => {

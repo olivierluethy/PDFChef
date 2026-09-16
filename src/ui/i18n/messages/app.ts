@@ -23,6 +23,7 @@ export const app: MessageFragment = {
     'app.noDocumentDesc':
       'Drag pages from the grid above here, or create an empty document.',
     'app.createDocument': 'Create document',
+    'app.saveAsPdf': 'Save as PDF',
     'app.importTitle': 'Import documents',
     'app.importDesc':
       'Choose PDFs or a whole folder. Then rearrange individual pages with your mouse into new documents and folders — with no intermediate exports.',
@@ -81,6 +82,7 @@ export const app: MessageFragment = {
     'app.noDocumentDesc':
       'Zieh Seiten aus dem oberen Raster hierher, oder erstelle ein leeres Dokument.',
     'app.createDocument': 'Dokument erstellen',
+    'app.saveAsPdf': 'Als PDF speichern',
     'app.importTitle': 'Dokumente importieren',
     'app.importDesc':
       'Wähle PDFs oder einen ganzen Ordner. Danach ordnest du einzelne Seiten per Maus zu neuen Dokumenten und Ordnern um — ganz ohne Zwischenexport.',

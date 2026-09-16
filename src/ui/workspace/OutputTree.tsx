@@ -8,6 +8,7 @@ import {
   MoreVertical,
   Pencil,
   Printer,
+  Save,
   Share2,
   Trash2,
 } from 'lucide-react';
@@ -24,6 +25,8 @@ export interface OutputTreeProps {
   onSelectOutput(id: NodeId): void;
   onDeleteNode?(nodeId: NodeId): void;
   onExportNode?(nodeId: NodeId): void;
+  /** Speichert ein Dokument direkt als einzelne PDF-Datei (Original ersetzen). */
+  onSaveNode?(nodeId: NodeId): void;
   onPrintNode?(nodeId: NodeId): void;
   onShareNode?(nodeId: NodeId): void;
   /** Oeffnet ein Dokument in der Detailvorschau (Auge-Icon oder Doppelklick). */
@@ -60,6 +63,7 @@ export function OutputTree({
   onSelectOutput,
   onDeleteNode,
   onExportNode,
+  onSaveNode,
   onPrintNode,
   onShareNode,
   onOpenPreview,
@@ -121,6 +125,16 @@ export function OutputTree({
                   label: t('workspace.tree.print'),
                   icon: Printer,
                   onSelect: () => onPrintNode?.(node.id),
+                },
+              ]
+            : []),
+          ...(isOut && onSaveNode
+            ? [
+                {
+                  id: 'save',
+                  label: t('workspace.tree.saveAsPdf'),
+                  icon: Save,
+                  onSelect: () => onSaveNode(node.id),
                 },
               ]
             : []),

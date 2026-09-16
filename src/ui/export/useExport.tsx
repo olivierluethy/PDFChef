@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
 import { buildExportPlan, omitExportedEntries, type ExportScope } from '../../domain/exportPlan';
 import { analyzeExport } from '../../domain/exportWarnings';
 import type { NodeId } from '../../domain/types';
-import type { DirectoryHandleLike } from '../../services/export/fsAccessWriter';
+import type { DirectoryHandleLike, FileHandleLike } from '../../services/export/fsAccessWriter';
 import { createFsAccessWriter } from '../../services/export/fsAccessWriter';
 import { createZipWriter } from '../../services/export/zipWriter';
 import { runExport, type ExportProgress } from '../../services/export/exportRunner';
@@ -21,10 +21,21 @@ function download(blob: Blob, fileName: string): void {
 }
 
 const canWriteDirectory = typeof (globalThis as { showDirectoryPicker?: unknown }).showDirectoryPicker === 'function';
+const canSaveFile = typeof (globalThis as { showSaveFilePicker?: unknown }).showSaveFilePicker === 'function';
+
+/** Optionen von `showSaveFilePicker` -- nur das, was wir tatsaechlich setzen. */
+interface SaveFilePickerOptions {
+  suggestedName?: string;
+  types?: { description: string; accept: Record<string, string[]> }[];
+}
 
 export interface ExportController {
   /** Ohne Argument: den ganzen Arbeitsbereich. Mit nodeId: nur diesen Ordner/dieses Dokument. */
   open(scope?: ExportScope): void;
+  /** Speichert ein Dokument als einzelne PDF-Datei (Original ersetzen); no-op ohne Browser-Support. */
+  saveFile(outputId: NodeId): void;
+  /** true, wenn der Browser das direkte Speichern in eine Datei unterstuetzt. */
+  canSaveFile: boolean;
   dialog: ReactNode;
 }
 
@@ -130,8 +141,58 @@ export function useExport(): ExportController {
     [workspace, runDeps],
   );
 
+  // Ein Dokument direkt als einzelne PDF-Datei speichern -- der einfache Weg, ein
+  // bearbeitetes PDF sofort versandfertig abzulegen bzw. das Original zu ersetzen.
+  // Der vorgeschlagene Name entspricht dem Dokumentnamen; im Speichern-Dialog kann
+  // der Nutzer die Originaldatei auswaehlen und ueberschreiben.
+  const saveFile = useCallback(
+    async (outputId: NodeId) => {
+      const single = buildExportPlan(workspace, { kind: 'node', nodeId: outputId });
+      const entry = single.entries[0];
+      if (!entry) return;
+      let handle: FileHandleLike;
+      try {
+        handle = await (
+          globalThis as unknown as {
+            showSaveFilePicker(opts: SaveFilePickerOptions): Promise<FileHandleLike>;
+          }
+        ).showSaveFilePicker({
+          suggestedName: entry.fileName,
+          types: [{ description: 'PDF', accept: { 'application/pdf': ['.pdf'] } }],
+        });
+      } catch {
+        return; // Auswahl abgebrochen -- kein Fehler.
+      }
+      const controller = new AbortController();
+      abort.current = controller;
+      setProgress({ done: 0, total: 1, currentName: entry.fileName });
+      try {
+        const bytes = await runDeps.assembler.assemble(entry.items, {
+          readBytes: runDeps.readBytes,
+          sourceKind: runDeps.sourceKind,
+          imageData: runDeps.imageData,
+          textData: runDeps.textData,
+          fontBytes: runDeps.fontBytes,
+          signal: controller.signal,
+        });
+        const writable = await handle.createWritable();
+        await writable.write(bytes);
+        await writable.close();
+      } catch (error) {
+        console.error('Save-to-file failed or was cancelled', error);
+      } finally {
+        setProgress(null);
+      }
+    },
+    [workspace, runDeps],
+  );
+
   return {
     open: (next: ExportScope = { kind: 'workspace' }) => setScope(next),
+    saveFile: (outputId: NodeId) => {
+      if (canSaveFile) void saveFile(outputId);
+    },
+    canSaveFile,
     dialog: plan ? (
       <ExportDialog
         plan={plan}
