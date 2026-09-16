@@ -63,9 +63,21 @@ export function LibraryPopover({ onInsert, onClose }: LibraryPopoverProps) {
                     className="flex min-w-0 flex-1 items-center gap-2 text-left"
                     title={t('preview.library.insert')}
                   >
-                    <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded bg-surface-canvas ring-1 ring-line-hairline">
+                    <span
+                      className={cx(
+                        'grid size-9 shrink-0 place-items-center overflow-hidden rounded ring-1 ring-line-hairline',
+                        // Unterschriften nutzen dunkle Tinte auf transparentem PNG: fester
+                        // heller Untergrund (theme-unabhaengig), sonst verschwinden sie im
+                        // Dark-Mode. Icons bleiben auf der neutralen Canvas-Flaeche.
+                        signature?.dataUrl ? 'bg-white p-0.5' : 'bg-surface-canvas',
+                      )}
+                    >
                       {signature?.dataUrl ? (
-                        <img src={signature.dataUrl} alt="" className="max-h-full max-w-full" />
+                        <img
+                          src={signature.dataUrl}
+                          alt=""
+                          className="max-h-full max-w-full object-contain"
+                        />
                       ) : (
                         <Icon className="size-4 text-text-secondary" aria-hidden />
                       )}
