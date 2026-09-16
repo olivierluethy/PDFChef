@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { GripVertical, RotateCw } from 'lucide-react';
+import { Copy, GripVertical, Keyboard, RotateCw, Save, Trash2 } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import { overlayCssFamily, overlayFontSpec } from '../../domain/overlayFonts';
 import {
@@ -11,7 +11,8 @@ import {
 } from '../../domain/overlayShapes';
 import { instantiateOverlays } from '../../domain/overlayLibrary';
 import type { Overlay, ShapeKind } from '../../domain/types';
-import type { LibraryItemRecord } from '../../services/persistence/db';
+import type { LibraryItemKind, LibraryItemRecord } from '../../services/persistence/db';
+import { useLibraryStore } from '../app/StoreProvider';
 import { cx } from '../common/cx';
 import { useI18n, useT } from '../i18n';
 import type { Locale } from '../i18n';
@@ -19,6 +20,7 @@ import { ensureOverlayFontFaces } from '../text/overlayFontFaces';
 import { OverlayShape } from './OverlayShape';
 import { SignatureDialog } from './SignatureDialog';
 import { LibraryPopover } from './fill/LibraryPopover';
+import { NameDialog } from './fill/NameDialog';
 import { ToolPalette, shapeDrawMode, type Tool } from './fill/tools';
 import { DEFAULT_FONT_SIZE, normalizeAngle } from './fill/units';
 
@@ -31,6 +33,15 @@ const DATE_LOCALE: Record<Locale, string> = { de: 'de-CH', en: 'en-US' };
 /** Heutiges Datum lang und lesbar in der aktiven Sprache (z.B. "16. September 2026"). */
 function formatToday(locale: Locale): string {
   return new Intl.DateTimeFormat(DATE_LOCALE[locale], { dateStyle: 'long' }).format(new Date());
+}
+
+/** Bestimmt die Bibliothekskategorie einer Auswahl (wie im Eigenschaften-Panel). */
+function libraryKindOf(overlays: Overlay[]): LibraryItemKind {
+  if (overlays.length > 1) return 'group';
+  const first = overlays[0];
+  if (first?.kind === 'image') return 'signature';
+  if (first?.kind === 'shape') return 'shape';
+  return 'text';
 }
 
 export interface FillLayerProps {
@@ -178,6 +189,8 @@ export function FillLayer({
 }: FillLayerProps) {
   const t = useT();
   const { locale } = useI18n();
+  const libraryStore = useLibraryStore();
+  const [saveOpen, setSaveOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [tool, setTool] = useState<Tool>('text');
   // Adapter auf die zentral (im Viewer) gehaltene Auswahl: erlaubt sowohl das
@@ -760,6 +773,31 @@ export function FillLayer({
     return buildDragShape(draw.kind, draw.mode, draw.sx, draw.sy, draw.cx, draw.cy, '__preview');
   })();
 
+  // --- Schwebende Aktionsleiste an der Auswahl --------------------------------
+  // Umschliessende Box aller gewaehlten Overlays; verankert die Toolbar direkt am
+  // Element, damit Duplizieren/Bibliothek/Loeschen ohne Umweg ueber das Seiten-
+  // Panel erreichbar sind. Beim Zeichnen, Drehen oder Tippen ausgeblendet.
+  const selectionBounds = (() => {
+    if (!active || selectedOverlays.length === 0) return null;
+    if (draw || spin || editingTextId) return null;
+    let minX = 1;
+    let minY = 1;
+    let maxX = 0;
+    let maxY = 0;
+    for (const o of selectedOverlays) {
+      const b = boxOf(o);
+      minX = Math.min(minX, b.x);
+      minY = Math.min(minY, b.y);
+      maxX = Math.max(maxX, b.x + b.w);
+      maxY = Math.max(maxY, b.y + b.h);
+    }
+    return { cx: (minX + maxX) / 2, top: minY };
+  })();
+  const formable = selectedOverlays.filter((o) => o.kind === 'text');
+  const interactiveActive = formable.length > 0 && formable.every((o) => o.interactive);
+  const toggleInteractive = () =>
+    onUpdateMany(formable.map((o) => ({ id: o.id, patch: { interactive: !interactiveActive } })));
+
   return (
     <div
       ref={rootRef}
@@ -1063,6 +1101,49 @@ export function FillLayer({
         );
       })}
 
+      {/* Schwebende Aktionsleiste ueber der Auswahl: die haeufigsten Aktionen
+          direkt am Element, ohne im Seiten-Panel danach zu suchen. */}
+      {selectionBounds && (
+        <div
+          className="pointer-events-none absolute z-40 flex -translate-x-1/2 -translate-y-full justify-center pb-1.5"
+          style={{ left: `${selectionBounds.cx * 100}%`, top: `${selectionBounds.top * 100}%` }}
+        >
+          <div
+            className="pointer-events-auto flex items-center gap-0.5 rounded-lg bg-surface-raised p-0.5 shadow-[var(--float-shadow)] ring-1 ring-line-structural"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {formable.length > 0 && (
+              <ToolbarButton
+                label={
+                  interactiveActive
+                    ? t('preview.fill.interactiveOn')
+                    : t('preview.fill.interactiveOff')
+                }
+                pressed={interactiveActive}
+                onClick={toggleInteractive}
+                icon={<Keyboard className="size-3.5" aria-hidden />}
+              />
+            )}
+            <ToolbarButton
+              label={t('preview.fill.duplicate')}
+              onClick={duplicateSelection}
+              icon={<Copy className="size-3.5" aria-hidden />}
+            />
+            <ToolbarButton
+              label={t('preview.fill.saveToLibrary')}
+              onClick={() => setSaveOpen(true)}
+              icon={<Save className="size-3.5" aria-hidden />}
+            />
+            <ToolbarButton
+              label={t('preview.fill.delete')}
+              onClick={deleteSelection}
+              danger
+              icon={<Trash2 className="size-3.5" aria-hidden />}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Ebenen-Nummern (1 = hinten). Als eigene, immer oben liegende Schicht --
           so bleiben sie sichtbar, egal welches Element vorne ist. Standardmaessig
           erscheint nur die Nummer des gewaehlten Elements; alle Nummern werden
@@ -1162,6 +1243,54 @@ export function FillLayer({
       )}
 
       {signing && <SignatureDialog onCancel={() => setSigning(false)} onConfirm={addSignature} />}
+
+      {saveOpen && (
+        <NameDialog
+          title={t('preview.fill.saveToLibrary')}
+          label={t('preview.fill.blockNameLabel')}
+          defaultValue=""
+          onCancel={() => setSaveOpen(false)}
+          onConfirm={(name) => {
+            void libraryStore.getState().add(libraryKindOf(selectedOverlays), name, selectedOverlays);
+            setSaveOpen(false);
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/** Kompakte Schaltflaeche der schwebenden Auswahl-Toolbar. */
+function ToolbarButton({
+  label,
+  onClick,
+  icon,
+  pressed,
+  danger,
+}: {
+  label: string;
+  onClick(): void;
+  icon: React.ReactNode;
+  pressed?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-pressed={pressed}
+      onClick={onClick}
+      className={cx(
+        'grid size-7 place-items-center rounded-md transition-colors',
+        danger
+          ? 'text-text-secondary hover:bg-danger/15 hover:text-danger'
+          : pressed
+            ? 'bg-accent text-on-accent'
+            : 'text-text-secondary hover:bg-surface-hover hover:text-text-primary',
+      )}
+    >
+      {icon}
+    </button>
   );
 }
