@@ -11,7 +11,13 @@ import {
 } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import { buildNodeSnapshot } from '../../domain/trash';
-import { isOutput, type NodeId, type SourceId } from '../../domain/types';
+import {
+  isOutput,
+  type CompositionItem,
+  type NodeId,
+  type SourceDocument,
+  type SourceId,
+} from '../../domain/types';
 import { SplitPane } from '../common/SplitPane';
 import { IconButton } from '../common/IconButton';
 import { Menu } from '../common/Menu';
@@ -109,6 +115,9 @@ function Workspace() {
   const [activeSourceId, setActiveSourceId] = useState<SourceId | null>(null);
   const [activeOutputId, setActiveOutputId] = useState<NodeId | null>(null);
   const [previewTarget, setPreviewTarget] = useState<PreviewTarget | null>(null);
+  // Zaehler, der den Betrachter beim direkten Ausfuellen sofort in den
+  // Ausfuell-Modus schaltet (siehe fillSource / PreviewPane.fillRequest).
+  const [fillNonce, setFillNonce] = useState(0);
   const [splitting, setSplitting] = useState<SourceId | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
@@ -236,10 +245,36 @@ function Workspace() {
     setActiveOutputId(id);
   };
 
+  // Direktes Bearbeiten: legt aus einer Quelle in einem Schritt ein Dokument mit
+  // allen Seiten an, oeffnet es in der Vorschau und springt sofort in den
+  // Ausfuell-Modus -- ohne erst ein leeres Dokument bauen und Seiten hineinziehen
+  // zu muessen. Der ganze Vorgang ist ein einziger Undo-Schritt (batch).
+  const fillSource = (source: SourceDocument) => {
+    const outputId = newId();
+    const items: CompositionItem[] = Array.from({ length: source.blockCount }, (_, blockIndex) => ({
+      id: newId(),
+      sourceId: source.id,
+      blockIndex,
+      rotation: 0,
+    }));
+    dispatch({
+      type: 'batch',
+      label: t('sources.fillDocLabel', { name: source.name }),
+      commands: [
+        { type: 'createOutput', node: { id: outputId, name: source.name, parentId: null } },
+        { type: 'addItems', outputId, index: 0, items },
+      ],
+    });
+    focusOutput(outputId);
+    setPreviewOpen(true);
+    setFillNonce((n) => n + 1);
+  };
+
   const sourcePane = activeSource ? (
     <SourcePanel
       source={activeSource}
       onCellPointerDown={drag.onCellPointerDown}
+      onFill={fillSource}
       onLatex={(id) => void latex.runForSource(id)}
       latexBusy={latex.busy}
       onOcr={(src) => void ocr.runForSource(src.id, src.blockCount)}
@@ -468,6 +503,7 @@ function Workspace() {
                 <div className="min-h-0 flex-1">
                   <PreviewPane
                     target={previewTarget}
+                    fillRequest={fillNonce}
                     onJumpToSource={(ref) => focusSource(ref.sourceId)}
                     onPagePointerDown={drag.onCellPointerDown}
                   />

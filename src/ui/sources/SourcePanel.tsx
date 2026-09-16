@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FileCode, MoreHorizontal, ScanText } from 'lucide-react';
+import { FileCode, MoreHorizontal, PenLine, ScanText } from 'lucide-react';
 import type { SourceDocument, SourceId } from '../../domain/types';
 import type { DragOrigin } from '../workspace/dragLogic';
 import { Button } from '../common/Button';
@@ -15,12 +15,14 @@ import { useT } from '../i18n';
 export interface SourcePanelProps {
   source: SourceDocument;
   onCellPointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
+  /** Legt aus dieser Quelle ein Dokument mit allen Seiten an und oeffnet den Ausfuell-Modus. */
+  onFill(source: SourceDocument): void;
   onLatex(sourceId: SourceId): void;
   latexBusy: boolean;
   onOcr(source: SourceDocument): void;
 }
 
-export function SourcePanel({ source, onCellPointerDown, onLatex, latexBusy, onOcr }: SourcePanelProps) {
+export function SourcePanel({ source, onCellPointerDown, onFill, onLatex, latexBusy, onOcr }: SourcePanelProps) {
   const t = useT();
   const workspace = useWorkspace();
   const selection = useSelection();
@@ -49,6 +51,9 @@ export function SourcePanel({ source, onCellPointerDown, onLatex, latexBusy, onO
           {source.blockCount} {source.blockCount === 1 ? t('sources.page') : t('sources.pages')}
         </span>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          <Button variant="primary" size="sm" icon={PenLine} onClick={() => onFill(source)}>
+            {t('sources.panel.fill')}
+          </Button>
           <Button variant="secondary" size="sm" icon={FileCode} disabled={latexBusy} onClick={() => onLatex(source.id)}>
             {latexBusy ? 'LaTeX …' : 'LaTeX'}
           </Button>

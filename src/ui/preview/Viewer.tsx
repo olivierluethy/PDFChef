@@ -48,6 +48,8 @@ export interface ViewerPage {
 
 export interface ViewerProps {
   pages: ViewerPage[];
+  /** Zaehler; jede Erhoehung schaltet den Betrachter sofort in den Ausfuell-Modus. */
+  fillRequest?: number;
   onJumpToSource?(ref: BlockRef): void;
   /** Startet einen Seiten-Drag aus dem Betrachter an das gewuenschte Ziel. */
   onPagePointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
@@ -72,6 +74,7 @@ const clampZoom = (z: number) => Math.min(4, Math.max(0.25, z));
 
 export function Viewer({
   pages,
+  fillRequest,
   onJumpToSource,
   onPagePointerDown,
   onAddOverlay,
@@ -131,6 +134,13 @@ export function Viewer({
       setLayerHover(false);
     }
   }, [filling]);
+
+  // Direktes Ausfuellen: eine erhoehte Anforderung schaltet sofort in den
+  // Ausfuell-Modus (nur wenn ueberhaupt etwas ausfuellbar ist). Der Startwert 0
+  // beim ersten Rendern loest bewusst nichts aus.
+  useEffect(() => {
+    if (fillRequest && fillRequest > 0) setFillMode(true);
+  }, [fillRequest]);
 
   // Faellt die Auswahl weg, verschwindet der Ebene-Bereich womoeglich ohne
   // Pointer-Leave -- den Hover-Zustand darum sicher zuruecksetzen.

@@ -47,9 +47,11 @@ export interface PreviewPaneProps {
   onJumpToSource(ref: BlockRef): void;
   /** Startet einen Seiten-Drag direkt aus dem Betrachter (dieselbe Pipeline wie im Raster). */
   onPagePointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
+  /** Zaehler; erhoeht ihn, um den Betrachter sofort in den Ausfuell-Modus zu schalten. */
+  fillRequest?: number;
 }
 
-export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: PreviewPaneProps) {
+export function PreviewPane({ target, onJumpToSource, onPagePointerDown, fillRequest }: PreviewPaneProps) {
   const t = useT();
   const workspace = useWorkspace();
   const dispatch = useDispatch();
@@ -110,6 +112,7 @@ export function PreviewPane({ target, onJumpToSource, onPagePointerDown }: Previ
   return (
     <Viewer
       pages={pages}
+      fillRequest={fillRequest}
       onJumpToSource={onJumpToSource}
       onPagePointerDown={onPagePointerDown}
       onAddOverlay={(itemId, overlay) => dispatch({ type: 'addOverlay', itemId, overlay })}
