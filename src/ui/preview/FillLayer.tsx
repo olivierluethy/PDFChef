@@ -13,7 +13,8 @@ import { instantiateOverlays } from '../../domain/overlayLibrary';
 import type { Overlay, ShapeKind } from '../../domain/types';
 import type { LibraryItemRecord } from '../../services/persistence/db';
 import { cx } from '../common/cx';
-import { useT } from '../i18n';
+import { useI18n, useT } from '../i18n';
+import type { Locale } from '../i18n';
 import { ensureOverlayFontFaces } from '../text/overlayFontFaces';
 import { OverlayShape } from './OverlayShape';
 import { SignatureDialog } from './SignatureDialog';
@@ -23,6 +24,14 @@ import { DEFAULT_FONT_SIZE, normalizeAngle } from './fill/units';
 
 /** Ecke eines Auswahlrahmens fuer die Groessenaenderung. */
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
+
+/** BCP-47-Tag je App-Sprache -- Deutsch als Schweizer Variante. */
+const DATE_LOCALE: Record<Locale, string> = { de: 'de-CH', en: 'en-US' };
+
+/** Heutiges Datum lang und lesbar in der aktiven Sprache (z.B. "16. September 2026"). */
+function formatToday(locale: Locale): string {
+  return new Intl.DateTimeFormat(DATE_LOCALE[locale], { dateStyle: 'long' }).format(new Date());
+}
 
 export interface FillLayerProps {
   overlays: Overlay[];
@@ -168,6 +177,7 @@ export function FillLayer({
   onDetect,
 }: FillLayerProps) {
   const t = useT();
+  const { locale } = useI18n();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [tool, setTool] = useState<Tool>('text');
   // Adapter auf die zentral (im Viewer) gehaltene Auswahl: erlaubt sowohl das
@@ -359,6 +369,26 @@ export function FillLayer({
     const overlay: Overlay = { id: newId(), kind: 'image', x: (1 - w) / 2, y: 0.45, w, h, dataUrl };
     onAdd(overlay);
     setSelectedIds([overlay.id]);
+  };
+
+  // Fuegt das heutige Datum als fertiges Text-Overlay ein -- ein Klick statt
+  // manuellem Tippen/Formatieren. Landet oben links, ausgewaehlt zum Verschieben.
+  const addDate = () => {
+    pruneEmptyDrafts();
+    const overlay: Overlay = {
+      id: newId(),
+      kind: 'text',
+      x: 0.08,
+      y: 0.08,
+      w: 0.32,
+      h: 0,
+      text: formatToday(locale),
+      fontSize: DEFAULT_FONT_SIZE,
+      font: lastFont,
+    };
+    onAdd(overlay);
+    setSelectedIds([overlay.id]);
+    setTool('select');
   };
 
   const stampMark = (kind: ShapeKind, p: { x: number; y: number }) => {
@@ -755,6 +785,7 @@ export function FillLayer({
             if (t !== 'polygon') setPolygon(null);
           }}
           onSignature={() => setSigning(true)}
+          onDate={addDate}
           onLibrary={() => setLibraryOpen((o) => !o)}
           onDetect={onDetect}
           libraryOpen={libraryOpen}

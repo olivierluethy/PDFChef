@@ -1,6 +1,7 @@
 import {
   ArrowUpRight,
   BookMarked,
+  CalendarDays,
   Check,
   ChevronDown,
   Circle,
@@ -64,6 +65,7 @@ export interface ToolPaletteProps {
   tool: Tool;
   onTool(tool: Tool): void;
   onSignature(): void;
+  onDate(): void;
   onLibrary(): void;
   onDetect?(): void;
   libraryOpen: boolean;
@@ -74,6 +76,7 @@ export function ToolPalette({
   tool,
   onTool,
   onSignature,
+  onDate,
   onLibrary,
   onDetect,
   libraryOpen,
@@ -105,6 +108,14 @@ export function ToolPalette({
         className="inline-flex items-center gap-1 rounded bg-surface-panel px-1.5 py-0.5 text-text-primary ring-1 ring-line-structural hover:bg-surface-hover"
       >
         <PenLine className="size-3.5" aria-hidden /> {t('preview.fill.signature')}
+      </button>
+      <button
+        type="button"
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={onDate}
+        className="inline-flex items-center gap-1 rounded bg-surface-panel px-1.5 py-0.5 text-text-primary ring-1 ring-line-structural hover:bg-surface-hover"
+      >
+        <CalendarDays className="size-3.5" aria-hidden /> {t('preview.fill.date')}
       </button>
       <button
         type="button"
