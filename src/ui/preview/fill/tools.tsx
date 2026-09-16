@@ -5,6 +5,7 @@ import {
   Check,
   ChevronDown,
   Circle,
+  ClipboardPaste,
   Highlighter,
   Minus,
   MousePointer2,
@@ -66,6 +67,9 @@ export interface ToolPaletteProps {
   onTool(tool: Tool): void;
   onSignature(): void;
   onDate(): void;
+  onPaste(): void;
+  /** true, wenn die Zwischenablage kopierte Elemente enthaelt. */
+  canPaste: boolean;
   onLibrary(): void;
   onDetect?(): void;
   libraryOpen: boolean;
@@ -77,6 +81,8 @@ export function ToolPalette({
   onTool,
   onSignature,
   onDate,
+  onPaste,
+  canPaste,
   onLibrary,
   onDetect,
   libraryOpen,
@@ -117,6 +123,16 @@ export function ToolPalette({
       >
         <CalendarDays className="size-3.5" aria-hidden /> {t('preview.fill.date')}
       </button>
+      {canPaste && (
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={onPaste}
+          className="inline-flex items-center gap-1 rounded bg-surface-panel px-1.5 py-0.5 text-text-primary ring-1 ring-line-structural hover:bg-surface-hover"
+        >
+          <ClipboardPaste className="size-3.5" aria-hidden /> {t('preview.fill.paste')}
+        </button>
+      )}
       <button
         type="button"
         onPointerDown={(e) => e.stopPropagation()}

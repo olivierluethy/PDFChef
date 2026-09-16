@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Copy, GripVertical, Keyboard, RotateCw, Save, Trash2 } from 'lucide-react';
+import { useStore } from 'zustand';
+import { ClipboardCopy, Copy, GripVertical, Keyboard, RotateCw, Save, Trash2 } from 'lucide-react';
 import { newId } from '../../domain/ids';
 import { overlayCssFamily, overlayFontSpec } from '../../domain/overlayFonts';
 import {
@@ -12,6 +13,7 @@ import {
 import { instantiateOverlays } from '../../domain/overlayLibrary';
 import type { Overlay, ShapeKind } from '../../domain/types';
 import type { LibraryItemKind, LibraryItemRecord } from '../../services/persistence/db';
+import { overlayClipboardStore } from '../../services/store/overlayClipboardStore';
 import { useLibraryStore } from '../app/StoreProvider';
 import { cx } from '../common/cx';
 import { useI18n, useT } from '../i18n';
@@ -84,9 +86,6 @@ interface Box {
   w: number;
   h: number;
 }
-
-/** Sitzungsweite Zwischenablage fuer kopierte Overlays (fuer Einfuegen). */
-let overlayClipboard: Overlay[] = [];
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
@@ -190,6 +189,7 @@ export function FillLayer({
   const t = useT();
   const { locale } = useI18n();
   const libraryStore = useLibraryStore();
+  const clipboardCount = useStore(overlayClipboardStore, (s) => s.overlays.length);
   const [saveOpen, setSaveOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [tool, setTool] = useState<Tool>('text');
@@ -305,6 +305,21 @@ export function FillLayer({
     onRemoveMany(selectedIds);
     setSelectedIds([]);
   };
+  // Kopieren/Einfuegen laeuft ueber die sitzungsweite Zwischenablage, damit
+  // Elemente auch in ein ANDERES Dokument eingefuegt werden koennen (die
+  // Overlay-Koordinaten sind Bruchteile der Seite und daher uebertragbar).
+  const copySelection = () => {
+    if (selectedOverlays.length === 0) return;
+    overlayClipboardStore.getState().copy(selectedOverlays);
+  };
+  const pasteClipboard = () => {
+    const items = overlayClipboardStore.getState().overlays;
+    if (items.length === 0) return;
+    const clones = cloneOverlays(items, 0.03, 0.03);
+    onAddMany(clones);
+    setSelectedIds(clones.map((c) => c.id));
+    setTool('select');
+  };
   const insertLibraryItem = (item: LibraryItemRecord) => {
     const created = instantiateOverlays(item.overlays, { x: 0.28, y: 0.3 });
     if (created.length === 0) return;
@@ -340,12 +355,10 @@ export function FillLayer({
         e.preventDefault();
         duplicateSelection();
       } else if (mod && e.key.toLowerCase() === 'c' && !editable && selectedIds.length > 0) {
-        overlayClipboard = selectedOverlays;
-      } else if (mod && e.key.toLowerCase() === 'v' && !editable && overlayClipboard.length > 0) {
+        copySelection();
+      } else if (mod && e.key.toLowerCase() === 'v' && !editable) {
         e.preventDefault();
-        const clones = cloneOverlays(overlayClipboard, 0.03, 0.03);
-        onAddMany(clones);
-        setSelectedIds(clones.map((c) => c.id));
+        pasteClipboard();
       }
     };
     document.addEventListener('keydown', onKey);
@@ -824,6 +837,8 @@ export function FillLayer({
           }}
           onSignature={() => setSigning(true)}
           onDate={addDate}
+          onPaste={pasteClipboard}
+          canPaste={clipboardCount > 0}
           onLibrary={() => setLibraryOpen((o) => !o)}
           onDetect={onDetect}
           libraryOpen={libraryOpen}
@@ -1124,6 +1139,11 @@ export function FillLayer({
                 icon={<Keyboard className="size-3.5" aria-hidden />}
               />
             )}
+            <ToolbarButton
+              label={t('preview.fill.copy')}
+              onClick={copySelection}
+              icon={<ClipboardCopy className="size-3.5" aria-hidden />}
+            />
             <ToolbarButton
               label={t('preview.fill.duplicate')}
               onClick={duplicateSelection}
