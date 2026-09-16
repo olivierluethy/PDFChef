@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { FileCode, MoreHorizontal, PenLine, ScanText } from 'lucide-react';
+import { FileCode, ListOrdered, MoreHorizontal, PenLine, ScanText } from 'lucide-react';
 import type { SourceDocument, SourceId } from '../../domain/types';
 import type { DragOrigin } from '../workspace/dragLogic';
 import { Button } from '../common/Button';
@@ -17,12 +17,22 @@ export interface SourcePanelProps {
   onCellPointerDown?(event: React.PointerEvent, origin: DragOrigin): void;
   /** Legt aus dieser Quelle ein Dokument mit allen Seiten an und oeffnet den Ausfuell-Modus. */
   onFill(source: SourceDocument): void;
+  /** Legt aus dieser Quelle ein Dokument mit allen Seiten an, zum Sortieren im Seitenraster. */
+  onEditPages(source: SourceDocument): void;
   onLatex(sourceId: SourceId): void;
   latexBusy: boolean;
   onOcr(source: SourceDocument): void;
 }
 
-export function SourcePanel({ source, onCellPointerDown, onFill, onLatex, latexBusy, onOcr }: SourcePanelProps) {
+export function SourcePanel({
+  source,
+  onCellPointerDown,
+  onFill,
+  onEditPages,
+  onLatex,
+  latexBusy,
+  onOcr,
+}: SourcePanelProps) {
   const t = useT();
   const workspace = useWorkspace();
   const selection = useSelection();
@@ -60,7 +70,15 @@ export function SourcePanel({ source, onCellPointerDown, onFill, onLatex, latexB
           <Menu
             align="end"
             minWidth={196}
-            items={[{ id: 'ocr', label: t('sources.panel.ocr'), icon: ScanText, onSelect: () => onOcr(source) }]}
+            items={[
+              {
+                id: 'editPages',
+                label: t('sources.panel.editPages'),
+                icon: ListOrdered,
+                onSelect: () => onEditPages(source),
+              },
+              { id: 'ocr', label: t('sources.panel.ocr'), icon: ScanText, onSelect: () => onOcr(source) },
+            ]}
             renderTrigger={({ ref, toggle, ariaProps }) => (
               <button
                 ref={ref}

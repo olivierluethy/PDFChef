@@ -245,11 +245,11 @@ function Workspace() {
     setActiveOutputId(id);
   };
 
-  // Direktes Bearbeiten: legt aus einer Quelle in einem Schritt ein Dokument mit
-  // allen Seiten an, oeffnet es in der Vorschau und springt sofort in den
-  // Ausfuell-Modus -- ohne erst ein leeres Dokument bauen und Seiten hineinziehen
-  // zu muessen. Der ganze Vorgang ist ein einziger Undo-Schritt (batch).
-  const fillSource = (source: SourceDocument) => {
+  // Gemeinsamer Kern von "Ausfuellen" und "Als Dokument oeffnen": legt aus einer
+  // Quelle in einem Schritt ein Dokument mit allen Seiten an und oeffnet es. So
+  // muss man nicht erst ein leeres Dokument bauen und alle Seiten hineinziehen.
+  // Der ganze Vorgang ist ein einziger Undo-Schritt (batch).
+  const openSourceAsDocument = (source: SourceDocument): NodeId => {
     const outputId = newId();
     const items: CompositionItem[] = Array.from({ length: source.blockCount }, (_, blockIndex) => ({
       id: newId(),
@@ -267,7 +267,20 @@ function Workspace() {
     });
     focusOutput(outputId);
     setPreviewOpen(true);
+    return outputId;
+  };
+
+  // Direktes Ausfuellen: Dokument anlegen und sofort in den Ausfuell-Modus springen.
+  const fillSource = (source: SourceDocument) => {
+    openSourceAsDocument(source);
     setFillNonce((n) => n + 1);
+  };
+
+  // Seiten bearbeiten/sortieren: dasselbe Dokument, aber im Seitenraster statt im
+  // Ausfuell-Modus -- damit man Seiten sofort verschieben und resortieren kann,
+  // ohne ein neues Dokument bauen zu muessen.
+  const editSourcePages = (source: SourceDocument) => {
+    openSourceAsDocument(source);
   };
 
   const sourcePane = activeSource ? (
@@ -275,6 +288,7 @@ function Workspace() {
       source={activeSource}
       onCellPointerDown={drag.onCellPointerDown}
       onFill={fillSource}
+      onEditPages={editSourcePages}
       onLatex={(id) => void latex.runForSource(id)}
       latexBusy={latex.busy}
       onOcr={(src) => void ocr.runForSource(src.id, src.blockCount)}
